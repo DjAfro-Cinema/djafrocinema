@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     locale: "en_KE",
     url: "https://djafrocinema.com",
     siteName: "DjAfro Cinema",
-    title: "DjAfro Cinema — East Africa's Movies, Your Way",
+    title: "DjAfro Cinema —Enjoy timeless movies, your way",
     description:
       "Stream and download DJ Afro dubbed movies, Bollywood, and African cinema. Kenya's #1 movie streaming platform.",
     images: [
