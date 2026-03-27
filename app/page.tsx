@@ -13,6 +13,7 @@ export default function LandingPage() {
       <Navbar />
       <main className="flex flex-col">
         <Hero />
+
         <FeaturedCarousel />
         <TrendingRow />
         <HowItWorks />
