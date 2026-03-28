@@ -42,6 +42,9 @@ export function useDashboardLayout(): DashboardLayoutState {
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Track whether the user has manually toggled — if so, don't auto-override
+  const userToggledRef = useRef(false);
+
   // Screen size watcher
   useEffect(() => {
     setMounted(true);
@@ -50,6 +53,29 @@ export function useDashboardLayout(): DashboardLayoutState {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  // Auto-collapse on laptop screens (1024–1439px), expand on large screens (1440px+)
+  // Only runs if the user hasn't manually toggled the sidebar
+  useEffect(() => {
+    const autoCollapse = () => {
+      if (userToggledRef.current) return;
+      const w = window.innerWidth;
+      if (w >= 1024 && w < 1440) {
+        setSidebarCollapsed(true);
+      } else if (w >= 1440) {
+        setSidebarCollapsed(false);
+      }
+    };
+    autoCollapse();
+    window.addEventListener("resize", autoCollapse, { passive: true });
+    return () => window.removeEventListener("resize", autoCollapse);
+  }, []);
+
+  // Wrap setSidebarCollapsed to mark user intent so auto-collapse stops overriding
+  const setSidebarCollapsedManual = (v: boolean) => {
+    userToggledRef.current = true;
+    setSidebarCollapsed(v);
+  };
 
   // Close drawer when resizing to desktop
   useEffect(() => {
@@ -96,10 +122,9 @@ export function useDashboardLayout(): DashboardLayoutState {
   const isDesktop = screenSize === "desktop";
   const isTV = screenSize === "tv";
 
-  // sidebar occupies: 12px left gap + W + 12px right gap
   const sidebarW = sidebarCollapsed ? 68 : 240;
   const sidebarWidth = sidebarW;
-  const contentMarginLeft = isSmall ? 0 : sidebarW + 24; // 12px left + 12px right gap
+  const contentMarginLeft = isSmall ? 0 : sidebarW + 24;
 
   return {
     screenSize,
@@ -109,7 +134,7 @@ export function useDashboardLayout(): DashboardLayoutState {
     isDesktop,
     isTV,
     sidebarCollapsed,
-    setSidebarCollapsed,
+    setSidebarCollapsed: setSidebarCollapsedManual,
     drawerOpen,
     setDrawerOpen,
     searchOpen,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, X, Bell, Film, Home, Compass, Library, User } from "lucide-react";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MovieBanner from "@/components/dashboard/movie-banner/MovieBanner";
 import { MovieRow, MovieGrid } from "@/components/dashboard/movie-card/MovieCard";
@@ -90,95 +91,6 @@ const GENRES = ["All", "Action", "Bollywood", "Sci-Fi", "Crime", "Adventure", "T
 
 const USER = { name: "Mwangi", email: "mwangi@djafro.co.ke" };
 
-// ── BOTTOM TAB NAV (mobile + tablet only) ────────────────────────────────────
-
-const BOTTOM_TABS = [
-  { label: "Home",     href: "/dashboard",          Icon: Home },
-  { label: "Movies",   href: "/dashboard/movies",   Icon: Film },
-  { label: "Discover", href: "/dashboard/discover", Icon: Compass },
-  { label: "Library",  href: "/dashboard/library",  Icon: Library },
-  { label: "Profile",  href: "/dashboard/profile",  Icon: User },
-];
-
-function MobileBottomNav() {
-  const pathname = usePathname() ?? "";
-
-  return (
-    <nav
-      style={{
-        position: "fixed",
-        bottom: 0, left: 0, right: 0,
-        zIndex: 900,
-        height: 68,
-        background: "rgba(8,8,10,0.98)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
-      {/* Red ambient top hairline */}
-      <div style={{
-        position: "absolute",
-        top: 0, left: "18%", right: "18%",
-        height: 1,
-        background: "linear-gradient(90deg, transparent, rgba(229,9,20,0.5), transparent)",
-        opacity: 0.6,
-      }} />
-
-      {BOTTOM_TABS.map(({ label, href, Icon }) => {
-        const active =
-          href === "/dashboard"
-            ? pathname === "/dashboard"
-            : pathname.startsWith(href);
-
-        return (
-          <Link
-            key={href}
-            href={href}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-              padding: "8px 4px",
-              textDecoration: "none",
-              position: "relative",
-            }}
-          >
-            {/* Active top line */}
-            {active && (
-              <span style={{
-                position: "absolute",
-                top: 0, left: "28%", right: "28%",
-                height: 2,
-                background: "#e50914",
-                boxShadow: "0 0 8px rgba(229,9,20,0.6)",
-              }} />
-            )}
-            <Icon
-              size={20}
-              strokeWidth={active ? 2.1 : 1.6}
-              color={active ? "#e50914" : "rgba(255,255,255,0.32)"}
-            />
-            <span style={{
-              fontSize: 9,
-              fontFamily: "'DM Sans', sans-serif",
-              fontWeight: active ? 600 : 400,
-              letterSpacing: "0.07em",
-              textTransform: "uppercase",
-              color: active ? "#fff" : "rgba(255,255,255,0.28)",
-            }}>
-              {label}
-            </span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
 
 // ── MOBILE TOP BAR (no hamburger — sidebar doesn't exist on mobile) ───────────
 
@@ -774,14 +686,13 @@ export default function DashboardPage() {
          * It renders its own layout spacer div next to it,
          * so the content column just uses flex:1 and everything aligns.
          */}
-        {!isSmall && (
+       {!isSmall && (
           <DashboardSidebar
             user={USER}
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
           />
         )}
-
         {/* ── SCROLLABLE CONTENT COLUMN ── */}
         <div
           id="dj-content-col"
@@ -884,8 +795,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Mobile bottom tab nav — no hamburger, no drawer, no sidebar */}
-        {isSmall && <MobileBottomNav />}
+     {/* Mobile bottom tab nav */}
+     {isSmall && <MobileBottomNav />}
       </div>
 
       {/* ── GLOBAL STYLES ── */}
