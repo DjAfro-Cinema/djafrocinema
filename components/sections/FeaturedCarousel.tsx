@@ -186,7 +186,6 @@ export default function FeaturedCarousel() {
 
       {/* ── STYLES ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
 
         .dj-section {
           background: #080808;
@@ -232,7 +231,7 @@ export default function FeaturedCarousel() {
           font-weight: 500;
         }
         .dj-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: clamp(42px, 6vw, 72px);
           color: #fff;
           letter-spacing: 0.06em;
@@ -311,7 +310,7 @@ export default function FeaturedCarousel() {
           margin-bottom: 10px;
         }
         .dj-spotlight-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 46px;
           color: #fff;
           letter-spacing: 0.04em;
@@ -508,7 +507,7 @@ export default function FeaturedCarousel() {
           font-weight: 500;
         }
         .dj-card-title-hover {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 20px;
           color: #fff;
           letter-spacing: 0.05em;

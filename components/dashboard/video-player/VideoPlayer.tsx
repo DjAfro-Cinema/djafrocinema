@@ -220,7 +220,7 @@ export default function VideoPlayer({
           <div>
             <h2 style={{
               fontSize: "clamp(1rem, 3vw, 1.5rem)",
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: "var(--font-display)",
               letterSpacing: "0.06em", color: "#fff", margin: 0,
             }}>{title}</h2>
             {subtitle && (

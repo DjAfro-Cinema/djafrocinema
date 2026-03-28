@@ -216,7 +216,7 @@ function VideoPlayer({ movie, onClose }: { movie: Movie; onClose: () => void }) 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <p style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", margin: "0 0 2px" }}>{movie.genre}</p>
-            <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.3rem", color: "#fff", letterSpacing: "0.06em", margin: 0 }}>{movie.title}</h3>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", color: "#fff", letterSpacing: "0.06em", margin: 0 }}>{movie.title}</h3>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <span style={{ fontSize: 10, letterSpacing: "0.25em", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, background: "rgba(229,9,20,0.12)", border: "1px solid rgba(229,9,20,0.25)", padding: "4px 10px", borderRadius: 4 }}>{quality}</span>
@@ -325,7 +325,7 @@ function RelatedCard({ movie }: { movie: Movie }) {
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h4 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "0.95rem", color: "#fff", letterSpacing: "0.05em", margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", letterSpacing: "0.05em", margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {movie.title}
           </h4>
           <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
@@ -365,7 +365,7 @@ export default function MovieDetailPage() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100svh", background: "#080808", flexDirection: "column", gap: 16 }}>
         <div style={{ fontSize: "3rem" }}>🎬</div>
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em" }}>Movie Not Found</h2>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em" }}>Movie Not Found</h2>
         <Link href="/dashboard/movies" style={{ color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>← Back to Movies</Link>
       </div>
     );
@@ -474,7 +474,7 @@ export default function MovieDetailPage() {
                   </div>
 
                   {/* Title */}
-                  <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2rem,5vw,3.8rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 16px" }}>
+                  <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem,5vw,3.8rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 16px" }}>
                     {movie.title}
                   </h1>
 
@@ -609,7 +609,7 @@ export default function MovieDetailPage() {
                     <div style={{ position: "sticky", top: 80 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                         <div style={{ width: 3, height: 16, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.4)" }} />
-                        <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.2rem", color: "#fff", letterSpacing: "0.08em", margin: 0 }}>Up Next</h3>
+                        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.2rem", color: "#fff", letterSpacing: "0.08em", margin: 0 }}>Up Next</h3>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {related.map(m => <RelatedCard key={m.id} movie={m as Movie} />)}
@@ -619,7 +619,7 @@ export default function MovieDetailPage() {
                       {!movie.premium && (
                         <div style={{ marginTop: 24, padding: "20px 18px", background: "linear-gradient(135deg, rgba(229,9,20,0.12), rgba(139,6,13,0.06))", border: "1px solid rgba(229,9,20,0.2)", borderRadius: 12 }}>
                           <Crown size={20} color="#f5c518" style={{ marginBottom: 8 }} />
-                          <h4 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.15rem", color: "#fff", letterSpacing: "0.07em", margin: "0 0 6px" }}>Go Premium</h4>
+                          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", color: "#fff", letterSpacing: "0.07em", margin: "0 0 6px" }}>Go Premium</h4>
                           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", margin: "0 0 14px", lineHeight: 1.5 }}>
                             Unlock all dubbed films, HD streaming, and download access.
                           </p>
@@ -638,7 +638,6 @@ export default function MovieDetailPage() {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #movie-detail-col::-webkit-scrollbar { display: none; }

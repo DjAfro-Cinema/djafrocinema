@@ -122,7 +122,7 @@ function MobileTopBar({
     >
       {/* Logo */}
       <div style={{
-        fontFamily: "'Bebas Neue', sans-serif",
+        fontFamily: "var(--font-display)",
         fontSize: "1.25rem",
         letterSpacing: "0.1em",
         display: "flex",
@@ -450,7 +450,7 @@ function SectionHead({
             boxShadow: "0 0 8px rgba(229,9,20,0.5)",
           }} />
           <h2 style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: "var(--font-display)",
             fontSize: "clamp(1.2rem, 2.5vw, 1.7rem)",
             letterSpacing: "0.07em",
             color: "#fff",
@@ -490,7 +490,7 @@ function Greeting({ name }: { name: string }) {
           fontFamily: "'DM Sans', sans-serif",
         }}>{greet},</p>
         <h1 style={{
-          fontFamily: "'Bebas Neue', sans-serif",
+          fontFamily: "var(--font-display)",
           fontSize: "clamp(2rem, 4vw, 2.8rem)",
           color: "#fff", letterSpacing: "0.04em",
           lineHeight: 1, margin: 0,
@@ -548,7 +548,7 @@ function StatsWidget({ isMobile }: { isMobile: boolean }) {
         }}>
           <span style={{ fontSize: "1.25rem", marginBottom: 3 }}>{s.emoji}</span>
           <span style={{
-            fontFamily: "'Bebas Neue', sans-serif",
+            fontFamily: "var(--font-display)",
             fontSize: "1.85rem", color: "#fff",
             letterSpacing: "0.05em", lineHeight: 1,
           }}>{s.val}</span>
@@ -801,7 +801,6 @@ export default function DashboardPage() {
 
       {/* ── GLOBAL STYLES ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
 

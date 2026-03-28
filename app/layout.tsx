@@ -1,17 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { DashboardLayout } from "@/components/dashboard";
 
-const bebas = Bebas_Neue({
+const clashDisplay = localFont({
+  src: [
+    { path: "../public/fonts/ClashDisplay/ClashDisplay-Semibold.woff2", weight: "600" },
+    { path: "../public/fonts/ClashDisplay/ClashDisplay-Bold.woff2",     weight: "700" },
+  ],
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: "400",
+  display: "swap",
 });
 
-const inter = Inter({
+const outfit = Outfit({
   variable: "--font-body",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -42,7 +48,7 @@ export const metadata: Metadata = {
     locale: "en_KE",
     url: "https://djafrocinema.com",
     siteName: "DjAfro Cinema",
-    title: "DjAfro Cinema —Enjoy timeless movies, your way",
+    title: "DjAfro Cinema — Enjoy timeless movies, your way",
     description:
       "Stream and download DJ Afro dubbed movies, Bollywood, and African cinema. Kenya's #1 movie streaming platform.",
     images: [
@@ -80,10 +86,7 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
+    googleBot: { index: true, follow: true },
   },
 };
 
@@ -96,19 +99,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
       data-theme="dark"
-      className={`${bebas.variable} ${inter.variable} h-full antialiased`}
+      className={`${clashDisplay.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
-    
         {children}
-      
       </body>
     </html>
   );

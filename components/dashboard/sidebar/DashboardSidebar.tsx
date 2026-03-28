@@ -343,7 +343,7 @@ export default function DashboardSidebar({
               pointerEvents: collapsed ? "none" : "auto",
             }}>
               <span style={{
-                fontFamily: "'Bebas Neue', sans-serif",
+                fontFamily: "var(--font-display)",
                 fontSize: 14.5,
                 letterSpacing: "0.1em",
                 lineHeight: 1,

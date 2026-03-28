@@ -284,7 +284,7 @@ export default function DashboardLayout({
                   border: "1px solid rgba(229,9,20,0.15)",
                 }}>
                   <Zap size={12} color="#e50914" />
-                  <span style={{ fontSize: isTV ? 14 : 12, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.1em", color: "#e50914" }}>{xp} XP</span>
+                  <span style={{ fontSize: isTV ? 14 : 12, fontFamily: "var(--font-display)", letterSpacing: "0.1em", color: "#e50914" }}>{xp} XP</span>
                 </div>
 
                 {/* Notifications */}

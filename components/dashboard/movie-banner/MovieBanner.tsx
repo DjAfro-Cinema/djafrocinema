@@ -162,7 +162,7 @@ export default function MovieBanner({
             key={`title-${current}`}
             style={{
               fontSize: compact ? "clamp(2rem,5vw,3.2rem)" : "clamp(2.4rem,6vw,4.8rem)",
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: "var(--font-display)",
               color: "#fff", letterSpacing: "0.02em", lineHeight: 0.92,
               marginBottom: 14,
               textShadow: "0 2px 30px rgba(0,0,0,0.5)",
@@ -334,7 +334,7 @@ export default function MovieBanner({
           position: "absolute", bottom: 16, right: 16, zIndex: 20,
           display: "flex", alignItems: "baseline", gap: 3,
         }}>
-          <span style={{ fontSize: 20, fontFamily: "'Bebas Neue', sans-serif", color: "#fff", letterSpacing: "0.08em", lineHeight: 1 }}>
+          <span style={{ fontSize: 20, fontFamily: "var(--font-display)", color: "#fff", letterSpacing: "0.08em", lineHeight: 1 }}>
             {String(current + 1).padStart(2, "0")}
           </span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", fontFamily: "'DM Sans', sans-serif" }}>/ {String(movies.length).padStart(2, "0")}</span>

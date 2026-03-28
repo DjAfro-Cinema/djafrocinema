@@ -74,7 +74,6 @@ export default function AuthPage() {
     <>
       {/* ── GLOBAL STYLES ── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -90,7 +89,7 @@ export default function AuthPage() {
           --text: #ffffff;
           --text-muted: rgba(255,255,255,0.38);
           --text-dim: rgba(255,255,255,0.60);
-          --font-display: 'Bebas Neue', sans-serif;
+          --font-display: var(--font-display);
           --font-body: 'DM Sans', sans-serif;
           --ease-out: cubic-bezier(0.22,1,0.36,1);
           --ease-in-out: cubic-bezier(0.4,0,0.2,1);

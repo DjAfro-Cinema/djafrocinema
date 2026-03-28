@@ -107,7 +107,6 @@ export default function TrendingRow() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
         /* ── FIXED BACKGROUND ──
            background-attachment:fixed keeps the image locked to the
@@ -192,7 +191,7 @@ export default function TrendingRow() {
         .tr-wm {
           position: absolute;
           left: 52px; top: 50%; transform: translateY(-50%);
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: clamp(90px, 13vw, 148px);
           letter-spacing: -0.04em;
           line-height: 1;
@@ -326,7 +325,7 @@ export default function TrendingRow() {
 
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
               <h2 style={{
-                margin: 0, fontFamily: "'Bebas Neue', sans-serif",
+                margin: 0, fontFamily: "var(--font-display)",
                 fontSize: "clamp(54px, 8vw, 88px)",
                 lineHeight: 0.88, letterSpacing: "0.05em", color: "#fff",
               }}>
@@ -380,7 +379,7 @@ export default function TrendingRow() {
                     position: "relative", zIndex: 2, padding: "22px 0",
                   }}>
                     <div style={{
-                      fontFamily: "'Bebas Neue', sans-serif",
+                      fontFamily: "var(--font-display)",
                       fontSize: "clamp(20px, 2.8vw, 30px)", letterSpacing: "0.04em",
                       color: isH ? "#e50914" : "rgba(255,255,255,0.2)",
                       transition: "color 0.3s", lineHeight: 1,
@@ -437,7 +436,7 @@ export default function TrendingRow() {
                       </div>
 
                       <div style={{
-                        fontFamily: "'Bebas Neue', sans-serif",
+                        fontFamily: "var(--font-display)",
                         fontSize: "clamp(17px, 2.4vw, 25px)", letterSpacing: "0.05em",
                         color: isH ? "#ffffff" : "rgba(255,255,255,0.72)",
                         lineHeight: 1, marginBottom: "7px",
@@ -463,7 +462,7 @@ export default function TrendingRow() {
                     }}>
                       <div>
                         <div style={{
-                          fontFamily: "'Bebas Neue', sans-serif",
+                          fontFamily: "var(--font-display)",
                           fontSize: "clamp(22px, 2.8vw, 33px)", letterSpacing: "0.02em",
                           color: isH ? "#fff" : "rgba(255,255,255,0.48)",
                           lineHeight: 1, transition: "color 0.3s", textAlign: "right",
@@ -525,7 +524,7 @@ export default function TrendingRow() {
                 <div style={{ fontSize: "8px", letterSpacing: "0.55em", textTransform: "uppercase", color: "#e50914", marginBottom: "6px", fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
                   ◈ DJ AFRO STREAMING
                 </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(18px, 2.8vw, 26px)", color: "#fff", letterSpacing: "0.06em" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(18px, 2.8vw, 26px)", color: "#fff", letterSpacing: "0.06em" }}>
                   DISCOVER YOUR NEXT OBSESSION
                 </div>
               </div>

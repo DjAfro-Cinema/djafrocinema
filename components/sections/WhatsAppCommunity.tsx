@@ -275,7 +275,6 @@ export default function WhatsAppCommunity() {
 
       {/* ══ STYLES ══ */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
         .wac-section {
           position: relative;
@@ -391,7 +390,7 @@ export default function WhatsAppCommunity() {
         .wac-headline {
           display: flex; flex-direction: column;
           margin: 0 0 28px;
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           line-height: .88;
         }
         .wac-hl-top {
@@ -459,7 +458,7 @@ export default function WhatsAppCommunity() {
           font-size: 13px;
         }
         .wac-badge-num {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 1.3rem; color: #25d366; letter-spacing: .06em;
           display: block; line-height: 1;
         }
@@ -567,7 +566,7 @@ export default function WhatsAppCommunity() {
           margin-top: 2px; opacity: .85;
         }
         .wac-feat-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 1.05rem; color: #fff;
           letter-spacing: .07em; line-height: 1; margin-bottom: 6px;
         }
@@ -591,7 +590,7 @@ export default function WhatsAppCommunity() {
         }
         .wac-stat:last-child { border-right: none; }
         .wac-stat-v {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 1.6rem; color: #25d366;
           letter-spacing: .06em; line-height: 1; margin-bottom: 3px;
         }

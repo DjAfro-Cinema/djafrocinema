@@ -99,7 +99,7 @@ function MiniPlayer({ movie, onClose }: { movie: typeof ALL_MOVIES[0]; onClose: 
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h4 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {movie.title}
           </h4>
           <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: "0 0 8px" }}>
@@ -202,7 +202,7 @@ function MovieOfTheDay({ movie, onPlay }: { movie: typeof ALL_MOVIES[0]; onPlay:
               )}
             </div>
 
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.8rem,4vw,3rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 10px" }}>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem,4vw,3rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 10px" }}>
               {movie.title}
             </h2>
 
@@ -249,7 +249,7 @@ function MoodPicker({ active, onChange }: { active: string | null; onChange: (id
     <div style={{ marginBottom: 40 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
           What's Your Mood?
         </h2>
       </div>
@@ -298,7 +298,7 @@ function Collections({ onCollectionClick }: { onCollectionClick: (filter: (m: ty
     <div style={{ marginBottom: 44 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
           Collections
         </h2>
       </div>
@@ -396,7 +396,7 @@ function DiscoverCard({ movie, onPlay }: { movie: typeof ALL_MOVIES[0]; onPlay: 
                 <Star size={8} fill="#f5c518" /> {movie.rating}
               </span>
             </div>
-            <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "0.9rem", color: "#fff", letterSpacing: "0.04em", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.9rem", color: "#fff", letterSpacing: "0.04em", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {movie.title}
             </h3>
           </div>
@@ -428,7 +428,7 @@ function MovieRow({
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
               {title}
             </h2>
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>{movies.length} films</span>
@@ -465,7 +465,7 @@ function SearchResults({
           <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 4px" }}>
             Search Results
           </p>
-          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: "0.06em", color: "#fff", margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.06em", color: "#fff", margin: 0 }}>
             "{query}" — {results.length} found
           </h2>
         </div>
@@ -571,7 +571,7 @@ export default function DiscoverPage() {
           }}>
             {/* Title */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>
                 Discover
               </h1>
             </div>
@@ -659,7 +659,7 @@ export default function DiscoverPage() {
                     </button>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-                      <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>{collectionView.title}</h2>
+                      <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>{collectionView.title}</h2>
                       <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>{collectionMovies.length} films</span>
                     </div>
                   </div>
@@ -697,7 +697,7 @@ export default function DiscoverPage() {
                       <span style={{ fontSize: "1.8rem", flexShrink: 0 }}>🎲</span>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 3px" }}>Surprise Pick</p>
-                        <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.25rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 4px" }}>{randomMovie.title}</h3>
+                        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 4px" }}>{randomMovie.title}</h3>
                         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{randomMovie.genre} · {randomMovie.year} · ⭐ {randomMovie.rating}</p>
                       </div>
                       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -750,7 +750,6 @@ export default function DiscoverPage() {
       {miniPlayer && <MiniPlayer movie={miniPlayer} onClose={() => setMiniPlayer(null)} />}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #discover-col::-webkit-scrollbar { display: none; }

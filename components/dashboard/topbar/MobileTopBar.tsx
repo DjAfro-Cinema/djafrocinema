@@ -34,7 +34,7 @@ export default function MobileTopBar({
     >
       {/* Logo */}
       <div style={{
-        fontFamily: "'Bebas Neue', sans-serif",
+        fontFamily: "var(--font-display)",
         fontSize: "1.2rem",
         letterSpacing: "0.1em",
         display: "flex",

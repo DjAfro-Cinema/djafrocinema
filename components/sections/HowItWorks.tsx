@@ -242,7 +242,6 @@ export default function HowItWorks() {
 
       {/* ══════════════ STYLES ══════════════ */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
 
         /* ── Section shell ── */
         .hiw-section {
@@ -267,7 +266,7 @@ export default function HowItWorks() {
           position: absolute;
           top: 50%; left: 50%;
           transform: translate(-50%, -50%);
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: clamp(5rem, 18vw, 15rem);
           color: #fff;
           opacity: 0.016;
@@ -356,7 +355,7 @@ export default function HowItWorks() {
           font-weight: 600;
         }
         .hiw-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: clamp(2.6rem, 6vw, 4.5rem);
           color: #fff;
           letter-spacing: 0.07em;
@@ -432,7 +431,7 @@ export default function HowItWorks() {
         .hiw-card-ghost {
           position: absolute;
           bottom: -12px; right: -8px;
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 7rem;
           color: #e50914;
           opacity: 0.055;
@@ -495,7 +494,7 @@ export default function HowItWorks() {
 
         /* Title */
         .hiw-card-title {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: clamp(1.7rem, 2.5vw, 2.1rem);
           color: #fff;
           letter-spacing: 0.05em;
@@ -585,7 +584,7 @@ export default function HowItWorks() {
           background: rgba(255,255,255,0.07);
         }
         .hiw-stat-value {
-          font-family: 'Bebas Neue', sans-serif;
+          font-family: var(--font-display);
           font-size: 2rem;
           color: #fff;
           letter-spacing: 0.05em;

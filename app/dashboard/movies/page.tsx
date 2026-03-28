@@ -99,7 +99,7 @@ function FeaturedBanner({ movie, onPlay }: { movie: Movie; onPlay: (m: Movie) =>
             </span>
           )}
         </div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2rem,5vw,3.5rem)", color: "#fff", letterSpacing: "0.05em", lineHeight: 1, margin: "0 0 10px" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem,5vw,3.5rem)", color: "#fff", letterSpacing: "0.05em", lineHeight: 1, margin: "0 0 10px" }}>
           {movie.title}
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>
@@ -134,7 +134,7 @@ function FeaturedBanner({ movie, onPlay }: { movie: Movie; onPlay: (m: Movie) =>
         <div style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", fontFamily: "'DM Sans', sans-serif", marginBottom: 4 }}>
           Viewed
         </div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.6rem", color: "#fff", letterSpacing: "0.05em" }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", color: "#fff", letterSpacing: "0.05em" }}>
           {movie.views}
         </div>
       </div>
@@ -170,7 +170,7 @@ function MovieCard({ movie, view }: { movie: Movie; view: "grid" | "list" }) {
           <div style={{ position: "relative", width: 80, height: 112, flexShrink: 0, borderRadius: 6, overflow: "hidden" }}>
             <img src={movie.img} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             {movie.rank && (
-              <div style={{ position: "absolute", top: 4, left: 4, fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.1rem", color: "#e50914", lineHeight: 1 }}>
+              <div style={{ position: "absolute", top: 4, left: 4, fontFamily: "var(--font-display)", fontSize: "1.1rem", color: "#e50914", lineHeight: 1 }}>
                 #{movie.rank}
               </div>
             )}
@@ -181,7 +181,7 @@ function MovieCard({ movie, view }: { movie: Movie; view: "grid" | "list" }) {
               {movie.dubbed && <Mic2 size={10} color="rgba(255,180,0,0.8)" />}
               <span style={{ fontSize: 9, color: "#e50914", letterSpacing: "0.35em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>{movie.genre}</span>
             </div>
-            <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.1rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {movie.title}
             </h3>
             <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: "0 0 8px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -258,7 +258,7 @@ function MovieCard({ movie, view }: { movie: Movie; view: "grid" | "list" }) {
 
           {/* Rank badge */}
           {movie.rank && (
-            <div style={{ position: "absolute", top: 10, right: 10, fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", color: "#e50914", lineHeight: 1, textShadow: "0 2px 12px rgba(229,9,20,0.5)" }}>
+            <div style={{ position: "absolute", top: 10, right: 10, fontFamily: "var(--font-display)", fontSize: "1.5rem", color: "#e50914", lineHeight: 1, textShadow: "0 2px 12px rgba(229,9,20,0.5)" }}>
               #{movie.rank}
             </div>
           )}
@@ -283,7 +283,7 @@ function MovieCard({ movie, view }: { movie: Movie; view: "grid" | "list" }) {
                 <Star size={9} fill="#f5c518" /> {movie.rating}
               </span>
             </div>
-            <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "0.95rem", color: "#fff", letterSpacing: "0.05em", margin: "0 0 3px", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", letterSpacing: "0.05em", margin: "0 0 3px", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {movie.title}
             </h3>
             <div style={{ display: "flex", gap: 8 }}>
@@ -315,7 +315,7 @@ function GenreSection({
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 3, height: 20, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
             {genre}
           </h2>
           <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
@@ -505,7 +505,7 @@ export default function MoviesPage() {
           }}>
             {/* Title */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>
                 Movies
               </h1>
               <span style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", background: "rgba(229,9,20,0.1)", border: "1px solid rgba(229,9,20,0.2)", padding: "3px 8px", borderRadius: 3 }}>
@@ -673,7 +673,7 @@ export default function MoviesPage() {
                 {sorted.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "80px 20px" }}>
                     <div style={{ fontSize: "3rem", marginBottom: 16 }}>🎬</div>
-                    <h3 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", margin: "0 0 8px" }}>No Movies Found</h3>
+                    <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", margin: "0 0 8px" }}>No Movies Found</h3>
                     <p style={{ fontSize: 13, color: "rgba(255,255,255,0.18)", fontFamily: "'DM Sans', sans-serif" }}>Try adjusting your filters or search query</p>
                   </div>
                 ) : activeGenre === "All" && !searchVal ? (
@@ -700,7 +700,6 @@ export default function MoviesPage() {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #movies-scroll-col::-webkit-scrollbar { display: none; }

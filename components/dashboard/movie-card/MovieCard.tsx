@@ -125,7 +125,7 @@ export default function MovieCard({
 
         {movie.rank && movie.rank <= 10 && (
           <span style={{
-            fontSize: 7, fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 7, fontFamily: "var(--font-display)",
             letterSpacing: "0.1em",
             padding: "2px 6px",
             background: "rgba(229,9,20,0.15)",
@@ -183,7 +183,7 @@ export default function MovieCard({
         }}>{movie.genre}</span>
 
         <div style={{
-          fontSize: 16, fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: 16, fontFamily: "var(--font-display)",
           color: "#fff", letterSpacing: "0.06em",
           lineHeight: 1, marginBottom: 5,
         }}>{movie.title}</div>
@@ -282,7 +282,7 @@ export function MovieRow({
             <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
             <h2 style={{
               fontSize: "clamp(1.2rem, 2.5vw, 1.6rem)",
-              fontFamily: "'Bebas Neue', sans-serif",
+              fontFamily: "var(--font-display)",
               letterSpacing: "0.07em",
               color: "#fff",
               margin: 0,
