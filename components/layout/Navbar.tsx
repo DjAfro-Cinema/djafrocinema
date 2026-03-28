@@ -2,12 +2,23 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import {
+  Film,
+  TrendingUp,
+  Info,
+  Smartphone,
+  Search,
+  X,
+  Menu,
+  LogIn,
+} from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Movies", id: "featured", icon: "◈" },
-  { label: "Trending", id: "trending", icon: "◉" },
-  { label: "How It Works", id: "how-it-works", icon: "◎" },
-  { label: "Install", id: "install", icon: "◇" },
+  { label: "Movies",       id: "featured",     icon: <Film       size={14} /> },
+  { label: "Trending",     id: "trending",     icon: <TrendingUp size={14} /> },
+  { label: "How It Works", id: "how-it-works", icon: <Info       size={14} /> },
+  { label: "Install",      id: "install",      icon: <Smartphone size={14} /> },
 ];
 
 function scrollToSection(id: string) {
@@ -127,21 +138,9 @@ export default function Navbar() {
             aria-label="DjAfro Cinema — scroll to top"
             style={{ WebkitTapHighlightColor: "transparent" }}
           >
-            {/*
-              Logo container:
-              - Fixed height of 48px so it fits the navbar
-              - Width is auto so wide logos aren't squashed
-              - Min-width 120px so it never collapses on narrow logos
-              - position:relative + inline-flex lets Next/Image fill naturally
-            */}
             <div
               className="relative transition-all duration-500 group-hover:scale-105"
-              style={{
-                height: 48,
-                width: "auto",
-                minWidth: 120,
-                maxWidth: 200,
-              }}
+              style={{ height: 48, width: "auto", minWidth: 120, maxWidth: 200 }}
             >
               <Image
                 src="/logo.png"
@@ -150,20 +149,15 @@ export default function Navbar() {
                 className="object-contain object-left"
                 priority
                 style={{
-                  filter:
-                    "drop-shadow(0 0 12px rgba(229,9,20,0.6)) drop-shadow(0 0 24px rgba(229,9,20,0.3))",
+                  filter: "drop-shadow(0 0 12px rgba(229,9,20,0.6)) drop-shadow(0 0 24px rgba(229,9,20,0.3))",
                   transition: "filter 0.4s ease",
                 }}
               />
             </div>
-            {/* Glow pulse on hover */}
             <span
               aria-hidden
               className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(229,9,20,0.15) 0%, transparent 70%)",
-              }}
+              style={{ background: "radial-gradient(circle, rgba(229,9,20,0.15) 0%, transparent 70%)" }}
             />
           </button>
 
@@ -178,7 +172,7 @@ export default function Navbar() {
                     onClick={() => scrollToSection(link.id)}
                     onMouseEnter={() => setHoveredLink(link.id)}
                     onMouseLeave={() => setHoveredLink(null)}
-                    className="relative px-5 py-2.5 text-[11px] uppercase tracking-[0.2em] font-semibold focus:outline-none transition-colors duration-300"
+                    className="relative px-5 py-2.5 text-[11px] uppercase tracking-[0.2em] font-semibold focus:outline-none transition-colors duration-300 flex items-center gap-2"
                     style={{
                       color: isActive
                         ? "#fff"
@@ -187,6 +181,12 @@ export default function Navbar() {
                         : "rgba(255,255,255,0.42)",
                     }}
                   >
+                    <span
+                      className="transition-colors duration-300"
+                      style={{ color: isActive ? "#e50914" : "inherit" }}
+                    >
+                      {link.icon}
+                    </span>
                     <span className="relative z-10">{link.label}</span>
                     <span
                       className="absolute left-2 right-2 bottom-1 rounded-full transition-all duration-300 ease-out"
@@ -230,9 +230,7 @@ export default function Navbar() {
             <div className="hidden md:flex items-center">
               {searchOpen ? (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/[0.06] backdrop-blur-md transition-all duration-300">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                  </svg>
+                  <Search size={14} color="rgba(255,255,255,0.5)" />
                   <input
                     ref={desktopSearchRef}
                     type="text"
@@ -246,9 +244,9 @@ export default function Navbar() {
                   {searchValue && (
                     <button
                       onClick={() => { setSearchValue(""); setSearchOpen(false); }}
-                      className="text-white/30 hover:text-white/70 transition-colors text-xs"
+                      className="text-white/30 hover:text-white/70 transition-colors"
                     >
-                      ✕
+                      <X size={12} />
                     </button>
                   )}
                 </div>
@@ -257,19 +255,21 @@ export default function Navbar() {
                   onClick={() => { setSearchOpen(true); setTimeout(() => desktopSearchRef.current?.focus(), 50); }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 hover:border-white/25 bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 group focus:outline-none"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" className="group-hover:stroke-white/70 transition-colors">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                  </svg>
+                  <Search size={13} className="text-white/40 group-hover:text-white/70 transition-colors" />
                   <span className="text-white/30 text-[11px] tracking-wider group-hover:text-white/50 transition-colors">Search</span>
                   <kbd className="hidden xl:inline-flex items-center text-[9px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded font-mono">/</kbd>
                 </button>
               )}
             </div>
 
-            {/* Sign In — desktop */}
-            <button className="hidden lg:block text-white/40 hover:text-white text-[11px] uppercase tracking-[0.15em] font-semibold transition-colors duration-200 px-3 py-2 focus:outline-none hover:bg-white/5 rounded">
+            {/* Sign In — desktop → navigates to /auth */}
+            <Link
+              href="/auth"
+              className="hidden lg:flex items-center gap-1.5 text-white/40 hover:text-white text-[11px] uppercase tracking-[0.15em] font-semibold transition-colors duration-200 px-3 py-2 focus:outline-none hover:bg-white/5 rounded"
+            >
+              <LogIn size={13} />
               Sign In
-            </button>
+            </Link>
 
             {/* Install CTA */}
             <button
@@ -286,6 +286,7 @@ export default function Navbar() {
                 (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 0 rgba(229,9,20,0)";
               }}
             >
+              <Smartphone size={13} className="relative z-10 text-white" />
               <span className="relative z-10 text-white">Install App</span>
               <span
                 aria-hidden
@@ -299,9 +300,7 @@ export default function Navbar() {
               className="md:hidden w-10 h-10 flex items-center justify-center rounded-full border border-white/10 hover:border-white/25 transition-colors focus:outline-none"
               aria-label="Search"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
+              <Search size={16} className="text-white/60" />
             </button>
 
             {/* Hamburger */}
@@ -327,9 +326,7 @@ export default function Navbar() {
         style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(20px)" }}
       >
         <div className="flex items-center gap-3 px-4 pt-6 pb-4 border-b border-white/10">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
+          <Search size={18} className="text-white/50 flex-shrink-0" />
           <input
             ref={searchInputRef}
             type="text"
@@ -383,26 +380,11 @@ export default function Navbar() {
           background: "#080808",
         }}
       >
-        {/* ── DRAWER CINEMATIC BG IMAGE ── */}
+        {/* Drawer cinematic bg */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{ backgroundImage: "url('/drawer-bg.jpg')" }}
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(160deg, rgba(229,9,20,0.10) 0%, transparent 50%, rgba(0,0,0,0.95) 100%)",
-            }}
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(8,8,8,0.7) 0%, rgba(8,8,8,0.3) 40%, rgba(8,8,8,0.85) 100%)",
-            }}
-          />
+          <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: "url('/drawer-bg.jpg')" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(229,9,20,0.10) 0%, transparent 50%, rgba(0,0,0,0.95) 100%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,8,8,0.7) 0%, rgba(8,8,8,0.3) 40%, rgba(8,8,8,0.85) 100%)" }} />
           <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
             <filter id="grain">
               <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
@@ -412,7 +394,7 @@ export default function Navbar() {
           </svg>
         </div>
 
-        {/* Film sprocket holes — left edge */}
+        {/* Film sprocket holes */}
         <div className="absolute left-0 top-0 bottom-0 w-5 flex flex-col justify-evenly items-center pointer-events-none z-10">
           {Array.from({ length: 22 }).map((_, i) => (
             <div
@@ -432,29 +414,21 @@ export default function Navbar() {
 
           {/* Header */}
           <div className="flex items-center justify-between px-5 pt-7 pb-6 border-b border-white/[0.08]">
-            <div className="flex items-center gap-3">
-              {/* Drawer logo — also wide, not cropped */}
-              <div
-                className="relative"
-                style={{ height: 40, width: "auto", minWidth: 100, maxWidth: 160 }}
-              >
-                <Image
-                  src="/logo.png"
-                  alt="DjAfro Cinema"
-                  fill
-                  className="object-contain object-left"
-                  style={{ filter: "drop-shadow(0 0 10px rgba(229,9,20,0.5))" }}
-                />
-              </div>
+            <div className="relative" style={{ height: 40, width: "auto", minWidth: 100, maxWidth: 160 }}>
+              <Image
+                src="/logo.png"
+                alt="DjAfro Cinema"
+                fill
+                className="object-contain object-left"
+                style={{ filter: "drop-shadow(0 0 10px rgba(229,9,20,0.5))" }}
+              />
             </div>
             <button
               onClick={() => setMobileOpen(false)}
               className="w-9 h-9 flex items-center justify-center rounded-full border border-white/10 text-white/35 hover:text-white hover:border-white/25 transition-all focus:outline-none"
               aria-label="Close menu"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M18 6 6 18M6 6l12 12"/>
-              </svg>
+              <X size={12} />
             </button>
           </div>
 
@@ -464,9 +438,7 @@ export default function Navbar() {
               className="flex items-center gap-3 px-4 py-2.5 rounded-full border border-white/10 focus-within:border-[#e50914]/40 transition-colors"
               style={{ background: "rgba(255,255,255,0.04)" }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
+              <Search size={13} className="text-white/30 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search movies…"
@@ -475,7 +447,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Nav section label */}
+          {/* Nav label */}
           <p className="px-5 text-white/20 text-[9px] uppercase tracking-[0.35em] mb-2">Navigation</p>
 
           {/* Nav links */}
@@ -500,7 +472,7 @@ export default function Navbar() {
                     }}
                   />
                   <span
-                    className="text-base transition-all duration-200"
+                    className="transition-colors duration-200"
                     style={{ color: isActive ? "#e50914" : "rgba(255,255,255,0.2)" }}
                   >
                     {link.icon}
@@ -523,17 +495,26 @@ export default function Navbar() {
               <span className="w-2 h-2 rounded-full bg-[#e50914]" style={{ boxShadow: "0 0 6px #e50914" }} />
               <span className="text-white/20 text-[10px] uppercase tracking-widest">Kenya · Streaming</span>
             </div>
-            <button className="w-full py-3 text-[11px] text-white/50 hover:text-white uppercase tracking-[0.15em] font-semibold transition-colors focus:outline-none border border-white/10 hover:border-white/25 rounded-lg">
+
+            {/* Sign In in drawer → /auth */}
+            <Link
+              href="/auth"
+              onClick={() => setMobileOpen(false)}
+              className="w-full py-3 text-[11px] text-white/50 hover:text-white uppercase tracking-[0.15em] font-semibold transition-colors focus:outline-none border border-white/10 hover:border-white/25 rounded-lg flex items-center justify-center gap-2"
+            >
+              <LogIn size={13} />
               Sign In
-            </button>
+            </Link>
+
             <button
               onClick={() => { scrollToSection("install"); setMobileOpen(false); }}
-              className="w-full py-3 text-[11px] text-white font-bold uppercase tracking-[0.15em] rounded-lg transition-all duration-200 active:scale-[0.98] focus:outline-none relative overflow-hidden"
+              className="w-full py-3 text-[11px] text-white font-bold uppercase tracking-[0.15em] rounded-lg transition-all duration-200 active:scale-[0.98] focus:outline-none relative overflow-hidden flex items-center justify-center gap-2"
               style={{
                 background: "linear-gradient(135deg, #e50914 0%, #c20710 100%)",
                 boxShadow: "0 4px 20px rgba(229,9,20,0.35)",
               }}
             >
+              <Smartphone size={13} />
               Install App
             </button>
           </div>
