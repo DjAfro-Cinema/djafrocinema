@@ -15,7 +15,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "DjAfro Cinema — East Africa's Movies, Your Way",
+    default: "DjAfro Cinema- Dj Afro movies, your way",
     template: "%s | DjAfro Cinema",
   },
   description:
