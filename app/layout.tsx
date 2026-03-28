@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
+import { DashboardLayout } from "@/components/dashboard";
 
 const bebas = Bebas_Neue({
   variable: "--font-display",
@@ -105,7 +106,9 @@ export default function RootLayout({
       className={`${bebas.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
+    
         {children}
+      
       </body>
     </html>
   );
