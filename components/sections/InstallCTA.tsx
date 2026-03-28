@@ -5,197 +5,463 @@ import { useEffect, useRef, useState } from "react";
 const PLATFORMS = [
   {
     name: "Android",
-    desc: "Add to Home Screen from Chrome or any Android browser.",
-    steps: ["Open in Chrome", "Tap menu (⋮)", "\"Add to Home Screen\""],
+    sub: "Chrome Browser",
+    steps: ["Open site in Chrome", 'Tap ⋮  →  "Add to Home Screen"', "Tap Add — you're in"],
     icon: (
-      <svg viewBox="0 0 48 48" fill="currentColor" className="w-8 h-8">
-        <path d="M7 36c0 1.1.9 2 2 2h2v7a3 3 0 006 0v-7h6v7a3 3 0 006 0v-7h2a2 2 0 002-2V17H7v19zm30-27.3l2.6-4.5a.5.5 0 00-.9-.5l-2.7 4.6A17 17 0 0024 7c-4.5 0-8.6 1.7-11.7 4.4l-2.6-4.6a.5.5 0 10-.9.5L11.4 11A16.9 16.9 0 007 22h34c0-5.1-2.2-9.7-4-13.3zM18 19a2 2 0 110-4 2 2 0 010 4zm12 0a2 2 0 110-4 2 2 0 010 4z" />
+      <svg viewBox="0 0 40 40" fill="currentColor" width="28" height="28">
+        <path d="M5.8 29.9c0 .9.7 1.6 1.6 1.6H9v5.7a2.5 2.5 0 005 0v-5.7h5v5.7a2.5 2.5 0 005 0v-5.7h1.6c.9 0 1.6-.7 1.6-1.6V14H5.8v15.9zm26.4-22.8 2.1-3.7a.4.4 0 10-.7-.4l-2.2 3.8A21.3 21.3 0 0020 4.7c-3.9 0-7.5 1.1-10.4 3l-2.1-3.7a.4.4 0 10-.7.4l2.1 3.7A20.6 20.6 0 004.7 18h30.6A20.6 20.6 0 0032.2 7.1zM14 15.5a1.6 1.6 0 110-3.2 1.6 1.6 0 010 3.2zm12 0a1.6 1.6 0 110-3.2 1.6 1.6 0 010 3.2z"/>
       </svg>
     ),
-    accent: "#3ddc84",
-    available: true,
+    color: "#3ddc84",
+    popular: true,
   },
   {
     name: "iPhone",
-    desc: "Install via Safari on any iPhone or iPad — no App Store.",
-    steps: ["Open in Safari", "Tap Share (⬆)", "\"Add to Home Screen\""],
+    sub: "Safari Browser",
+    steps: ["Open site in Safari", "Tap Share ↑", '"Add to Home Screen" → Add'],
     icon: (
-      <svg viewBox="0 0 48 48" fill="currentColor" className="w-8 h-8">
-        <path d="M35.5 25.2c0-5.1 4.2-7.5 4.3-7.6-2.4-3.5-6-4-7.3-4-3.1-.3-6.1 1.8-7.7 1.8-1.6 0-4-1.8-6.6-1.7-3.4 0-6.5 2-8.2 5C7 23.5 8.3 33 12 38c1.8 2.6 4 5.5 6.8 5.4 2.7-.1 3.8-1.8 7-1.8 3.3 0 4.2 1.8 7 1.7 3-.1 4.9-2.7 6.7-5.3 2.1-3 3-5.9 3-6.1-.1 0-5-2-5-6.7zm-4.6-13.1c1.5-1.8 2.5-4.3 2.2-6.8-2.1.1-4.7 1.4-6.2 3.2-1.4 1.6-2.6 4.2-2.3 6.6 2.4.2 4.8-1.2 6.3-3z" />
+      <svg viewBox="0 0 40 40" fill="currentColor" width="28" height="28">
+        <path d="M29.4 21c0-4.2 3.5-6.2 3.7-6.3-2-3-5.1-3.4-6.2-3.4-2.6-.3-5.1 1.5-6.4 1.5-1.3 0-3.3-1.5-5.5-1.4-2.8 0-5.4 1.6-6.8 4.1-3 5.1-1.8 12.7 1.1 16.8 1.5 2.1 3.2 4.5 5.5 4.4 2.2-.1 3-1.4 5.7-1.4 2.7 0 3.4 1.4 5.7 1.4 2.4-.1 3.9-2.2 5.4-4.3 1.7-2.5 2.4-4.9 2.4-5-.1 0-4.6-1.8-4.6-5.9zm-4.3-11c1.2-1.5 2-3.6 1.8-5.7-1.7.1-3.9 1.2-5.1 2.7-1.1 1.3-2.1 3.4-1.8 5.4 1.9.1 3.9-1 5.1-2.4z"/>
       </svg>
     ),
-    accent: "#aaaaaa",
-    available: true,
+    color: "#b0b8c8",
+    popular: false,
   },
   {
     name: "Desktop",
-    desc: "Install on Windows, Mac, or Linux from Chrome or Edge.",
-    steps: ["Open in Chrome/Edge", "Click install icon (⊕)", "Click \"Install\""],
+    sub: "Chrome / Edge",
+    steps: ["Open in Chrome or Edge", "Click ⊕ in the address bar", "Click Install — done"],
     icon: (
-      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="1.8">
-        <rect x="4" y="6" width="40" height="28" rx="2" />
-        <path d="M16 34v6M10 40h28" />
-        <circle cx="24" cy="20" r="6" />
-        <path d="M24 14v3M24 23v3M18 20h3M27 20h3" />
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+        <rect x="3" y="5" width="34" height="22" rx="2"/>
+        <path d="M13 27v6M7 33h26M20 16a5 5 0 100-10 5 5 0 000 10z"/>
       </svg>
     ),
-    accent: "#4285f4",
-    available: true,
+    color: "#4285f4",
+    popular: false,
   },
   {
     name: "Smart TV",
-    desc: "Open djafrocinema.com in your Smart TV browser and install.",
-    steps: ["Open TV browser", "Go to djafrocinema.com", "Add to apps"],
+    sub: "Built-in Browser",
+    steps: ["Open TV browser", "Go to djafrocinema.com", "Bookmark or add to My Apps"],
     icon: (
-      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="1.8">
-        <rect x="2" y="6" width="44" height="28" rx="2" />
-        <path d="M16 34v6M10 40h28M20 20l8-4v8l-8-4z" />
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28">
+        <rect x="2" y="5" width="36" height="24" rx="2"/>
+        <path d="M13 29v5M8 34h24"/>
+        <path d="M16 17l7-4v8l-7-4z" fill="currentColor" stroke="none"/>
       </svg>
     ),
-    accent: "#e50914",
-    available: true,
+    color: "#e50914",
+    popular: false,
   },
 ];
 
 export default function InstallCTA() {
   const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.15 }
+    const ob = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setVisible(true); },
+      { threshold: 0.12 }
     );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    if (ref.current) ob.observe(ref.current);
+    return () => ob.disconnect();
   }, []);
 
   return (
-    <section id="install" className="relative py-28 bg-[#0d0d0d] overflow-hidden">
-      {/* Big BG text */}
-      <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none whitespace-nowrap"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "clamp(5rem, 18vw, 14rem)",
-          color: "white",
-          opacity: 0.015,
-          letterSpacing: "0.08em",
-        }}
-      >
-        INSTALL
-      </div>
+    <section id="install" className="ic-section">
 
-      {/* Glow orb */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-48 rounded-full bg-[#e50914] opacity-[0.05] blur-3xl pointer-events-none" />
+      {/* Diagonal red slash — unique to this section */}
+      <div className="ic-slash" aria-hidden />
 
-      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <p className="text-[#e50914] text-xs uppercase tracking-[0.4em] mb-3 font-semibold">Free Install · Any Device</p>
-          <h2
-            className="text-white leading-none mb-4"
-            style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.5rem, 6vw, 4rem)", letterSpacing: "0.06em" }}
-          >
-            INSTALL DJAFRO CINEMA
+      {/* Dot grid texture */}
+      <div className="ic-dots" aria-hidden />
+
+      {/* Ambient bottom glow */}
+      <div className="ic-glow-bottom" aria-hidden />
+
+      <div ref={ref} className="ic-wrap">
+
+        {/* ══════════ LEFT: Editorial column ══════════ */}
+        <div
+          className="ic-left"
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateX(-28px)",
+            transition: "opacity .7s ease .1s, transform .7s cubic-bezier(.22,1,.36,1) .1s",
+          }}
+        >
+          <div className="ic-eyebrow">
+            <span className="ic-eyebrow-pip" />
+            <span className="ic-eyebrow-text">Free Install · Any Device</span>
+          </div>
+
+          <h2 className="ic-headline">
+            <span className="ic-hl-1">GET</span>
+            <span className="ic-hl-2">THE APP</span>
+            <span className="ic-hl-3">NOW</span>
           </h2>
-          <p className="text-white/40 max-w-lg mx-auto text-base leading-relaxed">
-            No App Store fees. No Google Play cut. Install directly to any device and get the full cinema experience — for free.
+
+          <p className="ic-body">
+            No App Store. No Play Store. No monthly fees.
+            Install directly to any device and start watching{" "}
+            <em className="ic-em">East Africa's biggest movie library</em> in under 60 seconds.
           </p>
-        </div>
 
-        {/* Social proof */}
-        <div className="flex items-center justify-center gap-8 mb-16">
-          {[
-            { num: "1,200+", label: "Downloads" },
-            { num: "4.9★", label: "Rating" },
-            { num: "0 KSh", label: "Install Cost" },
-          ].map((s) => (
-            <div key={s.label} className="flex flex-col items-center">
-              <span
-                className="text-white text-2xl font-black leading-none"
-                style={{ fontFamily: "var(--font-display)", letterSpacing: "0.05em" }}
-              >
-                {s.num}
-              </span>
-              <span className="text-white/30 text-xs uppercase tracking-widest mt-1">{s.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Platform cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {PLATFORMS.map((p, i) => (
-            <div
-              key={p.name}
-              className="relative rounded overflow-hidden border border-white/5 cursor-pointer transition-all duration-300"
-              style={{
-                background: hovered === i ? "#131313" : "#0e0e0e",
-                borderColor: hovered === i ? `${p.accent}44` : "rgba(255,255,255,0.05)",
-                boxShadow: hovered === i ? `0 12px 40px #00000066, 0 0 0 1px ${p.accent}22` : "none",
-                opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0)" : "translateY(32px)",
-                transition: `opacity 0.6s ease ${i * 100}ms, transform 0.6s cubic-bezier(0.22,1,0.36,1) ${i * 100}ms, background 0.2s, border-color 0.2s, box-shadow 0.2s`,
-              }}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {/* Top accent bar */}
-              <div
-                className="h-[3px] transition-all duration-300"
-                style={{ background: `linear-gradient(90deg, ${p.accent}, transparent)`, opacity: hovered === i ? 1 : 0.3 }}
-              />
-
-              <div className="p-7">
-                {/* Icon */}
-                <div className="mb-5 transition-transform duration-300" style={{ color: p.accent, transform: hovered === i ? "scale(1.1)" : "none" }}>
-                  {p.icon}
-                </div>
-
-                {/* Platform name */}
-                <h3
-                  className="text-white text-xl mb-2 leading-tight"
-                  style={{ fontFamily: "var(--font-display)", letterSpacing: "0.04em" }}
-                >
-                  {p.name}
-                </h3>
-
-                {/* Desc */}
-                <p className="text-white/40 text-sm leading-relaxed mb-6">{p.desc}</p>
-
-                {/* Steps */}
-                <ol className="space-y-2 mb-7">
-                  {p.steps.map((step, j) => (
-                    <li key={j} className="flex items-start gap-3 text-sm text-white/50">
-                      <span
-                        className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5"
-                        style={{ background: `${p.accent}22`, color: p.accent }}
-                      >
-                        {j + 1}
-                      </span>
-                      {step}
-                    </li>
-                  ))}
-                </ol>
-
-                {/* CTA */}
-                <button
-                  className="w-full py-3 rounded text-sm font-bold uppercase tracking-widest transition-all duration-200 active:scale-95"
-                  style={{
-                    background: hovered === i ? p.accent : "transparent",
-                    color: hovered === i ? "#fff" : p.accent,
-                    border: `1px solid ${p.accent}44`,
-                    boxShadow: hovered === i ? `0 0 20px ${p.accent}44` : "none",
-                  }}
-                >
-                  Install on {p.name}
-                </button>
+          {/* Stats */}
+          <div className="ic-stats">
+            {[
+              { v: "1,200+", l: "Active users"   },
+              { v: "0 KSh",  l: "Install cost"   },
+              { v: "500+",   l: "Movies ready"   },
+            ].map((s, i) => (
+              <div key={i} className="ic-stat">
+                <div className="ic-stat-v">{s.v}</div>
+                <div className="ic-stat-l">{s.l}</div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Primary CTA */}
+          <a href="#" className="ic-cta">
+            <span className="ic-cta-circle">
+              <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
+                <path d="M8 1a1 1 0 011 1v7.586l1.793-1.793a1 1 0 111.414 1.414l-3.5 3.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 111.414-1.414L7 9.586V2a1 1 0 011-1z"/>
+              </svg>
+            </span>
+            Install DjAfro Cinema
+            <span className="ic-cta-shimmer" aria-hidden />
+          </a>
+
+          {/* Trust row */}
+          <div className="ic-trust">
+            {["Works Offline", "No Login Required", "Free Movies Included"].map((t, i) => (
+              <span key={i} className="ic-trust-item">
+                <span className="ic-trust-pip" />
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* ══════════ RIGHT: All 4 platform cards ══════════ */}
+        <div className="ic-right">
+          <div className="ic-right-label">Choose your device</div>
+
+          <div className="ic-cards">
+            {PLATFORMS.map((p, i) => {
+              const isHovered = hoveredIdx === i;
+              return (
+                <div
+                  key={p.name}
+                  className={`ic-card ${isHovered ? "ic-card-hov" : ""}`}
+                  onMouseEnter={() => setHoveredIdx(i)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                  style={{
+                    "--c": p.color,
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? "none" : "translateY(24px)",
+                    transition: `opacity .55s ease ${i * 90 + 300}ms, transform .55s cubic-bezier(.22,1,.36,1) ${i * 90 + 300}ms`,
+                  } as React.CSSProperties}
+                >
+                  {/* Left accent bar */}
+                  <div className="ic-card-bar" />
+
+                  {/* Icon + name row */}
+                  <div className="ic-card-head">
+                    <span className="ic-card-icon" style={{ color: p.color }}>{p.icon}</span>
+                    <div>
+                      <div className="ic-card-name">{p.name}</div>
+                      <div className="ic-card-sub">{p.sub}</div>
+                    </div>
+                    {p.popular && <span className="ic-card-pop">Popular</span>}
+                  </div>
+
+                  {/* Steps */}
+                  <ol className="ic-steps">
+                    {p.steps.map((s, j) => (
+                      <li key={j} className="ic-step">
+                        <span className="ic-step-n" style={{ color: p.color, borderColor: `${p.color}30`, background: `${p.color}12` }}>{j + 1}</span>
+                        <span className="ic-step-t">{s}</span>
+                      </li>
+                    ))}
+                  </ol>
+
+                  {/* Install button */}
+                  <button
+                    className="ic-install-btn"
+                    style={{
+                      color: isHovered ? "#fff" : p.color,
+                      background: isHovered ? p.color : "transparent",
+                      borderColor: `${p.color}40`,
+                      boxShadow: isHovered ? `0 0 22px ${p.color}44` : "none",
+                    }}
+                  >
+                    Install on {p.name}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Compat strip */}
+          <div className="ic-compat">
+            <span className="ic-compat-label">Compatible with</span>
+            {["Android 8+", "iOS 14+", "Chrome 80+", "Edge 80+", "Any Smart TV"].map((d) => (
+              <span key={d} className="ic-chip">{d}</span>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* ══════════ STYLES ══════════ */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+        .ic-section {
+          position: relative;
+          background: #060606;
+          padding: 104px 0 112px;
+          overflow: hidden;
+          font-family: 'DM Sans', sans-serif;
+        }
+
+        /* Diagonal slash unique to this section */
+        .ic-slash {
+          position: absolute;
+          top: -30%; left: -8%;
+          width: 52%; height: 180%;
+          background: linear-gradient(108deg, rgba(229,9,20,.055) 0%, rgba(229,9,20,.02) 45%, transparent 68%);
+          transform: skewX(-7deg);
+          pointer-events: none;
+        }
+
+        /* Dot grid */
+        .ic-dots {
+          position: absolute; inset: 0;
+          background-image: radial-gradient(circle, rgba(255,255,255,.022) 1px, transparent 1px);
+          background-size: 30px 30px;
+          pointer-events: none;
+        }
+
+        /* Bottom glow */
+        .ic-glow-bottom {
+          position: absolute;
+          bottom: -60px; left: 50%; transform: translateX(-50%);
+          width: 700px; height: 180px;
+          background: #e50914;
+          border-radius: 50%;
+          filter: blur(80px);
+          opacity: .038;
+          pointer-events: none;
+        }
+
+        /* Layout */
+        .ic-wrap {
+          position: relative; z-index: 2;
+          max-width: 1280px; margin: 0 auto; padding: 0 48px;
+          display: grid;
+          grid-template-columns: 420px 1fr;
+          gap: 88px;
+          align-items: start;
+        }
+        @media (max-width: 960px) {
+          .ic-wrap { grid-template-columns: 1fr; gap: 52px; padding: 0 28px; }
+        }
+
+        /* ─── LEFT ─── */
+        .ic-eyebrow { display:flex; align-items:center; gap:9px; margin-bottom:22px; }
+        .ic-eyebrow-pip {
+          width:6px; height:6px; border-radius:50%; background:#e50914; flex-shrink:0;
+          box-shadow: 0 0 10px rgba(229,9,20,.7);
+        }
+        .ic-eyebrow-text {
+          font-size:9px; letter-spacing:.5em; text-transform:uppercase;
+          color:#e50914; font-weight:600;
+        }
+
+        .ic-headline {
+          display:flex; flex-direction:column; margin:0 0 26px;
+          font-family:'Bebas Neue',sans-serif; line-height:.88;
+        }
+        .ic-hl-1 {
+          font-size: clamp(2.8rem,5.5vw,4.8rem);
+          color: rgba(255,255,255,.7); letter-spacing:.1em;
+        }
+        .ic-hl-2 {
+          font-size: clamp(4.2rem,9vw,8.5rem);
+          color:#fff; letter-spacing:.04em;
+        }
+        .ic-hl-3 {
+          font-size: clamp(2.8rem,5.5vw,4.8rem);
+          color:#e50914; letter-spacing:.18em;
+        }
+
+        .ic-body {
+          font-size:14px; color:rgba(255,255,255,.38);
+          line-height:1.8; max-width:380px; margin-bottom:36px;
+        }
+        .ic-em { font-style:normal; color:rgba(255,255,255,.7); font-weight:500; }
+
+        /* Stats */
+        .ic-stats {
+          display:flex; margin-bottom:36px;
+          border:1px solid rgba(255,255,255,.055); border-radius:5px; overflow:hidden;
+          background:rgba(255,255,255,.018);
+        }
+        .ic-stat { flex:1; padding:16px 0; text-align:center; border-right:1px solid rgba(255,255,255,.045); }
+        .ic-stat:last-child { border-right:none; }
+        .ic-stat-v {
+          font-family:'Bebas Neue',sans-serif; font-size:1.75rem;
+          color:#fff; letter-spacing:.05em; line-height:1; margin-bottom:4px;
+        }
+        .ic-stat-l {
+          font-size:8.5px; letter-spacing:.32em; text-transform:uppercase;
+          color:rgba(255,255,255,.26);
+        }
+
+        /* CTA */
+        .ic-cta {
+          position:relative; overflow:hidden;
+          display:inline-flex; align-items:center; gap:14px;
+          padding:15px 34px; border-radius:3px; text-decoration:none;
+          background:#e50914; color:#fff;
+          font-size:10.5px; font-weight:700; letter-spacing:.28em; text-transform:uppercase;
+          font-family:'DM Sans',sans-serif;
+          box-shadow:0 0 30px rgba(229,9,20,.32), 0 4px 18px rgba(0,0,0,.5);
+          transition:box-shadow .25s, transform .15s;
+          margin-bottom:22px;
+        }
+        .ic-cta:hover { box-shadow:0 0 50px rgba(229,9,20,.58), 0 8px 26px rgba(0,0,0,.6); transform:translateY(-2px); }
+        .ic-cta:active { transform:scale(.97); }
+        .ic-cta-circle {
+          display:flex; align-items:center; justify-content:center;
+          width:26px; height:26px; border-radius:50%;
+          background:rgba(255,255,255,.16); flex-shrink:0;
+        }
+        .ic-cta-shimmer {
+          position:absolute; inset:0;
+          background:linear-gradient(108deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);
+          transform:translateX(-120%); transition:transform .58s ease; pointer-events:none;
+        }
+        .ic-cta:hover .ic-cta-shimmer { transform:translateX(120%); }
+
+        /* Trust */
+        .ic-trust { display:flex; flex-wrap:wrap; gap:14px; }
+        .ic-trust-item {
+          display:flex; align-items:center; gap:7px;
+          font-size:9.5px; letter-spacing:.18em; text-transform:uppercase;
+          color:rgba(255,255,255,.28); font-weight:500;
+        }
+        .ic-trust-pip {
+          width:4px; height:4px; border-radius:50%;
+          background:rgba(229,9,20,.55); flex-shrink:0;
+        }
+
+        /* ─── RIGHT ─── */
+        .ic-right-label {
+          font-size:9px; letter-spacing:.46em; text-transform:uppercase;
+          color:rgba(255,255,255,.2); margin-bottom:14px; font-weight:500;
+        }
+
+        /* Cards — 2×2 grid */
+        .ic-cards {
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:2px;
+          background:rgba(255,255,255,.035);
+          border-radius:6px;
+          overflow:hidden;
+          margin-bottom:14px;
+        }
+        @media (max-width:540px) { .ic-cards { grid-template-columns:1fr; } }
+
+        .ic-card {
+          position:relative;
+          background:#0d0d0d;
+          padding:26px 24px 22px;
+          overflow:hidden;
+          transition:background .25s;
+          cursor:default;
+        }
+        .ic-card-hov { background:#111; }
+
+        /* Left accent bar — slides in on hover */
+        .ic-card-bar {
+          position:absolute; top:0; left:0; bottom:0;
+          width:2px;
+          background:var(--c,#e50914);
+          transform:scaleY(0); transform-origin:top;
+          transition:transform .38s cubic-bezier(.22,1,.36,1);
+          box-shadow:2px 0 12px var(--c,#e50914);
+        }
+        .ic-card-hov .ic-card-bar { transform:scaleY(1); }
+
+        /* Head row */
+        .ic-card-head {
+          display:flex; align-items:center; gap:12px; margin-bottom:18px;
+        }
+        .ic-card-icon {
+          display:flex; align-items:center; justify-content:center;
+          width:44px; height:44px; border-radius:10px;
+          background:rgba(255,255,255,.04);
+          flex-shrink:0;
+          transition:transform .3s;
+        }
+        .ic-card-hov .ic-card-icon { transform:scale(1.08); }
+
+        .ic-card-name {
+          font-family:'Bebas Neue',sans-serif;
+          font-size:1.25rem; color:#fff; letter-spacing:.06em; line-height:1;
+          margin-bottom:2px;
+        }
+        .ic-card-sub {
+          font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+          color:rgba(255,255,255,.25);
+        }
+        .ic-card-pop {
+          margin-left:auto; flex-shrink:0;
+          font-size:7.5px; letter-spacing:.18em; text-transform:uppercase;
+          font-weight:700; color:#fff;
+          background:#e50914; padding:3px 7px; border-radius:2px;
+        }
+
+        /* Steps */
+        .ic-steps { list-style:none; margin:0 0 20px; padding:0; display:flex; flex-direction:column; gap:9px; }
+        .ic-step  { display:flex; align-items:center; gap:10px; }
+        .ic-step-n {
+          width:20px; height:20px; border-radius:50%; border:1px solid;
+          display:flex; align-items:center; justify-content:center;
+          font-size:9px; font-weight:700; flex-shrink:0;
+        }
+        .ic-step-t { font-size:12.5px; color:rgba(255,255,255,.48); line-height:1.4; }
+        .ic-card-hov .ic-step-t { color:rgba(255,255,255,.65); }
+
+        /* Install button */
+        .ic-install-btn {
+          width:100%; padding:11px 0; border-radius:3px;
+          font-family:'DM Sans',sans-serif;
+          font-size:9.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase;
+          border:1px solid; cursor:pointer;
+          transition:background .2s, color .2s, box-shadow .2s, transform .14s;
+        }
+        .ic-install-btn:hover { filter:brightness(1.08); }
+        .ic-install-btn:active { transform:scale(.97); }
+
+        /* Compat */
+        .ic-compat { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+        .ic-compat-label {
+          font-size:9px; letter-spacing:.3em; text-transform:uppercase;
+          color:rgba(255,255,255,.18); white-space:nowrap;
+        }
+        .ic-chip {
+          font-size:9px; letter-spacing:.14em; text-transform:uppercase;
+          color:rgba(255,255,255,.28); border:1px solid rgba(255,255,255,.07);
+          padding:3px 9px; border-radius:2px; background:rgba(255,255,255,.02);
+        }
+      `}</style>
     </section>
   );
 }
