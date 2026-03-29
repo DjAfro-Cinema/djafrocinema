@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Play, Info, Plus, Check, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Info, Plus, Check, Star, ChevronLeft, ChevronRight, Lock, CheckCircle2 } from "lucide-react";
+import PremiumPlayButton from "@/components/payment/Premiumplaybutton";
+import { usePremiumGate } from "@/context/PremiumGateContext";
 
 export interface BannerMovie {
   id: string;
@@ -17,10 +19,13 @@ export interface BannerMovie {
   dubbed?: boolean;
   duration?: string;
   kenBurns?: "zoom-in-right" | "zoom-in-left" | "zoom-out";
+  premium?: boolean;
 }
 
 interface MovieBannerProps {
   movies: BannerMovie[];
+  userId: string;
+  paidMovieIds?: string[];   // seed from server/parent — context overrides after payment
   onPlay?: (movie: BannerMovie) => void;
   onMoreInfo?: (movie: BannerMovie) => void;
   autoInterval?: number;
@@ -29,25 +34,33 @@ interface MovieBannerProps {
 
 export default function MovieBanner({
   movies,
+  userId,
+  paidMovieIds: seedPaidIds = [],
   onPlay,
   onMoreInfo,
   autoInterval = 6000,
   compact = false,
 }: MovieBannerProps) {
   const router = useRouter();
-  const [current, setCurrent] = useState(0);
+
+  // ── Pull live paidMovieIds from context — updates instantly after payment ──
+  const { paidMovieIds: contextPaidIds } = usePremiumGate();
+  // Merge seed (from page load) + context (updated after payment)
+  const paidSet = new Set([...seedPaidIds, ...contextPaidIds]);
+
+  const [current, setCurrent]         = useState(0);
   const [transitioning, setTransitioning] = useState(false);
-  const [kenKey, setKenKey] = useState(0);
-  const [tickKey, setTickKey] = useState(0);
-  const [inLib, setInLib] = useState<Set<string>>(new Set());
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [kenKey, setKenKey]           = useState(0);
+  const [tickKey, setTickKey]         = useState(0);
+  const [inLib, setInLib]             = useState<Set<string>>(new Set());
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const goTo = useCallback((idx: number) => {
     if (transitioning) return;
     setTransitioning(true);
     setCurrent(idx);
-    setKenKey(k => k + 1);
-    setTickKey(k => k + 1);
+    setKenKey((k) => k + 1);
+    setTickKey((k) => k + 1);
     setTimeout(() => setTransitioning(false), 900);
   }, [transitioning]);
 
@@ -71,12 +84,21 @@ export default function MovieBanner({
 
   if (!movies.length) return null;
 
-  const slide = movies[current];
-  const minH = compact ? "min(52vh, 400px)" : "min(80vh, 680px)";
+  const slide    = movies[current];
+  const minH     = compact ? "min(52vh, 400px)" : "min(80vh, 680px)";
+  const isPaid   = paidSet.has(slide.id);           // ← live from context
+  const isLocked = slide.premium && !isPaid;
 
   const handleMoreInfo = (movie: BannerMovie) => {
     if (onMoreInfo) onMoreInfo(movie);
     else router.push(`/dashboard/movies/${movie.id}`);
+  };
+
+  const handlePlay = (movieId: string) => {
+    const movie = movies.find((m) => m.id === movieId);
+    if (!movie) return;
+    if (onPlay) onPlay(movie);
+    else router.push(`/dashboard/watch/${movieId}`);
   };
 
   return (
@@ -120,10 +142,9 @@ export default function MovieBanner({
         minHeight: minH,
         padding: compact ? "24px 32px 48px" : "36px 44px 56px",
       }}>
-        {/* Main row: poster card + info */}
         <div style={{ display: "flex", alignItems: "flex-end", gap: 28, maxWidth: 760 }}>
 
-          {/* ── Poster card — desktop only ── */}
+          {/* Poster card */}
           <div
             key={`poster-${current}`}
             className="banner-poster-card"
@@ -131,26 +152,49 @@ export default function MovieBanner({
               flexShrink: 0,
               width: compact ? 100 : 130,
               height: compact ? 148 : 192,
-              borderRadius: 10,
-              overflow: "hidden",
+              borderRadius: 10, overflow: "hidden",
               boxShadow: "0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)",
               animation: "djBannerFadeUp 0.65s cubic-bezier(0.22,1,0.36,1) both",
               position: "relative",
             }}
           >
-            <Image
-              src={slide.img}
-              alt={slide.title}
-              fill
-              sizes="130px"
-              style={{ objectFit: "cover" }}
-              draggable={false}
-            />
+            <Image src={slide.img} alt={slide.title} fill sizes="130px" style={{ objectFit: "cover" }} draggable={false} />
+
+            {/* Lock overlay on poster */}
+            {isLocked && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "rgba(0,0,0,0.45)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  background: "rgba(229,9,20,0.85)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 20px rgba(229,9,20,0.5)",
+                }}>
+                  <Lock size={14} color="#fff" />
+                </div>
+              </div>
+            )}
+
+            {/* Paid checkmark */}
+            {slide.premium && isPaid && (
+              <div style={{
+                position: "absolute", top: 7, right: 7,
+                width: 22, height: 22, borderRadius: "50%",
+                background: "rgba(16,185,129,0.9)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <CheckCircle2 size={12} color="#fff" />
+              </div>
+            )}
           </div>
 
-          {/* ── Text + CTAs ── */}
+          {/* Text + CTAs */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Tag + meta */}
+
+            {/* Tag + premium badge + meta */}
             <div key={`tag-${current}`} style={{
               display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both",
@@ -160,6 +204,23 @@ export default function MovieBanner({
                 letterSpacing: "0.35em", textTransform: "uppercase", padding: "3px 9px",
                 color: "#e50914", background: "rgba(229,9,20,0.12)", border: "1px solid rgba(229,9,20,0.28)",
               }}>{slide.tag}</span>
+
+              {/* Premium / Owned badge */}
+              {slide.premium && (
+                <span style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase",
+                  padding: "3px 8px", borderRadius: 4,
+                  background: isPaid ? "rgba(16,185,129,0.12)" : "rgba(229,9,20,0.12)",
+                  color: isPaid ? "#10b981" : "#e50914",
+                  border: isPaid ? "1px solid rgba(16,185,129,0.28)" : "1px solid rgba(229,9,20,0.28)",
+                  display: "flex", alignItems: "center", gap: 4,
+                  transition: "all 0.3s ease",
+                }}>
+                  {isPaid ? <CheckCircle2 size={8} /> : <Lock size={8} />}
+                  {isPaid ? "Owned" : "KES 10"}
+                </span>
+              )}
+
               <span style={{ width: 20, height: 1, background: "rgba(255,255,255,0.18)" }} />
               <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: "0.25em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>{slide.genre}</span>
               <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
@@ -199,8 +260,8 @@ export default function MovieBanner({
             {/* Description */}
             <p key={`desc-${current}`} style={{
               fontSize: "clamp(0.8rem,1.2vw,0.9rem)",
-              color: "rgba(255,255,255,0.5)", lineHeight: 1.65, maxWidth: 430,
-              marginBottom: 24, fontFamily: "'DM Sans', sans-serif",
+              color: "rgba(255,255,255,0.5)", lineHeight: 1.65, maxWidth: 430, marginBottom: 24,
+              fontFamily: "'DM Sans', sans-serif",
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both",
             }}>{slide.description}</p>
 
@@ -209,20 +270,28 @@ export default function MovieBanner({
               display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both",
             }}>
-              <button
-                onClick={() => onPlay?.(slide)}
+              <PremiumPlayButton
+                movieId={slide.id}
+                movieTitle={slide.title}
+                posterUrl={slide.img}
+                isPremium={slide.premium ?? false}
+                isPaid={isPaid}
+                userId={userId}
+                onPlay={handlePlay}
                 style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "11px 26px",
-                  background: "#e50914", border: "none", cursor: "pointer", color: "#fff",
-                  fontSize: 10.5, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "11px 26px",
+                  background: "#e50914", border: "none", cursor: "pointer",
+                  color: "#fff", fontSize: 10.5,
+                  fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
                   letterSpacing: "0.2em", textTransform: "uppercase",
-                  boxShadow: "0 0 30px rgba(229,9,20,0.4)", transition: "box-shadow 0.25s",
+                  boxShadow: "0 0 30px rgba(229,9,20,0.4)",
+                  transition: "box-shadow 0.25s",
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 0 50px rgba(229,9,20,0.65)"}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 0 30px rgba(229,9,20,0.4)"}
               >
-                <Play size={13} fill="#fff" /> Watch Now
-              </button>
+                {isLocked ? <Lock size={13} /> : <Play size={13} fill="#fff" />}
+                {isLocked ? "Unlock — KES 10" : "Watch Now"}
+              </PremiumPlayButton>
 
               <button
                 onClick={() => handleMoreInfo(slide)}
@@ -234,14 +303,14 @@ export default function MovieBanner({
                   letterSpacing: "0.2em", textTransform: "uppercase",
                   backdropFilter: "blur(8px)", transition: "border-color 0.2s, color 0.2s, background 0.2s",
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)"; }}
               >
                 <Info size={13} /> More Info
               </button>
 
               <button
-                onClick={() => setInLib(s => {
+                onClick={() => setInLib((s) => {
                   const n = new Set(s);
                   n.has(slide.id) ? n.delete(slide.id) : n.add(slide.id);
                   return n;
@@ -260,12 +329,8 @@ export default function MovieBanner({
           </div>
         </div>
 
-        {/* ── Slide pips — right side ── */}
-        <div style={{
-          position: "absolute", right: 24, top: "50%",
-          transform: "translateY(-50%)", zIndex: 20,
-          display: "flex", flexDirection: "column", gap: 8,
-        }}>
+        {/* Slide pips */}
+        <div style={{ position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)", zIndex: 20, display: "flex", flexDirection: "column", gap: 8 }}>
           {movies.map((_, i) => (
             <button key={i} onClick={() => goTo(i)} style={{
               width: 4, height: i === current ? 24 : 6,
@@ -277,25 +342,15 @@ export default function MovieBanner({
           ))}
         </div>
 
-        {/* ── Arrows ── */}
-        <button onClick={prev} style={{
-          position: "absolute", left: 16, bottom: "36%", width: 38, height: 38,
-          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20,
-        }}>
+        {/* Arrows */}
+        <button onClick={prev} style={{ position: "absolute", left: 16, bottom: "36%", width: 38, height: 38, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20 }}>
           <ChevronLeft size={16} />
         </button>
-        <button onClick={next} style={{
-          position: "absolute", right: 46, bottom: "36%", width: 38, height: 38,
-          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20,
-        }}>
+        <button onClick={next} style={{ position: "absolute", right: 46, bottom: "36%", width: 38, height: 38, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20 }}>
           <ChevronRight size={16} />
         </button>
 
-        {/* ── Slide counter ── */}
+        {/* Slide counter */}
         <div style={{ position: "absolute", bottom: 20, right: 16, zIndex: 20, display: "flex", alignItems: "baseline", gap: 3 }}>
           <span style={{ fontSize: 20, fontFamily: "var(--font-display)", color: "#fff", letterSpacing: "0.08em", lineHeight: 1 }}>
             {String(current + 1).padStart(2, "0")}
@@ -303,42 +358,24 @@ export default function MovieBanner({
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", fontFamily: "'DM Sans', sans-serif" }}>/ {String(movies.length).padStart(2, "0")}</span>
         </div>
 
-        {/* ── Animated pill ticker (replaces progress bar) ── */}
-        <div style={{
-          position: "absolute", bottom: 16, left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 20, display: "flex", alignItems: "center", gap: 6,
-        }}>
+        {/* Pill ticker */}
+        <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 20, display: "flex", alignItems: "center", gap: 6 }}>
           {movies.map((_, i) => {
             const isActive = i === current;
             return (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                style={{
-                  height: 3,
-                  width: isActive ? 48 : 16,
-                  borderRadius: 99,
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  background: isActive ? "transparent" : "rgba(255,255,255,0.18)",
-                  position: "relative",
-                  overflow: "hidden",
-                  transition: "width 0.35s cubic-bezier(0.22,1,0.36,1)",
-                }}
-              >
+              <button key={i} onClick={() => goTo(i)} style={{
+                height: 3, width: isActive ? 48 : 16, borderRadius: 99,
+                border: "none", cursor: "pointer", padding: 0,
+                background: isActive ? "transparent" : "rgba(255,255,255,0.18)",
+                position: "relative", overflow: "hidden",
+                transition: "width 0.35s cubic-bezier(0.22,1,0.36,1)",
+              }}>
                 {isActive && (
-                  <span
-                    key={`fill-${tickKey}`}
-                    style={{
-                      position: "absolute", inset: 0,
-                      borderRadius: 99,
-                      background: "#e50914",
-                      transformOrigin: "left center",
-                      animation: `djTickerFill ${autoInterval}ms linear forwards`,
-                    }}
-                  />
+                  <span key={`fill-${tickKey}`} style={{
+                    position: "absolute", inset: 0, borderRadius: 99,
+                    background: "#e50914", transformOrigin: "left center",
+                    animation: `djTickerFill ${autoInterval}ms linear forwards`,
+                  }} />
                 )}
               </button>
             );

@@ -2,7 +2,7 @@
 
 // hooks/usePayments.ts
 import { useState, useEffect, useCallback } from "react";
-import { paymentService, Payment, PaymentResult } from "@/services/paymentService";
+import { paymentService, Payment, PaymentResult } from "@/services/payment.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

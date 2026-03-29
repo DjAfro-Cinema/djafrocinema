@@ -1,367 +1,391 @@
 "use client";
 
 // components/payment/PaymentModal.tsx
+// Mount ONCE in dashboard layout via DashboardGateWrapper. Never inside cards.
+// Reads all state from PremiumGateContext.
+//
+// Fixes applied:
+//  ✅ Phone submission: prepends "0" → formatPhone gets "07XXXXXXXX" → valid
+//  ✅ "Try Again" resets state to "locked" instead of reloading the page
+//  ✅ Desktop: wider (540px), taller, cinematic poster strip
+//  ✅ Mobile: slides up from bottom, covers exactly 3/4 of screen
+//  ✅ Lottie for awaiting_pin, polling, success states
+//  ✅ Removed cliché copy lines
+//  ✅ canSubmit logic tightened
+
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
-  X, Phone, Lock, Star, Zap, Shield,
-  CheckCircle, Clock, AlertCircle, Play,
-  Sparkles, TrendingUp, Users,
+  X, Lock, Shield, Star, Zap, CheckCircle,
+  AlertCircle, Play, Users, RefreshCw, Smartphone,
 } from "lucide-react";
-import type { PaymentGuardState } from "@/hooks/Usepaymentguard";
+import { usePremiumGate } from "@/context/PremiumGateContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lottie (dynamic import to avoid SSR issues)
+// Lottie — SSR-safe dynamic import
 // ─────────────────────────────────────────────────────────────────────────────
 
-// We use lottie-web directly, mounted after hydration
-const LOCK_LOTTIE_URL =
-  "https://lottie.host/9e56e2b9-41c2-4773-b5e4-4eeda21c2eba/bKlyb2oTsp.json"; // lock/unlock
-const SUCCESS_LOTTIE_URL =
-  "https://lottie.host/d3e91b93-0777-467c-b071-3fe3e7b5e52c/mfknWrNYkC.json"; // success checkmark
+function LottiePlayer({
+  url,
+  loop = true,
+  style,
+}: {
+  url: string;
+  loop?: boolean;
+  style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const anim = useRef<{ destroy: () => void } | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    let dead = false;
+    import("lottie-web").then((m) => {
+      if (dead || !ref.current) return;
+      anim.current?.destroy();
+      anim.current = m.default.loadAnimation({
+        container: ref.current!,
+        renderer: "svg",
+        loop,
+        autoplay: true,
+        path: url,
+      }) as unknown as { destroy: () => void };
+    });
+    return () => {
+      dead = true;
+      anim.current?.destroy();
+      anim.current = null;
+    };
+  }, [url, loop]);
+
+  return <div ref={ref} style={style} />;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Selling copy — rotated randomly
+// Selling points (cliché-free)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SELLING_POINTS = [
-  { Icon: Star,       text: "Unlock this movie forever — no expiry, no subscription." },
-  { Icon: Zap,        text: "Pay once. Watch anytime, as many times as you want." },
-  { Icon: Shield,     text: "Secure M-Pesa payment. Your money is always protected." },
-  { Icon: TrendingUp, text: "Join 10,000+ Kenyans already watching DJ Afro movies." },
-  { Icon: Users,      text: "Your family can watch too — one purchase, the whole household." },
-  { Icon: Sparkles,   text: "Only KES 10 — cheaper than a mandazi. Seriously." },
+const SELLS = [
+  { Icon: Star,     text: "Unlock once, watch forever — no expiry, no re-purchasing." },
+  { Icon: Zap,      text: "One-time payment. No subscriptions, no recurring charges." },
+  { Icon: Shield,   text: "100% secure M-Pesa transaction. Fully encrypted." },
+  { Icon: Users,    text: "One purchase, your whole household enjoys — share freely." },
+  { Icon: Smartphone, text: "Works on all your devices — phone, tablet, or laptop." },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
+// Lottie JSON URLs
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LottiePlayer({ url, loop = true, autoplay = true, style }: {
-  url: string; loop?: boolean; autoplay?: boolean; style?: React.CSSProperties;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const animRef = useRef<unknown>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    let cancelled = false;
-
-    import("lottie-web").then((lottie) => {
-      if (cancelled || !containerRef.current) return;
-      // Destroy previous if any
-      if (animRef.current) {
-        (animRef.current as { destroy: () => void }).destroy();
-      }
-      animRef.current = lottie.default.loadAnimation({
-        container: containerRef.current!,
-        renderer: "svg",
-        loop,
-        autoplay,
-        path: url,
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      if (animRef.current) {
-        (animRef.current as { destroy: () => void }).destroy();
-        animRef.current = null;
-      }
-    };
-  }, [url, loop, autoplay]);
-
-  return <div ref={containerRef} style={style} />;
-}
-
-function PhoneInput({ value, onChange, disabled }: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="pm-phone-wrap">
-      <div className="pm-phone-prefix">
-        <span className="pm-flag">🇰🇪</span>
-        <span className="pm-prefix-code">+254</span>
-      </div>
-      <input
-        className="pm-phone-input"
-        type="tel"
-        placeholder="7XX XXX XXX"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, "").slice(0, 9))}
-        disabled={disabled}
-        maxLength={9}
-      />
-    </div>
-  );
-}
+const LOTTIE = {
+  // Phone / waiting animation
+  phone: "https://lottie.host/9e56e2b9-41c2-4773-b5e4-4eeda21c2eba/bKlyb2oTsp.json",
+  // Success checkmark
+  success: "https://lottie.host/d3e91b93-0777-467c-b071-3fe3e7b5e52c/mfknWrNYkC.json",
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Modal
+// Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface PaymentModalProps {
-  guardState: PaymentGuardState;
-  userId: string;
-  onSubmitPayment: (phone: string, userId: string) => void;
-  onDismiss: () => void;
-  onProceedToPlay: () => void;
-}
+export default function PaymentModal() {
+  const { gateStatus, submitPhone, dismiss } = usePremiumGate();
+  const { state, movie, error } = gateStatus;
 
-export default function PaymentModal({
-  guardState,
-  userId,
-  onSubmitPayment,
-  onDismiss,
-  onProceedToPlay,
-}: PaymentModalProps) {
-  const [phone, setPhone] = useState("");
-  const [sellingIdx] = useState(() => Math.floor(Math.random() * SELLING_POINTS.length));
-  const [mounted, setMounted] = useState(false);
-  const [dots, setDots] = useState(".");
+  const [phone, setPhone]   = useState("");
+  const [dots, setDots]     = useState(".");
+  const [ready, setReady]   = useState(false);
+  const [sellIdx]           = useState(() => Math.floor(Math.random() * SELLS.length));
 
-  const { state, movieTitle, posterUrl, error } = guardState;
+  const isOpen     = state !== "idle";
+  const canDismiss = state === "locked" || state === "failed";
 
-  const isOpen =
-    state === "locked" ||
-    state === "awaiting_pin" ||
-    state === "polling" ||
-    state === "success" ||
-    state === "failed" ||
-    state === "checking";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Hydration guard
+  useEffect(() => setReady(true), []);
 
   // Animated dots for loading states
   useEffect(() => {
-    if (state !== "awaiting_pin" && state !== "polling") return;
-    const t = setInterval(() => setDots((d) => (d.length >= 3 ? "." : d + ".")), 600);
+    if (!["awaiting_pin", "polling", "checking"].includes(state)) return;
+    const t = setInterval(
+      () => setDots((d) => (d.length >= 3 ? "." : d + ".")),
+      550
+    );
     return () => clearInterval(t);
   }, [state]);
 
-  // Auto-proceed 3s after success
+  // Clear phone when modal re-opens to locked state
+  useEffect(() => {
+    if (state === "locked") setPhone("");
+  }, [state]);
+
+  // Auto-navigate on success after 3s (user can also click Watch Now)
   useEffect(() => {
     if (state !== "success") return;
-    const t = setTimeout(() => onProceedToPlay(), 3200);
+    const t = setTimeout(() => {
+      movie?.onUnlocked?.(movie.movieId);
+      dismiss();
+    }, 3500);
     return () => clearTimeout(t);
-  }, [state, onProceedToPlay]);
+  }, [state, movie, dismiss]);
 
-  if (!isOpen || !mounted) return null;
+  if (!ready || !isOpen) return null;
 
+  // Phone must be exactly 9 digits starting with 7 or 1 (after +254 prefix)
+  const phoneDigits = phone.replace(/\D/g, "");
   const canSubmit =
-    phone.length === 9 &&
     state === "locked" &&
-    (phone.startsWith("7") || phone.startsWith("1"));
+    phoneDigits.length === 9 &&
+    (phoneDigits[0] === "7" || phoneDigits[0] === "1");
 
-  const selling = SELLING_POINTS[sellingIdx];
-  const SellingIcon = selling.Icon;
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    // Prepend "0" → "07XXXXXXXX" → formatPhone converts to "2547XXXXXXXX" ✅
+    submitPhone("0" + phoneDigits);
+  };
 
-  return (
+  const sell     = SELLS[sellIdx];
+  const SellIcon = sell.Icon;
+
+  return createPortal(
     <>
       <style>{CSS}</style>
 
-      {/* Backdrop */}
+      {/* ── Backdrop ── */}
       <div
-        className={`pm-backdrop${isOpen ? " pm-backdrop--in" : ""}`}
-        onClick={state === "locked" || state === "failed" ? onDismiss : undefined}
+        className="pm-bd"
+        onClick={canDismiss ? dismiss : undefined}
       />
 
-      {/* Modal */}
-      <div className={`pm-sheet${isOpen ? " pm-sheet--in" : ""}`}>
+      {/* ── Sheet ── */}
+      <div className="pm-sheet" role="dialog" aria-modal="true">
 
-        {/* Close */}
-        {(state === "locked" || state === "failed") && (
-          <button className="pm-close" onClick={onDismiss} aria-label="Close">
-            <X size={16} />
+        {/* Close button */}
+        {canDismiss && (
+          <button className="pm-x" onClick={dismiss} aria-label="Close">
+            <X size={15} />
           </button>
         )}
 
-        {/* ── LOCKED: main purchase screen ── */}
-        {state === "locked" && (
+        {/* ════════════════════════════════════
+            STATE: checking
+        ════════════════════════════════════ */}
+        {state === "checking" && (
+          <div className="pm-mid pm-mid-tall">
+            <div className="pm-spin" />
+            <p className="pm-ssub" style={{ marginTop: 20 }}>
+              Verifying access{dots}
+            </p>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════
+            STATE: locked  — payment form
+        ════════════════════════════════════ */}
+        {state === "locked" && movie && (
           <>
-            {/* Movie poster strip */}
-            {posterUrl && (
-              <div className="pm-poster-strip">
-                <img src={posterUrl} alt={movieTitle ?? ""} className="pm-poster-img" />
-                <div className="pm-poster-veil" />
-                <div className="pm-poster-lock">
-                  <div className="pm-lock-circle">
-                    <Lock size={18} color="#fff" />
+            {/* Cinematic poster strip */}
+            {movie.posterUrl && (
+              <div className="pm-strip">
+                <img
+                  src={movie.posterUrl}
+                  alt=""
+                  className="pm-poster"
+                />
+                {/* Noise grain overlay */}
+                <div className="pm-grain" />
+                <div className="pm-veil" />
+                {/* Lock badge */}
+                <div className="pm-lock-wrap">
+                  <div className="pm-lock-ring">
+                    <Lock size={22} color="#fff" strokeWidth={2.5} />
                   </div>
+                  <span className="pm-lock-label">Premium</span>
+                </div>
+                {/* Movie title over strip */}
+                <div className="pm-strip-title">
+                  <span className="pm-badge">
+                    <Zap size={9} color="#f59e0b" fill="#f59e0b" />
+                    PREMIUM MOVIE
+                  </span>
+                  <h2 className="pm-title">{movie.movieTitle}</h2>
                 </div>
               </div>
             )}
 
             <div className="pm-body">
-              {/* Badge */}
-              <div className="pm-badge">
-                <Zap size={10} color="#f59e0b" fill="#f59e0b" />
-                <span>PREMIUM MOVIE</span>
-              </div>
-
-              <h2 className="pm-title">{movieTitle ?? "Premium Movie"}</h2>
+              {/* Unlock price line */}
               <p className="pm-sub">
-                This movie is available for <strong className="pm-price">KES 10</strong> — unlock it forever.
+                Unlock for{" "}
+                <strong className="pm-price">KES 10</strong>
+                {" "}— yours forever, no expiry.
               </p>
 
               {/* Selling point */}
-              <div className="pm-sell-row">
-                <SellingIcon size={13} color="#e50914" />
-                <span>{selling.text}</span>
+              <div className="pm-sell">
+                <SellIcon
+                  size={14}
+                  color="#e50914"
+                  style={{ flexShrink: 0, marginTop: 1 }}
+                />
+                <span>{sell.text}</span>
               </div>
 
-              {/* Trust signals */}
-              <div className="pm-trust-row">
-                <div className="pm-trust-item">
-                  <CheckCircle size={11} color="#10b981" />
-                  <span>Instant unlock</span>
-                </div>
-                <div className="pm-trust-item">
-                  <Shield size={11} color="#10b981" />
-                  <span>Secure M-Pesa</span>
-                </div>
-                <div className="pm-trust-item">
-                  <Star size={11} color="#10b981" />
-                  <span>Own it forever</span>
-                </div>
+              {/* Trust badges */}
+              <div className="pm-trust">
+                <span className="pm-ti">
+                  <CheckCircle size={10} color="#10b981" /> Instant unlock
+                </span>
+                <span className="pm-ti">
+                  <Shield size={10} color="#10b981" /> Secure M-Pesa
+                </span>
+                <span className="pm-ti">
+                  <Star size={10} color="#10b981" /> Own forever
+                </span>
               </div>
 
               {/* Phone input */}
-              <div className="pm-input-section">
-                <label className="pm-label">
-                  <Phone size={11} color="rgba(255,255,255,0.4)" />
-                  Enter your M-Pesa number
-                </label>
-                <PhoneInput value={phone} onChange={setPhone} disabled={false} />
-                <p className="pm-hint">
-                  You will receive an M-Pesa prompt on this number to confirm KES 10.
-                </p>
+              <p className="pm-lbl">M-Pesa number</p>
+              <div className="pm-phone-row">
+                <div className="pm-pfx">
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>🇰🇪</span>
+                  <span className="pm-pfx-txt">+254</span>
+                </div>
+                <input
+                  className="pm-inp"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="7XX XXX XXX"
+                  maxLength={9}
+                  value={phone}
+                  onChange={(e) =>
+                    setPhone(e.target.value.replace(/\D/g, "").slice(0, 9))
+                  }
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  autoFocus
+                />
               </div>
+              <p className="pm-hint">
+                You&apos;ll receive an M-Pesa prompt — enter your PIN to confirm.
+              </p>
 
               {/* CTA */}
               <button
-                className={`pm-cta${canSubmit ? " pm-cta--active" : " pm-cta--disabled"}`}
+                className={`pm-btn ${canSubmit ? "pm-btn-on" : "pm-btn-off"}`}
                 disabled={!canSubmit}
-                onClick={() => canSubmit && onSubmitPayment(phone, userId)}
+                onClick={handleSubmit}
               >
-                <Lock size={13} />
+                <Lock size={14} />
                 Pay KES 10 &amp; Unlock Forever
               </button>
-
-              <p className="pm-disclaimer">
-                By paying you agree to our terms. No hidden charges. One-time payment only.
+              <p className="pm-disc">
+                One-time only. No subscriptions. No hidden charges.
               </p>
             </div>
           </>
         )}
 
-        {/* ── AWAITING PIN: STK push sent ── */}
+        {/* ════════════════════════════════════
+            STATE: awaiting_pin
+        ════════════════════════════════════ */}
         {state === "awaiting_pin" && (
-          <div className="pm-body pm-body--center">
-            <div className="pm-lottie-wrap">
-              <LottiePlayer
-                url={LOCK_LOTTIE_URL}
-                loop
-                autoplay
-                style={{ width: 120, height: 120 }}
-              />
-            </div>
-            <h2 className="pm-status-title">Check your phone{dots}</h2>
-            <p className="pm-status-sub">
-              An M-Pesa prompt has been sent to your phone.<br />
-              Enter your <strong>M-Pesa PIN</strong> to complete the payment.
+          <div className="pm-mid pm-mid-tall">
+            <LottiePlayer
+              url={LOTTIE.phone}
+              loop
+              style={{ width: 130, height: 130 }}
+            />
+            <h2 className="pm-stitle">Check your phone{dots}</h2>
+            <p className="pm-ssub">
+              An M-Pesa prompt has been sent to your number.
+              <br />
+              Enter your <strong style={{ color: "#fff" }}>M-Pesa PIN</strong> to confirm KES 10.
             </p>
-            <div className="pm-mpesa-badge">
-              <span className="pm-mpesa-dot" />
+            <div className="pm-mpill">
+              <span className="pm-pdot" />
               Waiting for PIN confirmation
             </div>
           </div>
         )}
 
-        {/* ── POLLING: payment processing ── */}
+        {/* ════════════════════════════════════
+            STATE: polling
+        ════════════════════════════════════ */}
         {state === "polling" && (
-          <div className="pm-body pm-body--center">
-            <div className="pm-lottie-wrap">
-              <LottiePlayer
-                url={LOCK_LOTTIE_URL}
-                loop
-                autoplay
-                style={{ width: 120, height: 120 }}
-              />
-            </div>
-            <h2 className="pm-status-title">Confirming payment{dots}</h2>
-            <p className="pm-status-sub">
-              We received your PIN. Verifying with M-Pesa now.<br />
-              This usually takes a few seconds — don&apos;t close this screen.
+          <div className="pm-mid pm-mid-tall">
+            <LottiePlayer
+              url={LOTTIE.phone}
+              loop
+              style={{ width: 130, height: 130 }}
+            />
+            <h2 className="pm-stitle">Confirming payment{dots}</h2>
+            <p className="pm-ssub">
+              Verifying with M-Pesa. Keep this screen open
+              <br />— this usually takes a few seconds.
             </p>
-            <div className="pm-progress-bar">
-              <div className="pm-progress-fill pm-progress-fill--anim" />
+            <div className="pm-track">
+              <div className="pm-slide" />
             </div>
+            <p className="pm-caution">Do not close this screen</p>
           </div>
         )}
 
-        {/* ── SUCCESS ── */}
+        {/* ════════════════════════════════════
+            STATE: success
+        ════════════════════════════════════ */}
         {state === "success" && (
-          <div className="pm-body pm-body--center">
-            <div className="pm-lottie-wrap">
-              <LottiePlayer
-                url={SUCCESS_LOTTIE_URL}
-                loop={false}
-                autoplay
-                style={{ width: 140, height: 140 }}
-              />
-            </div>
-            <h2 className="pm-status-title pm-status-title--green">Payment Confirmed!</h2>
-            <p className="pm-status-sub">
-              You now own <strong>{movieTitle}</strong> forever.
-              <br />
-              Loading your movie in a moment{dots}
+          <div className="pm-mid pm-mid-tall">
+            <LottiePlayer
+              url={LOTTIE.success}
+              loop={false}
+              style={{ width: 150, height: 150 }}
+            />
+            <h2 className="pm-stitle pm-green">Payment Confirmed!</h2>
+            <p className="pm-ssub">
+              You now own{" "}
+              <strong style={{ color: "#fff" }}>{movie?.movieTitle}</strong>{" "}
+              forever.
             </p>
-            <button className="pm-cta pm-cta--active pm-cta--green" onClick={onProceedToPlay}>
-              <Play size={13} fill="#fff" />
+            <button
+              className="pm-btn pm-btn-on pm-btn-green"
+              onClick={() => {
+                movie?.onUnlocked?.(movie.movieId);
+                dismiss();
+              }}
+            >
+              <Play size={14} fill="#fff" />
               Watch Now
             </button>
           </div>
         )}
 
-        {/* ── FAILED ── */}
+        {/* ════════════════════════════════════
+            STATE: failed
+        ════════════════════════════════════ */}
         {state === "failed" && (
-          <div className="pm-body pm-body--center">
-            <div className="pm-error-icon">
+          <div className="pm-mid pm-mid-tall">
+            <div className="pm-err-ring">
               <AlertCircle size={32} color="#e50914" />
             </div>
-            <h2 className="pm-status-title pm-status-title--red">Payment Failed</h2>
-            <p className="pm-status-sub">
+            <h2 className="pm-stitle pm-red">Payment Failed</h2>
+            <p className="pm-ssub">
               {error ?? "Something went wrong. Please try again."}
             </p>
             <button
-              className="pm-cta pm-cta--active"
-              onClick={() => {
-                // Reset to locked so they can retry
-                (guardState as unknown as { state: string }).state = "locked";
-                window.location.reload();
-              }}
+              className="pm-btn pm-btn-on"
+              style={{ marginBottom: 10 }}
+              onClick={dismiss}   // dismiss → context resets to idle → user can click play again → modal re-opens at "locked"
             >
+              <RefreshCw size={13} />
               Try Again
             </button>
-            <button className="pm-ghost-btn" onClick={onDismiss}>
+            <button className="pm-ghost" onClick={dismiss}>
               Cancel
             </button>
           </div>
         )}
-
-        {/* ── CHECKING ── */}
-        {state === "checking" && (
-          <div className="pm-body pm-body--center" style={{ padding: "60px 24px" }}>
-            <div className="pm-spinner" />
-            <p className="pm-status-sub" style={{ marginTop: 16 }}>Checking access{dots}</p>
-          </div>
-        )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
@@ -370,318 +394,372 @@ export default function PaymentModal({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap');
 
-  /* ── Backdrop ── */
-  .pm-backdrop {
-    position: fixed; inset: 0; z-index: 9000;
-    background: rgba(0,0,0,0);
-    backdrop-filter: blur(0px);
-    transition: background 0.3s ease, backdrop-filter 0.3s ease;
-    pointer-events: none;
-  }
-  .pm-backdrop--in {
-    background: rgba(0,0,0,0.72);
-    backdrop-filter: blur(8px);
-    pointer-events: all;
-  }
+/* ── Backdrop ── */
+.pm-bd {
+  position: fixed; inset: 0; z-index: 8999;
+  background: rgba(0,0,0,0.80);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: pmFi .25s ease both;
+}
+@keyframes pmFi { from{opacity:0} to{opacity:1} }
 
-  /* ── Sheet — bottom drawer on mobile, centered on desktop ── */
+/* ── Sheet — MOBILE first: slides up, covers 75% ── */
+.pm-sheet {
+  position: fixed; z-index: 9000;
+  left: 0; right: 0; bottom: 0;
+  height: 75svh;
+  background: #0c0c10;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  animation: pmUp .38s cubic-bezier(.32,.72,0,1) both;
+  box-shadow: 0 -24px 80px rgba(0,0,0,0.7);
+}
+.pm-sheet::-webkit-scrollbar { display: none; }
+@keyframes pmUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Sheet — DESKTOP: centered modal, bigger ── */
+@media (min-width: 640px) {
   .pm-sheet {
-    position: fixed; z-index: 9001;
-    background: #0d0d12;
-    border: 1px solid rgba(255,255,255,0.07);
-    overflow: hidden;
-    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease;
+    left: 50%; top: 50%;
+    right: auto; bottom: auto;
+    width: 540px;
+    max-height: 88svh;
+    height: auto;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow:
+      0 0 0 1px rgba(229,9,20,0.08),
+      0 40px 120px rgba(0,0,0,0.85),
+      0 0 60px rgba(229,9,20,0.06);
+    transform: translate(-50%, -50%);
+    animation: pmZi .32s cubic-bezier(.32,.72,0,1) both;
+  }
+  @keyframes pmZi {
+    from { opacity:0; transform:translate(-50%,-47%) scale(.96); }
+    to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  }
+}
 
-    /* Mobile: bottom sheet */
-    left: 0; right: 0; bottom: 0;
-    border-radius: 20px 20px 0 0;
-    max-height: 92svh;
-    overflow-y: auto;
-    scrollbar-width: none;
+/* ── Close button ── */
+.pm-x {
+  position: absolute; top: 13px; right: 13px; z-index: 20;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,0.45);
+  transition: background .15s, color .15s;
+}
+.pm-x:hover { background: rgba(255,255,255,0.14); color: #fff; }
 
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  .pm-sheet::-webkit-scrollbar { display: none; }
-  .pm-sheet--in {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* ── Poster strip ── */
+.pm-strip {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .pm-strip { height: 220px; }
+}
+.pm-poster {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  filter: brightness(.45) saturate(1.2);
+  transform: scale(1.04);
+}
+/* CSS noise grain via SVG filter */
+.pm-grain {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+.pm-veil {
+  position: absolute; inset: 0; z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    rgba(12,12,16,0.1) 0%,
+    rgba(12,12,16,0.5) 55%,
+    rgba(12,12,16,1) 100%
+  );
+}
+/* Lock badge centred */
+.pm-lock-wrap {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  padding-bottom: 40px;
+}
+.pm-lock-ring {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(229,9,20,0.9);
+  border: 2.5px solid rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 32px rgba(229,9,20,0.55), 0 0 0 8px rgba(229,9,20,0.1);
+  animation: pmLockPop .5s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes pmLockPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.pm-lock-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .25em; text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+}
+/* Movie title pinned bottom of strip */
+.pm-strip-title {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 4;
+  padding: 0 20px 16px;
+}
+.pm-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.28);
+  border-radius: 99px; padding: 3px 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: .1em;
+  color: #f59e0b; margin-bottom: 7px;
+}
+.pm-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.25rem, 4vw, 1.6rem);
+  font-weight: 800; color: #fff;
+  margin: 0; letter-spacing: -.02em; line-height: 1.1;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.6);
+}
 
-  /* Desktop: centered modal */
-  @media (min-width: 640px) {
-    .pm-sheet {
-      left: 50%; top: 50%;
-      right: auto; bottom: auto;
-      width: 420px;
-      max-height: 85svh;
-      border-radius: 18px;
-      transform: translate(-50%, -48%) scale(0.96);
-    }
-    .pm-sheet--in {
-      transform: translate(-50%, -50%) scale(1);
-    }
-  }
+/* ── Body ── */
+.pm-body { padding: 16px 20px 32px; }
+@media (min-width: 640px) { .pm-body { padding: 20px 28px 36px; } }
 
-  /* ── Close button ── */
-  .pm-close {
-    position: absolute; top: 14px; right: 14px; z-index: 10;
-    width: 30px; height: 30px; border-radius: 50%;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.1);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; color: rgba(255,255,255,0.5);
-    transition: background 0.14s, color 0.14s;
-  }
-  .pm-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.pm-sub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13.5px; color: rgba(255,255,255,0.42);
+  margin: 0 0 14px; line-height: 1.6;
+}
+.pm-price { color: #e50914; font-weight: 700; }
 
-  /* ── Poster strip ── */
-  .pm-poster-strip {
-    position: relative; width: 100%; height: 160px; overflow: hidden;
-  }
-  .pm-poster-img {
-    width: 100%; height: 100%; object-fit: cover; object-position: center 20%;
-    filter: brightness(0.55) saturate(1.2);
-  }
-  .pm-poster-veil {
-    position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, #0d0d12 100%);
-  }
-  .pm-poster-lock {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .pm-lock-circle {
-    width: 52px; height: 52px; border-radius: 50%;
-    background: rgba(229,9,20,0.85);
-    border: 3px solid rgba(255,255,255,0.15);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 32px rgba(229,9,20,0.6);
-  }
+/* Selling point card */
+.pm-sell {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(229,9,20,0.04);
+  border: 1px solid rgba(229,9,20,0.12);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12.5px; color: rgba(255,255,255,0.58); line-height: 1.55;
+}
 
-  /* ── Body ── */
-  .pm-body { padding: 20px 22px 32px; }
-  .pm-body--center {
-    display: flex; flex-direction: column;
-    align-items: center; text-align: center;
-    padding: 32px 24px 40px;
-  }
+/* Trust row */
+.pm-trust {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.pm-ti {
+  display: flex; align-items: center; gap: 5px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10.5px; color: rgba(255,255,255,0.28);
+}
 
-  /* ── Badge ── */
-  .pm-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: rgba(245,158,11,0.1);
-    border: 1px solid rgba(245,158,11,0.25);
-    border-radius: 99px; padding: 3px 10px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 9.5px; font-weight: 700;
-    letter-spacing: 0.1em; color: #f59e0b;
-    margin-bottom: 10px;
-  }
+/* Phone label */
+.pm-lbl {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: .07em; text-transform: uppercase;
+  margin: 0 0 8px;
+}
 
-  /* ── Title ── */
-  .pm-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.4rem; font-weight: 800;
-    color: #fff; margin: 0 0 8px;
-    letter-spacing: -0.02em; line-height: 1.15;
-  }
-  .pm-sub {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px; color: rgba(255,255,255,0.45);
-    margin: 0 0 16px; line-height: 1.6;
-  }
-  .pm-price { color: #e50914; font-weight: 700; }
+/* Phone row */
+.pm-phone-row {
+  display: flex; align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.09);
+  border-radius: 12px; overflow: hidden;
+  margin-bottom: 8px;
+  transition: border-color .18s, background .18s;
+}
+.pm-phone-row:focus-within {
+  border-color: rgba(229,9,20,0.5);
+  background: rgba(229,9,20,0.03);
+}
+.pm-pfx {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 13px; height: 52px; flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+.pm-pfx-txt {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.48);
+}
+.pm-inp {
+  flex: 1; height: 52px; padding: 0 14px;
+  background: transparent; border: none; outline: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 17px; font-weight: 600;
+  color: #fff; letter-spacing: .04em;
+  caret-color: #e50914;
+}
+.pm-inp::placeholder { color: rgba(255,255,255,0.18); }
 
-  /* ── Selling row ── */
-  .pm-sell-row {
-    display: flex; align-items: flex-start; gap: 9px;
-    background: rgba(229,9,20,0.06);
-    border: 1px solid rgba(229,9,20,0.15);
-    border-radius: 10px; padding: 11px 13px;
-    margin-bottom: 14px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 12.5px; color: rgba(255,255,255,0.7);
-    line-height: 1.5;
-  }
-  .pm-sell-row svg { flex-shrink: 0; margin-top: 1px; }
+.pm-hint {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10.5px; color: rgba(255,255,255,0.18);
+  margin: 0 0 18px; line-height: 1.55;
+}
 
-  /* ── Trust signals ── */
-  .pm-trust-row {
-    display: flex; gap: 10px; flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-  .pm-trust-item {
-    display: flex; align-items: center; gap: 5px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 10.5px; color: rgba(255,255,255,0.35);
-  }
+/* ── CTA button ── */
+.pm-btn {
+  width: 100%; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px; font-weight: 700; letter-spacing: .02em;
+  border: none; cursor: pointer;
+  transition: transform .13s, box-shadow .13s, background .15s;
+  margin-bottom: 10px;
+}
+.pm-btn-on {
+  background: #e50914; color: #fff;
+  box-shadow: 0 6px 28px rgba(229,9,20,0.4);
+}
+.pm-btn-on:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 36px rgba(229,9,20,0.55);
+}
+.pm-btn-on:active { transform: scale(.98); }
+.pm-btn-off {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.2);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.pm-btn-green {
+  background: #10b981 !important;
+  box-shadow: 0 6px 28px rgba(16,185,129,0.38) !important;
+}
+.pm-btn-green:hover { background: #059669 !important; }
 
-  /* ── Input ── */
-  .pm-input-section { margin-bottom: 16px; }
-  .pm-label {
-    display: flex; align-items: center; gap: 6px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 11px; font-weight: 600;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 0.06em; text-transform: uppercase;
-    margin-bottom: 9px;
-  }
-  .pm-phone-wrap {
-    display: flex; align-items: center;
-    background: rgba(255,255,255,0.05);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 12px; overflow: hidden;
-    transition: border-color 0.15s;
-  }
-  .pm-phone-wrap:focus-within {
-    border-color: rgba(229,9,20,0.5);
-    background: rgba(229,9,20,0.03);
-  }
-  .pm-phone-prefix {
-    display: flex; align-items: center; gap: 6px;
-    padding: 0 12px;
-    border-right: 1px solid rgba(255,255,255,0.07);
-    height: 48px; flex-shrink: 0;
-  }
-  .pm-flag { font-size: 16px; }
-  .pm-prefix-code {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px; font-weight: 600;
-    color: rgba(255,255,255,0.55);
-  }
-  .pm-phone-input {
-    flex: 1; height: 48px; padding: 0 14px;
-    background: transparent; border: none; outline: none;
-    font-family: 'Outfit', sans-serif;
-    font-size: 16px; font-weight: 500;
-    color: #fff; letter-spacing: 0.04em;
-  }
-  .pm-phone-input::placeholder { color: rgba(255,255,255,0.2); }
-  .pm-phone-input:disabled { opacity: 0.4; cursor: not-allowed; }
-  .pm-hint {
-    font-family: 'Outfit', sans-serif;
-    font-size: 10.5px; color: rgba(255,255,255,0.2);
-    margin: 7px 0 0; line-height: 1.55;
-  }
+.pm-ghost {
+  width: 100%; height: 44px; border-radius: 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.28);
+  font-family: 'Outfit', sans-serif; font-size: 13px;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.pm-ghost:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.55);
+}
+.pm-disc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px; color: rgba(255,255,255,0.1);
+  text-align: center; margin: 0; line-height: 1.6;
+}
 
-  /* ── CTA button ── */
-  .pm-cta {
-    width: 100%; height: 50px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 14px; font-weight: 700;
-    letter-spacing: 0.02em;
-    border: none; cursor: pointer;
-    transition: transform 0.14s, box-shadow 0.14s, background 0.14s;
-    margin-bottom: 10px;
-  }
-  .pm-cta--active {
-    background: #e50914; color: #fff;
-    box-shadow: 0 4px 24px rgba(229,9,20,0.45);
-  }
-  .pm-cta--active:hover {
-    background: #ff1f2b; transform: translateY(-1px);
-    box-shadow: 0 6px 28px rgba(229,9,20,0.55);
-  }
-  .pm-cta--active:active { transform: scale(0.98); }
-  .pm-cta--disabled {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.2); cursor: not-allowed;
-  }
-  .pm-cta--green {
-    background: #10b981 !important;
-    box-shadow: 0 4px 24px rgba(16,185,129,0.35) !important;
-  }
-  .pm-cta--green:hover { background: #059669 !important; }
+/* ── Centered state panels ── */
+.pm-mid {
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+  padding: 28px 24px 36px; gap: 0;
+}
+.pm-mid-tall {
+  min-height: 320px;
+  justify-content: center;
+}
+@media (min-width: 640px) {
+  .pm-mid { padding: 40px 36px 48px; }
+  .pm-mid-tall { min-height: 400px; }
+}
 
-  .pm-ghost-btn {
-    width: 100%; height: 42px; border-radius: 10px;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.35);
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px; cursor: pointer;
-    transition: background 0.14s, color 0.14s;
-  }
-  .pm-ghost-btn:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); }
+.pm-stitle {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem; font-weight: 800;
+  color: #fff; margin: 0 0 10px;
+  letter-spacing: -.02em;
+}
+.pm-green { color: #10b981 !important; }
+.pm-red   { color: #e50914 !important; }
 
-  .pm-disclaimer {
-    font-family: 'Outfit', sans-serif;
-    font-size: 10px; color: rgba(255,255,255,0.15);
-    text-align: center; margin: 0; line-height: 1.6;
-  }
+.pm-ssub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13.5px; color: rgba(255,255,255,0.38);
+  line-height: 1.7; margin: 0 0 22px;
+  max-width: 340px;
+}
 
-  /* ── Status screens ── */
-  .pm-lottie-wrap { margin-bottom: 16px; }
-  .pm-status-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.25rem; font-weight: 800;
-    color: #fff; margin: 0 0 10px; letter-spacing: -0.02em;
-  }
-  .pm-status-title--green { color: #10b981; }
-  .pm-status-title--red { color: #e50914; }
-  .pm-status-sub {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px; color: rgba(255,255,255,0.4);
-    line-height: 1.65; margin: 0 0 22px;
-  }
+/* Waiting pill */
+.pm-mpill {
+  display: flex; align-items: center; gap: 9px;
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.22);
+  border-radius: 99px; padding: 8px 18px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px; font-weight: 600; color: #10b981;
+}
+.pm-pdot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #10b981;
+  animation: pmPulse 1.2s ease-in-out infinite;
+}
+@keyframes pmPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.3; transform:scale(.6); }
+}
 
-  .pm-mpesa-badge {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(16,185,129,0.08);
-    border: 1px solid rgba(16,185,129,0.2);
-    border-radius: 99px; padding: 7px 16px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 11px; font-weight: 600;
-    color: #10b981;
-  }
-  .pm-mpesa-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #10b981;
-    animation: pulse-dot 1.2s ease-in-out infinite;
-  }
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.7); }
-  }
+/* Progress track */
+.pm-track {
+  width: 80%; max-width: 260px;
+  height: 3px; border-radius: 99px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden; margin-top: 8px;
+}
+.pm-slide {
+  height: 100%; width: 35%;
+  background: linear-gradient(90deg, transparent, #e50914, transparent);
+  animation: pmSlide 1.5s ease-in-out infinite;
+}
+@keyframes pmSlide {
+  0%   { transform: translateX(-200%); }
+  100% { transform: translateX(500%); }
+}
 
-  /* Progress bar */
-  .pm-progress-bar {
-    width: 100%; height: 3px; border-radius: 99px;
-    background: rgba(255,255,255,0.06);
-    overflow: hidden; margin-top: 4px;
-  }
-  @keyframes progress-slide {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(200%); }
-  }
-  .pm-progress-fill {
-    height: 100%; width: 40%;
-    background: linear-gradient(90deg, transparent, #e50914, transparent);
-    border-radius: 99px;
-  }
-  .pm-progress-fill--anim {
-    animation: progress-slide 1.6s ease-in-out infinite;
-  }
+.pm-caution {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px; color: rgba(255,255,255,0.16);
+  margin: 14px 0 0; letter-spacing: .04em;
+}
 
-  /* Error icon */
-  .pm-error-icon {
-    width: 70px; height: 70px; border-radius: 50%;
-    background: rgba(229,9,20,0.08);
-    border: 1px solid rgba(229,9,20,0.2);
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 16px;
-  }
+/* Error ring */
+.pm-err-ring {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(229,9,20,0.08);
+  border: 1px solid rgba(229,9,20,0.22);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px;
+  animation: pmLockPop .4s cubic-bezier(.22,1,.36,1) both;
+}
 
-  /* Spinner */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .pm-spinner {
-    width: 40px; height: 40px; border-radius: 50%;
-    border: 3px solid rgba(255,255,255,0.06);
-    border-top-color: #e50914;
-    animation: spin 0.75s linear infinite;
-  }
+/* Spinner (checking state) */
+@keyframes pmSpin { to { transform: rotate(360deg); } }
+.pm-spin {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.06);
+  border-top-color: #e50914;
+  animation: pmSpin .75s linear infinite;
+}
 `;

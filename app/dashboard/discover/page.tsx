@@ -6,7 +6,7 @@ import {
   Search, X, Play, ChevronRight, ChevronLeft, Shuffle,
   Crown, Star, Eye, Flame, Zap, Rocket,
   Clock, Trophy, Gift, RotateCcw,
-  Headphones, Film,
+  Headphones, Film, Lock,
 } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
@@ -23,6 +23,7 @@ import { useMovies }          from "@/hooks/useMovies";
 import { useMovie }           from "@/hooks/useMovie";
 import { movieService }       from "@/services/movie.service";
 import type { Movie }         from "@/types/movie.types";
+import { usePremiumGate }     from "@/context/PremiumGateContext";
 
 // ── Card type ─────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ function toCard(m: Movie): CardMovie {
   };
 }
 
-// ── Moods — no dubbed, no Sparkles ───────────────────────────────────────────
+// ── Moods ─────────────────────────────────────────────────────────────────────
 
 const MOODS = [
   { id: "action",    Icon: Flame,      label: "Hype",      desc: "Action-packed",   genres: ["Action","Adventure"] },
@@ -104,7 +105,6 @@ function ScrollableRow({
   useEffect(() => {
     const el = rowRef.current;
     if (!el) return;
-    // Small delay to let DOM settle
     const t = setTimeout(checkScroll, 80);
     el.addEventListener("scroll", checkScroll, { passive: true });
     const ro = new ResizeObserver(checkScroll);
@@ -120,22 +120,11 @@ function ScrollableRow({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Left chevron — desktop only */}
       {!isSmall && canLeft && (
         <button
           onClick={() => scroll("left")}
           aria-label="Scroll left"
-          style={{
-            position: "absolute", left: -20, top: "50%", transform: "translateY(-60%)",
-            zIndex: 10, width: 38, height: 38,
-            background: "rgba(10,10,12,0.96)",
-            border: "1px solid rgba(255,255,255,0.13)",
-            borderRadius: "50%",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#fff",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.8)",
-            transition: "background 0.16s, transform 0.16s",
-          }}
+          style={{ position: "absolute", left: -20, top: "50%", transform: "translateY(-60%)", zIndex: 10, width: 38, height: 38, background: "rgba(10,10,12,0.96)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.8)", transition: "background 0.16s, transform 0.16s" }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e50914"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1.1)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(10,10,12,0.96)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1)"; }}
         >
@@ -143,22 +132,11 @@ function ScrollableRow({
         </button>
       )}
 
-      {/* Right chevron — desktop only */}
       {!isSmall && canRight && (
         <button
           onClick={() => scroll("right")}
           aria-label="Scroll right"
-          style={{
-            position: "absolute", right: -20, top: "50%", transform: "translateY(-60%)",
-            zIndex: 10, width: 38, height: 38,
-            background: "rgba(10,10,12,0.96)",
-            border: "1px solid rgba(255,255,255,0.13)",
-            borderRadius: "50%",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#fff",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.8)",
-            transition: "background 0.16s, transform 0.16s",
-          }}
+          style={{ position: "absolute", right: -20, top: "50%", transform: "translateY(-60%)", zIndex: 10, width: 38, height: 38, background: "rgba(10,10,12,0.96)", border: "1px solid rgba(255,255,255,0.13)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.8)", transition: "background 0.16s, transform 0.16s" }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e50914"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1.1)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(10,10,12,0.96)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1)"; }}
         >
@@ -166,37 +144,22 @@ function ScrollableRow({
         </button>
       )}
 
-      {/* The scrollable strip */}
       <div
         ref={rowRef}
         className="dj-row-scroll"
-        style={{
-          display: "flex",
-          gap: 12,
-          overflowX: "auto",
-          paddingBottom: 8,
-          scrollbarWidth: "none",
-          // Show a ~half card peeking on mobile to signal scrollability
-          paddingRight: isSmall ? `${CARD_W * 0.4}px` : 4,
-        }}
+        style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none", paddingRight: isSmall ? `${CARD_W * 0.4}px` : 4 }}
       >
         {movies.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} isSmall={isSmall} />)}
       </div>
 
-      {/* Fade-out on the right for mobile */}
       {isSmall && (
-        <div style={{
-          position: "absolute", right: 0, top: 0, bottom: 8,
-          width: 60,
-          background: "linear-gradient(90deg, transparent, rgba(8,8,8,0.88))",
-          pointerEvents: "none",
-        }} />
+        <div style={{ position: "absolute", right: 0, top: 0, bottom: 8, width: 60, background: "linear-gradient(90deg, transparent, rgba(8,8,8,0.88))", pointerEvents: "none" }} />
       )}
     </div>
   );
 }
 
-// ── Discover Card — image clearly visible ─────────────────────────────────────
+// ── Discover Card ─────────────────────────────────────────────────────────────
 
 function DiscoverCard({
   movie, onPlay, isSmall,
@@ -207,123 +170,77 @@ function DiscoverCard({
 }) {
   const [hovered, setHovered] = useState(false);
 
+  // Live paid state from context — updates instantly after payment
+  const { paidMovieIds } = usePremiumGate();
+  const isPaid   = paidMovieIds.includes(movie.id);
+  const isLocked = movie.premium && !isPaid;
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        position: "relative",
-        width: isSmall ? 150 : 190,
-        minWidth: isSmall ? 150 : 190,
-        borderRadius: 12,
-        overflow: "hidden",
-        background: "#0c0c0e",
-        cursor: "pointer",
-        flexShrink: 0,
-        transform: hovered ? "translateY(-5px)" : "translateY(0)",
-        boxShadow: hovered
-          ? "0 16px 48px rgba(0,0,0,0.75)"
-          : "0 4px 18px rgba(0,0,0,0.42)",
-        transition: "transform 0.28s ease, box-shadow 0.28s ease",
-      }}
+      style={{ position: "relative", width: isSmall ? 150 : 190, minWidth: isSmall ? 150 : 190, borderRadius: 12, overflow: "hidden", background: "#0c0c0e", cursor: "pointer", flexShrink: 0, transform: hovered ? "translateY(-5px)" : "translateY(0)", boxShadow: hovered ? "0 16px 48px rgba(0,0,0,0.75)" : "0 4px 18px rgba(0,0,0,0.42)", transition: "transform 0.28s ease, box-shadow 0.28s ease" }}
     >
       <Link href={`/dashboard/movies/${movie.id}`} style={{ textDecoration: "none", display: "block" }}>
         <div style={{ position: "relative", paddingTop: "150%", overflow: "hidden" }}>
-          {/* Image — more visible: light overlay only at bottom */}
           <img
             src={movie.img}
             alt={movie.title}
-            style={{
-              position: "absolute", inset: 0, width: "100%", height: "100%",
-              objectFit: "cover",
-              transform: hovered ? "scale(1.07)" : "scale(1)",
-              transition: "transform 0.45s ease",
-            }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: hovered ? "scale(1.07)" : "scale(1)", transition: "transform 0.45s ease" }}
           />
-          {/* Very light top vignette, strong bottom for text legibility */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: hovered
-              ? "linear-gradient(0deg, rgba(4,4,4,0.98) 0%, rgba(4,4,4,0.3) 48%, rgba(4,4,4,0.05) 100%)"
-              : "linear-gradient(0deg, rgba(4,4,4,0.93) 0%, rgba(4,4,4,0.12) 50%, rgba(4,4,4,0.0) 100%)",
-            transition: "background 0.28s",
-          }} />
+          <div style={{ position: "absolute", inset: 0, background: hovered ? "linear-gradient(0deg, rgba(4,4,4,0.98) 0%, rgba(4,4,4,0.3) 48%, rgba(4,4,4,0.05) 100%)" : "linear-gradient(0deg, rgba(4,4,4,0.93) 0%, rgba(4,4,4,0.12) 50%, rgba(4,4,4,0.0) 100%)", transition: "background 0.28s" }} />
 
-          {/* FREE badge top-left */}
+          {/* FREE badge */}
           {!movie.premium && (
-            <span style={{
-              position: "absolute", top: 8, left: 8,
-              fontSize: 7, padding: "2px 7px",
-              background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.35)",
-              borderRadius: 3, color: "#4ade80",
-              fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em",
-            }}>
+            <span style={{ position: "absolute", top: 8, left: 8, fontSize: 7, padding: "2px 7px", background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.35)", borderRadius: 3, color: "#4ade80", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em" }}>
               FREE
             </span>
           )}
 
-          {/* TRENDING badge top-left (below FREE if both) */}
+          {/* OWNED badge (premium + paid) */}
+          {movie.premium && isPaid && (
+            <span style={{ position: "absolute", top: 8, left: 8, fontSize: 7, padding: "2px 7px", background: "rgba(16,185,129,0.2)", border: "1px solid rgba(16,185,129,0.38)", borderRadius: 3, color: "#10b981", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em" }}>
+              ✓ OWNED
+            </span>
+          )}
+
+          {/* LOCK badge (premium + unpaid) */}
+          {isLocked && (
+            <span style={{ position: "absolute", top: 8, left: 8, fontSize: 7, padding: "2px 7px", background: "rgba(229,9,20,0.18)", border: "1px solid rgba(229,9,20,0.35)", borderRadius: 3, color: "#ff6b6b", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em", display: "flex", alignItems: "center", gap: 3 }}>
+              <Lock size={6} /> KES 10
+            </span>
+          )}
+
+          {/* TRENDING badge */}
           {movie.is_trending && (
-            <span style={{
-              position: "absolute", top: movie.premium ? 8 : 28, left: 8,
-              fontSize: 7, padding: "2px 7px",
-              background: "rgba(229,9,20,0.2)", border: "1px solid rgba(229,9,20,0.38)",
-              borderRadius: 3, color: "#ff6b6b",
-              fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em",
-              display: "flex", alignItems: "center", gap: 3,
-            }}>
+            <span style={{ position: "absolute", top: (movie.premium || !movie.premium) ? 28 : 8, left: 8, fontSize: 7, padding: "2px 7px", background: "rgba(229,9,20,0.2)", border: "1px solid rgba(229,9,20,0.38)", borderRadius: 3, color: "#ff6b6b", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em", display: "flex", alignItems: "center", gap: 3 }}>
               <Flame size={6} /> HOT
             </span>
           )}
 
           {/* Rating top-right */}
-          <span style={{
-            position: "absolute", top: 8, right: 8,
-            display: "flex", alignItems: "center", gap: 3,
-            fontSize: 10, padding: "3px 7px",
-            background: "rgba(0,0,0,0.6)",
-            borderRadius: 5, color: "#f5c518",
-            fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
-            backdropFilter: "blur(4px)",
-          }}>
+          <span style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 3, fontSize: 10, padding: "3px 7px", background: "rgba(0,0,0,0.6)", borderRadius: 5, color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", backdropFilter: "blur(4px)" }}>
             <Star size={8} fill="#f5c518" strokeWidth={0} /> {movie.rating}
           </span>
 
-          {/* Play button on hover */}
+          {/* Play / Lock button on hover */}
           {hovered && (
             <button
               onClick={e => { e.preventDefault(); onPlay(movie); }}
-              style={{
-                position: "absolute", top: "50%", left: "50%",
-                transform: "translate(-50%,-50%)",
-                width: 50, height: 50,
-                background: "#e50914", border: "none", borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", zIndex: 2,
-                boxShadow: "0 0 36px rgba(229,9,20,0.7)",
-                animation: "popIn 0.15s ease-out",
-              }}
+              style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 50, height: 50, background: "#e50914", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 2, boxShadow: "0 0 36px rgba(229,9,20,0.7)", animation: "popIn 0.15s ease-out" }}
             >
-              <Play size={20} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
+              {isLocked
+                ? <Lock size={20} color="#fff" />
+                : <Play size={20} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />}
             </button>
           )}
 
           {/* Bottom text */}
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 10px 10px" }}>
-            <span style={{
-              display: "block", fontSize: 8, color: "#e50914",
-              letterSpacing: "0.3em", textTransform: "uppercase",
-              fontFamily: "'DM Sans', sans-serif", fontWeight: 700, marginBottom: 4,
-            }}>
+            <span style={{ display: "block", fontSize: 8, color: "#e50914", letterSpacing: "0.3em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, marginBottom: 4 }}>
               {movie.genre}
             </span>
-            <h3 style={{
-              fontFamily: "var(--font-display)",
-              fontSize: isSmall ? "0.8rem" : "0.88rem",
-              color: "#fff", letterSpacing: "0.04em",
-              margin: "0 0 4px",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: isSmall ? "0.8rem" : "0.88rem", color: "#fff", letterSpacing: "0.04em", margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {movie.title}
             </h3>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', sans-serif" }}>
@@ -364,15 +281,7 @@ function SectionHead({
         </div>
       </div>
       {viewAll && (
-        <Link
-          href={viewAll}
-          style={{
-            fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase",
-            color: "rgba(255,255,255,0.28)", textDecoration: "none",
-            fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: 3,
-          }}
-        >
+        <Link href={viewAll} style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)", textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
           View All <ChevronRight size={12} />
         </Link>
       )}
@@ -423,12 +332,14 @@ function SkeletonRow({ isSmall }: { isSmall: boolean }) {
 // ── Movie of the Day ──────────────────────────────────────────────────────────
 
 function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void }) {
+  // Live paid state
+  const { paidMovieIds } = usePremiumGate();
+  const isPaid   = paidMovieIds.includes(movie.id);
+  const isLocked = movie.premium && !isPaid;
+
   return (
     <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", background: "#0c0c0e", marginBottom: 44 }}>
-      <img
-        src={movie.img} alt={movie.title}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.3) saturate(1.3)" }}
-      />
+      <img src={movie.img} alt={movie.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.3) saturate(1.3)" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(130deg, rgba(8,8,8,0.93) 0%, rgba(8,8,8,0.5) 55%, rgba(229,9,20,0.05) 100%)" }} />
       <div style={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, background: "radial-gradient(circle, rgba(229,9,20,0.09) 0%, transparent 70%)", animation: "discoPulse 5s ease-in-out infinite" }} />
 
@@ -447,9 +358,14 @@ function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-              {movie.premium && (
-                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.22)", borderRadius: 3, color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
-                  <Crown size={7} /> PREMIUM
+              {movie.premium && !isPaid && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(229,9,20,0.12)", border: "1px solid rgba(229,9,20,0.25)", borderRadius: 3, color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
+                  <Lock size={7} /> KES 10
+                </span>
+              )}
+              {movie.premium && isPaid && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 3, color: "#10b981", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
+                  ✓ OWNED
                 </span>
               )}
               {movie.is_trending && (
@@ -458,14 +374,7 @@ function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void
                 </span>
               )}
             </div>
-            <h2 style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.8rem,4.5vw,3.2rem)",
-              color: "#fff", letterSpacing: "0.03em", lineHeight: 1,
-              margin: "0 0 10px",
-              overflow: "hidden", display: "-webkit-box",
-              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-            }}>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem,4.5vw,3.2rem)", color: "#fff", letterSpacing: "0.03em", lineHeight: 1, margin: "0 0 10px", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
               {movie.title}
             </h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", marginBottom: 12 }}>
@@ -482,13 +391,7 @@ function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void
               )}
             </div>
             {movie.description && (
-              <p style={{
-                fontSize: "clamp(11px,1.4vw,13px)", color: "rgba(255,255,255,0.42)",
-                fontFamily: "'DM Sans', sans-serif", lineHeight: 1.65,
-                margin: "0 0 18px", maxWidth: 440,
-                overflow: "hidden", display: "-webkit-box",
-                WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
-              }}>
+              <p style={{ fontSize: "clamp(11px,1.4vw,13px)", color: "rgba(255,255,255,0.42)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.65, margin: "0 0 18px", maxWidth: 440, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
                 {movie.description}
               </p>
             )}
@@ -497,7 +400,8 @@ function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void
                 onClick={onPlay}
                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 24px", background: "#e50914", border: "none", borderRadius: 9, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", cursor: "pointer", boxShadow: "0 4px 22px rgba(229,9,20,0.42)" }}
               >
-                <Play size={13} fill="#fff" /> Play Now
+                {isLocked ? <Lock size={13} /> : <Play size={13} fill="#fff" />}
+                {isLocked ? "Unlock — KES 10" : "Play Now"}
               </button>
               <Link
                 href={`/dashboard/movies/${movie.id}`}
@@ -526,13 +430,7 @@ function MoodPicker({ active, onChange }: { active: string | null; onChange: (id
             <button
               key={m.id}
               onClick={() => onChange(isActive ? null : m.id)}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-                padding: "14px 20px", minWidth: 84,
-                background: isActive ? "rgba(229,9,20,0.14)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${isActive ? "rgba(229,9,20,0.38)" : "rgba(255,255,255,0.07)"}`,
-                borderRadius: 12, cursor: "pointer", transition: "all 0.18s",
-              }}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "14px 20px", minWidth: 84, background: isActive ? "rgba(229,9,20,0.14)" : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? "rgba(229,9,20,0.38)" : "rgba(255,255,255,0.07)"}`, borderRadius: 12, cursor: "pointer", transition: "all 0.18s" }}
               onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
               onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
             >
@@ -543,10 +441,7 @@ function MoodPicker({ active, onChange }: { active: string | null; onChange: (id
           );
         })}
         {active && (
-          <button
-            onClick={() => onChange(null)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "14px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.2)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
-          >
+          <button onClick={() => onChange(null)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "14px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.2)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
             <RotateCcw size={11} /> Clear
           </button>
         )}
@@ -555,7 +450,7 @@ function MoodPicker({ active, onChange }: { active: string | null; onChange: (id
   );
 }
 
-// ── Collections — bg image clearly visible ────────────────────────────────────
+// ── Collections ───────────────────────────────────────────────────────────────
 
 function Collections({
   allMovies,
@@ -575,44 +470,16 @@ function Collections({
               key={col.id}
               onClick={() => onCollectionClick(allMovies.filter(col.filter), col.title)}
               className="dj-col-btn"
-              style={{
-                position: "relative", overflow: "hidden",
-                display: "flex", alignItems: "center", gap: 14,
-                padding: "18px 18px",
-                background: "#0c0c0e",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 13,
-                cursor: "pointer", textAlign: "left",
-                transition: "transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s",
-              }}
+              style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 14, padding: "18px 18px", background: "#0c0c0e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, cursor: "pointer", textAlign: "left", transition: "transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s" }}
             >
-              {/* Background image — brightness raised so it's clearly visible */}
-              <img
-                src={col.img}
-                alt=""
-                aria-hidden
-                className="dj-col-img"
-                style={{
-                  position: "absolute", inset: 0, width: "100%", height: "100%",
-                  objectFit: "cover",
-                  filter: "brightness(0.42) saturate(1.4)",
-                  transition: "transform 0.38s ease, filter 0.38s ease",
-                }}
-              />
-              {/* Dark overlay so text stays readable */}
+              <img src={col.img} alt="" aria-hidden className="dj-col-img" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.42) saturate(1.4)", transition: "transform 0.38s ease, filter 0.38s ease" }} />
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(110deg, rgba(8,8,10,0.75) 0%, rgba(8,8,10,0.42) 100%)" }} />
-
-              {/* Icon */}
               <div style={{ position: "relative", width: 42, height: 42, borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.13)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <col.Icon size={19} color="rgba(255,255,255,0.78)" strokeWidth={1.5} />
               </div>
-
-              {/* Text */}
               <div style={{ position: "relative" }}>
                 <p style={{ fontSize: 13, color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, margin: "0 0 4px", letterSpacing: "0.02em" }}>{col.title}</p>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>
-                  {count > 0 ? `${count} films` : "—"}
-                </p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{count > 0 ? `${count} films` : "—"}</p>
               </div>
             </button>
           );
@@ -668,10 +535,7 @@ function CollectionView({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={onBack}
-          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 13px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.38)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
-        >
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 13px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.38)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
           <ChevronLeft size={12} /> Back
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -696,6 +560,10 @@ function CollectionView({
 // ── Surprise Highlight ────────────────────────────────────────────────────────
 
 function SurpriseHighlight({ movie, onPlay }: { movie: CardMovie; onPlay: () => void }) {
+  const { paidMovieIds } = usePremiumGate();
+  const isPaid   = paidMovieIds.includes(movie.id);
+  const isLocked = movie.premium && !isPaid;
+
   return (
     <div style={{ marginBottom: 44, padding: "18px 20px", background: "rgba(229,9,20,0.05)", border: "1px solid rgba(229,9,20,0.14)", borderRadius: 14, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
       <Shuffle size={22} color="#e50914" strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.8 }} />
@@ -706,7 +574,8 @@ function SurpriseHighlight({ movie, onPlay }: { movie: CardMovie; onPlay: () => 
       </div>
       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
         <button onClick={onPlay} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "#e50914", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
-          <Play size={12} fill="#fff" /> Play
+          {isLocked ? <Lock size={12} /> : <Play size={12} fill="#fff" />}
+          {isLocked ? "Unlock" : "Play"}
         </button>
         <Link href={`/dashboard/movies/${movie.id}`} style={{ display: "flex", alignItems: "center", padding: "9px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 8, color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>
           Info
@@ -734,10 +603,13 @@ export default function DiscoverPage() {
   const mostViewed = useMostViewed(24);
   const allMovies  = useMovies();
 
-  const dayOfYear  = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-  const srcList    = featured.movies.length > 0 ? featured.movies : allMovies.movies;
-  const motdRaw    = srcList.length > 0 ? srcList[dayOfYear % srcList.length] : null;
-  const motd       = motdRaw ? toCard(motdRaw) : null;
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const srcList   = featured.movies.length > 0 ? featured.movies : allMovies.movies;
+  const motdRaw   = srcList.length > 0 ? srcList[dayOfYear % srcList.length] : null;
+  const motd      = motdRaw ? toCard(motdRaw) : null;
+
+  // ── Premium gate ────────────────────────────────────────────────────────────
+  const { requestPlay } = usePremiumGate();
 
   // ── Mood ────────────────────────────────────────────────────────────────────
   const [activeMood, setActiveMood] = useState<string | null>(null);
@@ -780,14 +652,27 @@ export default function DiscoverPage() {
     if (playerState.open && currentPlayId) trackView();
   }, [playerState.open, currentPlayId, trackView]);
 
+  // ── handlePlay: always goes through the premium gate ──────────────────────
   const handlePlay = useCallback((movie: CardMovie) => {
+    // Resolve video_url from allMovies if not on the CardMovie
     const videoUrl = movie.video_url
       ?? allMovies.movies.find(m => m.$id === movie.id)?.video_url;
-    if (!videoUrl) return;
-    setCurrentPlayId(movie.id);
-    openPlayer(videoUrl, movie.title, movie.genre, movie.img);
-  }, [allMovies.movies, openPlayer]);
 
+    requestPlay({
+      movieId:    movie.id,
+      movieTitle: movie.title,
+      posterUrl:  movie.img,
+      isPremium:  movie.premium,
+      onUnlocked: (_movieId: string) => {
+        // Only called after access confirmed — open the actual player
+        if (!videoUrl) return;
+        setCurrentPlayId(movie.id);
+        openPlayer(videoUrl, movie.title, movie.genre, movie.img);
+      },
+    });
+  }, [allMovies.movies, requestPlay, openPlayer]);
+
+  // ── handleShuffle: picks a random movie and goes through the gate ──────────
   const handleShuffle = useCallback(() => {
     const list = allMovies.movies;
     if (!list.length) return;
@@ -820,39 +705,19 @@ export default function DiscoverPage() {
       )}
 
       <div style={{ display: "flex", height: "100svh", background: "#080808", overflow: "hidden" }}>
-        {/* Sidebar — desktop only (same pattern as dashboard/page.tsx) */}
         {!isSmall && (
           <DashboardSidebar user={userObj} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
         )}
 
-        <div
-          id="discover-col"
-          style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden" }}
-        >
+        <div id="discover-col" style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden" }}>
           {/* Top bar */}
-          <header style={{
-            position: "sticky", top: 0, zIndex: 800,
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "0 clamp(16px,3vw,28px)",
-            height: 64,
-            background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.82)",
-            backdropFilter: "blur(22px)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            flexShrink: 0,
-            transition: "background 0.3s",
-          }}>
+          <header style={{ position: "sticky", top: 0, zIndex: 800, display: "flex", alignItems: "center", gap: 12, padding: "0 clamp(16px,3vw,28px)", height: 64, background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.82)", backdropFilter: "blur(22px)", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0, transition: "background 0.3s" }}>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.15rem,2.5vw,1.75rem)", color: "#fff", letterSpacing: "0.1em", margin: 0, flexShrink: 0 }}>
               Discover
             </h1>
 
             <div style={{ flex: 1, maxWidth: 480 }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 14px",
-                background: searchFocused ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${searchFocused ? "rgba(229,9,20,0.28)" : "rgba(255,255,255,0.07)"}`,
-                borderRadius: 10, transition: "all 0.2s",
-              }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: searchFocused ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${searchFocused ? "rgba(229,9,20,0.28)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, transition: "all 0.2s" }}>
                 <Search size={13} color={searchFocused ? "#e50914" : "rgba(255,255,255,0.22)"} strokeWidth={1.8} />
                 <input
                   value={searchVal}
@@ -872,15 +737,7 @@ export default function DiscoverPage() {
 
             <button
               onClick={handleShuffle}
-              style={{
-                display: "flex", alignItems: "center", gap: 7,
-                padding: isSmall ? "9px 12px" : "9px 16px",
-                background: "rgba(229,9,20,0.09)", border: "1px solid rgba(229,9,20,0.18)",
-                borderRadius: 10, color: "#e50914", fontSize: 11, fontWeight: 700,
-                letterSpacing: "0.1em", textTransform: "uppercase",
-                fontFamily: "'DM Sans', sans-serif", cursor: "pointer", flexShrink: 0,
-                transition: "background 0.18s",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: isSmall ? "9px 12px" : "9px 16px", background: "rgba(229,9,20,0.09)", border: "1px solid rgba(229,9,20,0.18)", borderRadius: 10, color: "#e50914", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", cursor: "pointer", flexShrink: 0, transition: "background 0.18s" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.18)"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.09)"; }}
             >
@@ -958,7 +815,6 @@ export default function DiscoverPage() {
           )}
         </div>
 
-        {/* Mobile bottom nav — same as dashboard/page.tsx */}
         {isSmall && <MobileBottomNav />}
       </div>
 
@@ -1000,7 +856,6 @@ export default function DiscoverPage() {
           to   { transform: translate(-50%,-50%) scale(1);    opacity: 1; }
         }
 
-        /* Collection card hover effects via CSS */
         .dj-col-btn:hover {
           transform: translateY(-3px) !important;
           box-shadow: 0 14px 42px rgba(0,0,0,0.68) !important;
