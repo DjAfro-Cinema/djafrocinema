@@ -3,234 +3,505 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
-  Search, X, Zap, TrendingUp, Star, Mic2, Crown, Play,
-  Flame, Sparkles, Clock, Eye, ChevronRight, RotateCcw,
-  Shuffle, Heart,
+  Search, X, Play, ChevronRight, ChevronLeft, Shuffle,
+  Crown, Star, Eye, Flame, Zap, Rocket,
+  Clock, Trophy, Gift, RotateCcw,
+  Headphones, Film,
 } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
+import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
+import VideoPlayer, { useVideoPlayer } from "@/components/dashboard/video-player/VideoPlayer";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useAuth } from "@/hooks/useAuth";
 
-// ── DATA ──────────────────────────────────────────────────────────────────────
+import { useFeaturedMovies }  from "@/hooks/useFeaturedMovies";
+import { useTrendingMovies }  from "@/hooks/useTrendingMovies";
+import { useLatestMovies }    from "@/hooks/useLatestMovies";
+import { useTopRated }        from "@/hooks/useTopRated";
+import { useMostViewed }      from "@/hooks/useMostViewed";
+import { useMovies }          from "@/hooks/useMovies";
+import { useMovie }           from "@/hooks/useMovie";
+import { movieService }       from "@/services/movie.service";
+import type { Movie }         from "@/types/movie.types";
 
-const ALL_MOVIES = [
-  { id: "m1",  title: "John Wick 4",               genre: "Action",    year: 2023, rating: "8.9", premium: true,  img: "/images/movie3.jpg",  duration: "2h 49m", views: "4.2M", description: "A legendary assassin fights his way through the criminal underworld.", tags: ["Intense","Stylish","Epic"] },
-  { id: "m2",  title: "Thunderbolts*",             genre: "Marvel",    year: 2024, rating: "7.9", premium: true,  img: "/images/movie6.jpg",  duration: "2h 7m",  views: "3.8M", description: "Marvel's ragtag group of antiheroes on a dangerous mission.", tags: ["Superhero","Action","Comedy"] },
-  { id: "m3",  title: "Ghost Rider",               genre: "Action",    year: 2024, rating: "8.2", premium: false, img: "/images/movie10.jpg", duration: "1h 50m", views: "2.1M", description: "The spirit of vengeance returns in a blaze of hellfire.", tags: ["Supernatural","Dark"] },
-  { id: "m4",  title: "Rampage",                   genre: "Thriller",  year: 2023, rating: "8.1", premium: false, img: "/images/movie4.jpg",  duration: "1h 47m", views: "1.9M", description: "A primatologist must stop three mutated animals from destroying Chicago.", tags: ["Monsters","Action"] },
-  { id: "m5",  title: "Red 2",                     genre: "Action",    year: 2023, rating: "8.5", premium: false, img: "/images/movie9.jpg",  duration: "1h 56m", views: "2.4M", description: "Retired CIA operative Frank Moses reunites his team for a global manhunt.", tags: ["Spy","Comedy"] },
-  { id: "m6",  title: "The Meg",                   genre: "Thriller",  year: 2024, rating: "7.9", premium: false, img: "/images/movie12.jpg", duration: "1h 53m", views: "2.8M", description: "A deep-sea crew faces a prehistoric megalodon shark.", tags: ["Ocean","Survival"] },
-  { id: "m7",  title: "Baahubali: The Beginning",  genre: "Bollywood", year: 2015, rating: "9.1", premium: true,  dubbed: true, img: "/images/movie2.jpg",  duration: "2h 39m", views: "12.4M", description: "An epic tale of kingdoms, love, and betrayal in ancient India.", tags: ["Epic","Fantasy","Dubbed"] },
-  { id: "m8",  title: "Krish III",                 genre: "Sci-Fi",    year: 2013, rating: "8.8", premium: true,  dubbed: true, img: "/images/movie5.webp", duration: "2h 44m", views: "5.6M",  description: "India's greatest superhero battles a genetic villain.", tags: ["Superhero","Dubbed"] },
-  { id: "m9",  title: "Kick",                      genre: "Bollywood", year: 2023, rating: "7.8", premium: true,  dubbed: true, img: "/images/movie11.jpg", duration: "2h 28m", views: "3.2M",  description: "A thrill-seeking daredevil becomes a vigilante to help the poor.", tags: ["Comedy","Romance","Dubbed"] },
-  { id: "m10", title: "Ghost City",                genre: "Action",    year: 2023, rating: "8.7", premium: true,  dubbed: true, img: "/images/movie8.jpg",  duration: "1h 58m", views: "3.9M",  description: "A cop uncovers supernatural secrets beneath a criminal empire.", tags: ["Crime","Dubbed"] },
-  { id: "m11", title: "Anaconda Rising",           genre: "Adventure", year: 2024, rating: "8.4", premium: false, img: "/images/movie7.jpg",  duration: "1h 45m", views: "3.3M",  description: "The Amazon's most terrifying predator awakens.", tags: ["Nature","Survival"] },
-  { id: "m12", title: "Baahubali: The Conclusion", genre: "Bollywood", year: 2017, rating: "9.2", premium: true,  dubbed: true, img: "/images/movie1.jpg",  duration: "2h 47m", views: "18.1M", description: "The epic conclusion answers the greatest question in Indian cinema.", tags: ["Epic","War","Dubbed"] },
-  { id: "m13", title: "Fast X",                    genre: "Action",    year: 2023, rating: "8.0", premium: true,  img: "/images/movie3.jpg",  duration: "2h 21m", views: "6.1M",  description: "Dominic Toretto faces his most formidable foe yet.", tags: ["Cars","Family"] },
-  { id: "m14", title: "Avatar 2",                  genre: "Sci-Fi",    year: 2022, rating: "7.8", premium: true,  img: "/images/movie8.jpg",  duration: "3h 12m", views: "11.2M", description: "Jake Sully's family faces new threats from the RDA corporation.", tags: ["Epic","Visual"] },
-  { id: "m15", title: "RRR",                       genre: "Bollywood", year: 2022, rating: "9.0", premium: true,  dubbed: true, img: "/images/movie11.jpg", duration: "3h 2m",  views: "9.8M",  description: "Two Indian revolutionaries fight British rule in a spectacular saga.", tags: ["History","Epic","Dubbed"] },
-  { id: "m16", title: "Top Gun: Maverick",         genre: "Action",    year: 2022, rating: "8.3", premium: true,  img: "/images/movie1.jpg",  duration: "2h 11m", views: "8.6M",  description: "Maverick returns to train the next generation of Top Gun graduates.", tags: ["Military","Action"] },
-  { id: "m17", title: "Extraction 2",              genre: "Action",    year: 2023, rating: "8.3", premium: true,  img: "/images/movie10.jpg", duration: "2h 2m",  views: "4.8M",  description: "Tyler Rake returns for a breathtaking mission across Europe.", tags: ["War","Brutal"] },
-  { id: "m18", title: "Vikram",                    genre: "Bollywood", year: 2022, rating: "8.4", premium: true,  dubbed: true, img: "/images/movie2.jpg",  duration: "2h 54m", views: "7.2M",  description: "A black ops mission uncovers a sinister conspiracy.", tags: ["Crime","Dubbed"] },
-  { id: "m19", title: "Devotion",                  genre: "Drama",     year: 2023, rating: "7.4", premium: false, img: "/images/movie9.jpg",  duration: "2h 18m", views: "890K",  description: "Two elite fighter pilots during the Korean War.", tags: ["War","True Story"] },
-  { id: "m20", title: "Nope",                      genre: "Thriller",  year: 2022, rating: "7.1", premium: false, img: "/images/movie7.jpg",  duration: "2h 10m", views: "1.2M",  description: "Ranchers encounter a mysterious force in the California skies.", tags: ["Mystery","Horror"] },
-];
+// ── Card type ─────────────────────────────────────────────────────────────────
 
-// Movie of the Day — rotate by day-of-year
-const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-const MOVIE_OF_DAY = ALL_MOVIES[dayOfYear % ALL_MOVIES.length];
+type CardMovie = {
+  id: string;
+  title: string;
+  genre: string;
+  year: string;
+  rating: string;
+  duration?: string;
+  premium: boolean;
+  img: string;
+  views?: number;
+  description?: string;
+  video_url?: string;
+  is_trending?: boolean;
+  is_featured?: boolean;
+};
+
+function toCard(m: Movie): CardMovie {
+  return {
+    id:          m.$id,
+    title:       m.title,
+    genre:       m.genre[0] ?? "Movie",
+    year:        m.release_year ?? "2024",
+    rating:      m.rating.toFixed(1),
+    duration:    m.duration ?? undefined,
+    premium:     m.premium_only,
+    img:         m.poster_url ?? "/images/hero1.jpg",
+    views:       m.view_count,
+    description: m.description ?? m.ai_summary ?? "",
+    video_url:   m.video_url,
+    is_trending: m.is_trending,
+    is_featured: m.is_featured,
+  };
+}
+
+// ── Moods — no dubbed, no Sparkles ───────────────────────────────────────────
 
 const MOODS = [
-  { id: "hype",     emoji: "🔥", label: "Hype",      desc: "Action-packed",  genres: ["Action","Marvel","Adventure"] },
-  { id: "chill",    emoji: "🧘", label: "Chill",      desc: "Easy watching",  genres: ["Drama","Comedy"] },
-  { id: "epic",     emoji: "⚔️", label: "Epic",       desc: "Grand stories",  genres: ["Bollywood"] },
-  { id: "mystery",  emoji: "🔍", label: "Suspense",   desc: "Edge of seat",   genres: ["Thriller"] },
-  { id: "sci",      emoji: "🚀", label: "Sci-Fi",     desc: "Future worlds",  genres: ["Sci-Fi"] },
-  { id: "dubbed",   emoji: "🎙️", label: "DJ Afro",    desc: "Dubbed classics", genres: [] },
+  { id: "action",    Icon: Flame,      label: "Hype",      desc: "Action-packed",   genres: ["Action","Adventure"] },
+  { id: "drama",     Icon: Film,       label: "Drama",     desc: "Emotional depth", genres: ["Drama","Romance"]    },
+  { id: "thriller",  Icon: Zap,        label: "Suspense",  desc: "Edge of seat",    genres: ["Thriller","Horror"]  },
+  { id: "scifi",     Icon: Rocket,     label: "Sci-Fi",    desc: "Future worlds",   genres: ["Sci-Fi"]             },
+  { id: "bollywood", Icon: Headphones, label: "Bollywood", desc: "Epic sagas",      genres: ["Bollywood"]          },
 ];
+
+// ── Collections ───────────────────────────────────────────────────────────────
 
 const COLLECTIONS = [
-  { id: "col1", title: "DJ Afro Essentials",    emoji: "🎙️", count: 8,  filter: (m: typeof ALL_MOVIES[0]) => !!m.dubbed,                     accent: "#f5c518" },
-  { id: "col2", title: "Free Tonight",          emoji: "🆓", count: 7,  filter: (m: typeof ALL_MOVIES[0]) => !m.premium,                     accent: "#22c55e" },
-  { id: "col3", title: "Hall of Fame",          emoji: "🏆", count: 5,  filter: (m: typeof ALL_MOVIES[0]) => parseFloat(m.rating) >= 9.0,    accent: "#e50914" },
-  { id: "col4", title: "Under 2 Hours",         emoji: "⏱️", count: 6,  filter: (m: typeof ALL_MOVIES[0]) => m.duration.startsWith("1h"),     accent: "#3b82f6" },
+  { id: "col1", title: "DJ Afro Essentials", Icon: Headphones, img: "/images/hero1.jpg", filter: (m: Movie) => !!m.is_featured },
+  { id: "col2", title: "Free Tonight",       Icon: Gift,       img: "/images/hero2.jpg", filter: (m: Movie) => !m.premium_only },
+  { id: "col3", title: "Hall of Fame",       Icon: Trophy,     img: "/images/hero3.jpg", filter: (m: Movie) => m.rating >= 9.0 },
+  { id: "col4", title: "Under 2 Hours",      Icon: Clock,      img: "/images/hero4.jpg", filter: (m: Movie) => typeof m.duration === "string" && m.duration.startsWith("1h") },
+  { id: "col5", title: "Trending Now",       Icon: Flame,      img: "/images/hero5.jpg", filter: (m: Movie) => !!m.is_trending },
+  { id: "col6", title: "New Arrivals",       Icon: Zap,        img: "/images/hero6.jpg", filter: (m: Movie) => parseInt(m.release_year ?? "0") >= new Date().getFullYear() - 1 },
 ];
 
-const USER = { name: "Mwangi", email: "mwangi@djafro.co.ke" };
+// ── Scrollable Row with Chevrons ──────────────────────────────────────────────
 
-// ── MINI PLAYER ───────────────────────────────────────────────────────────────
+function ScrollableRow({
+  movies, onPlay, isSmall,
+}: {
+  movies: CardMovie[];
+  onPlay: (m: CardMovie) => void;
+  isSmall: boolean;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [canLeft,  setCanLeft]  = useState(false);
+  const [canRight, setCanRight] = useState(false);
 
-function MiniPlayer({ movie, onClose }: { movie: typeof ALL_MOVIES[0]; onClose: () => void }) {
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const checkScroll = useCallback(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 8);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
+  }, []);
 
   useEffect(() => {
-    if (playing) {
-      timerRef.current = setInterval(() => setProgress(p => Math.min(100, p + 0.25)), 300);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [playing]);
+    const el = rowRef.current;
+    if (!el) return;
+    // Small delay to let DOM settle
+    const t = setTimeout(checkScroll, 80);
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    return () => { clearTimeout(t); el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
+  }, [checkScroll, movies.length]);
+
+  const scroll = (dir: "left" | "right") => {
+    rowRef.current?.scrollBy({ left: dir === "right" ? 620 : -620, behavior: "smooth" });
+  };
+
+  const CARD_W = isSmall ? 150 : 190;
 
   return (
-    <div style={{
-      position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)",
-      zIndex: 1000,
-      width: "min(500px, calc(100vw - 32px))",
-      background: "rgba(10,10,12,0.97)",
-      backdropFilter: "blur(24px)",
-      border: "1px solid rgba(229,9,20,0.2)",
-      borderRadius: 16,
-      overflow: "hidden",
-      boxShadow: "0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04)",
-    }}>
-      {/* Progress bar */}
-      <div style={{ height: 3, background: "rgba(255,255,255,0.08)" }}>
-        <div style={{ height: "100%", width: `${progress}%`, background: "#e50914", transition: "width 0.3s linear" }} />
+    <div style={{ position: "relative" }}>
+      {/* Left chevron — desktop only */}
+      {!isSmall && canLeft && (
+        <button
+          onClick={() => scroll("left")}
+          aria-label="Scroll left"
+          style={{
+            position: "absolute", left: -20, top: "50%", transform: "translateY(-60%)",
+            zIndex: 10, width: 38, height: 38,
+            background: "rgba(10,10,12,0.96)",
+            border: "1px solid rgba(255,255,255,0.13)",
+            borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#fff",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.8)",
+            transition: "background 0.16s, transform 0.16s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e50914"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1.1)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(10,10,12,0.96)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1)"; }}
+        >
+          <ChevronLeft size={17} strokeWidth={2.2} />
+        </button>
+      )}
+
+      {/* Right chevron — desktop only */}
+      {!isSmall && canRight && (
+        <button
+          onClick={() => scroll("right")}
+          aria-label="Scroll right"
+          style={{
+            position: "absolute", right: -20, top: "50%", transform: "translateY(-60%)",
+            zIndex: 10, width: 38, height: 38,
+            background: "rgba(10,10,12,0.96)",
+            border: "1px solid rgba(255,255,255,0.13)",
+            borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#fff",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.8)",
+            transition: "background 0.16s, transform 0.16s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e50914"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1.1)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(10,10,12,0.96)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-60%) scale(1)"; }}
+        >
+          <ChevronRight size={17} strokeWidth={2.2} />
+        </button>
+      )}
+
+      {/* The scrollable strip */}
+      <div
+        ref={rowRef}
+        className="dj-row-scroll"
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
+          paddingBottom: 8,
+          scrollbarWidth: "none",
+          // Show a ~half card peeking on mobile to signal scrollability
+          paddingRight: isSmall ? `${CARD_W * 0.4}px` : 4,
+        }}
+      >
+        {movies.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} isSmall={isSmall} />)}
       </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px" }}>
-        {/* Thumb */}
-        <div style={{ position: "relative", width: 52, height: 72, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
-          <img src={movie.img} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)" }} />
-        </div>
+      {/* Fade-out on the right for mobile */}
+      {isSmall && (
+        <div style={{
+          position: "absolute", right: 0, top: 0, bottom: 8,
+          width: 60,
+          background: "linear-gradient(90deg, transparent, rgba(8,8,8,0.88))",
+          pointerEvents: "none",
+        }} />
+      )}
+    </div>
+  );
+}
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {movie.title}
-          </h4>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: "0 0 8px" }}>
-            {movie.genre} · {movie.duration}
-          </p>
-          {/* Mini seek */}
-          <div
-            style={{ height: 2, background: "rgba(255,255,255,0.1)", borderRadius: 1, cursor: "pointer" }}
-            onClick={e => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setProgress(((e.clientX - r.left) / r.width) * 100);
+// ── Discover Card — image clearly visible ─────────────────────────────────────
+
+function DiscoverCard({
+  movie, onPlay, isSmall,
+}: {
+  movie: CardMovie;
+  onPlay: (m: CardMovie) => void;
+  isSmall: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        width: isSmall ? 150 : 190,
+        minWidth: isSmall ? 150 : 190,
+        borderRadius: 12,
+        overflow: "hidden",
+        background: "#0c0c0e",
+        cursor: "pointer",
+        flexShrink: 0,
+        transform: hovered ? "translateY(-5px)" : "translateY(0)",
+        boxShadow: hovered
+          ? "0 16px 48px rgba(0,0,0,0.75)"
+          : "0 4px 18px rgba(0,0,0,0.42)",
+        transition: "transform 0.28s ease, box-shadow 0.28s ease",
+      }}
+    >
+      <Link href={`/dashboard/movies/${movie.id}`} style={{ textDecoration: "none", display: "block" }}>
+        <div style={{ position: "relative", paddingTop: "150%", overflow: "hidden" }}>
+          {/* Image — more visible: light overlay only at bottom */}
+          <img
+            src={movie.img}
+            alt={movie.title}
+            style={{
+              position: "absolute", inset: 0, width: "100%", height: "100%",
+              objectFit: "cover",
+              transform: hovered ? "scale(1.07)" : "scale(1)",
+              transition: "transform 0.45s ease",
             }}
-          >
-            <div style={{ height: "100%", width: `${progress}%`, background: "#e50914", borderRadius: 1 }} />
+          />
+          {/* Very light top vignette, strong bottom for text legibility */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: hovered
+              ? "linear-gradient(0deg, rgba(4,4,4,0.98) 0%, rgba(4,4,4,0.3) 48%, rgba(4,4,4,0.05) 100%)"
+              : "linear-gradient(0deg, rgba(4,4,4,0.93) 0%, rgba(4,4,4,0.12) 50%, rgba(4,4,4,0.0) 100%)",
+            transition: "background 0.28s",
+          }} />
+
+          {/* FREE badge top-left */}
+          {!movie.premium && (
+            <span style={{
+              position: "absolute", top: 8, left: 8,
+              fontSize: 7, padding: "2px 7px",
+              background: "rgba(34,197,94,0.2)", border: "1px solid rgba(74,222,128,0.35)",
+              borderRadius: 3, color: "#4ade80",
+              fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.22em",
+            }}>
+              FREE
+            </span>
+          )}
+
+          {/* TRENDING badge top-left (below FREE if both) */}
+          {movie.is_trending && (
+            <span style={{
+              position: "absolute", top: movie.premium ? 8 : 28, left: 8,
+              fontSize: 7, padding: "2px 7px",
+              background: "rgba(229,9,20,0.2)", border: "1px solid rgba(229,9,20,0.38)",
+              borderRadius: 3, color: "#ff6b6b",
+              fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.18em",
+              display: "flex", alignItems: "center", gap: 3,
+            }}>
+              <Flame size={6} /> HOT
+            </span>
+          )}
+
+          {/* Rating top-right */}
+          <span style={{
+            position: "absolute", top: 8, right: 8,
+            display: "flex", alignItems: "center", gap: 3,
+            fontSize: 10, padding: "3px 7px",
+            background: "rgba(0,0,0,0.6)",
+            borderRadius: 5, color: "#f5c518",
+            fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
+            backdropFilter: "blur(4px)",
+          }}>
+            <Star size={8} fill="#f5c518" strokeWidth={0} /> {movie.rating}
+          </span>
+
+          {/* Play button on hover */}
+          {hovered && (
+            <button
+              onClick={e => { e.preventDefault(); onPlay(movie); }}
+              style={{
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%,-50%)",
+                width: 50, height: 50,
+                background: "#e50914", border: "none", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", zIndex: 2,
+                boxShadow: "0 0 36px rgba(229,9,20,0.7)",
+                animation: "popIn 0.15s ease-out",
+              }}
+            >
+              <Play size={20} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
+            </button>
+          )}
+
+          {/* Bottom text */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 10px 10px" }}>
+            <span style={{
+              display: "block", fontSize: 8, color: "#e50914",
+              letterSpacing: "0.3em", textTransform: "uppercase",
+              fontFamily: "'DM Sans', sans-serif", fontWeight: 700, marginBottom: 4,
+            }}>
+              {movie.genre}
+            </span>
+            <h3 style={{
+              fontFamily: "var(--font-display)",
+              fontSize: isSmall ? "0.8rem" : "0.88rem",
+              color: "#fff", letterSpacing: "0.04em",
+              margin: "0 0 4px",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {movie.title}
+            </h3>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', sans-serif" }}>
+              {movie.year}{movie.duration ? ` · ${movie.duration}` : ""}
+            </span>
           </div>
         </div>
+      </Link>
+    </div>
+  );
+}
 
-        {/* Controls */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-          <button
-            onClick={() => setPlaying(p => !p)}
-            style={{ width: 40, height: 40, background: "#e50914", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 0 20px rgba(229,9,20,0.4)" }}
-          >
-            {playing
-              ? <span style={{ width: 10, height: 12, display: "flex", gap: 3 }}><span style={{ flex: 1, background: "#fff", borderRadius: 1 }} /><span style={{ flex: 1, background: "#fff", borderRadius: 1 }} /></span>
-              : <Play size={16} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
-            }
-          </button>
-          <Link
-            href={`/dashboard/movies/${movie.id}`}
-            style={{ width: 36, height: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", textDecoration: "none" }}
-          >
-            <ChevronRight size={14} />
-          </Link>
-          <button
-            onClick={onClose}
-            style={{ width: 32, height: 32, background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <X size={14} />
-          </button>
+// ── Section Header ────────────────────────────────────────────────────────────
+
+function SectionHead({
+  eyebrow, title, count, viewAll,
+}: {
+  eyebrow?: string; title: string; count?: number; viewAll?: string;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
+      <div>
+        {eyebrow && (
+          <span style={{ fontSize: 9, letterSpacing: "0.46em", textTransform: "uppercase", color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "block", marginBottom: 4 }}>
+            {eyebrow}
+          </span>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)", borderRadius: 2, flexShrink: 0 }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.1rem,2.5vw,1.55rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
+            {title}
+          </h2>
+          {count != null && count > 0 && (
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
+              {count} films
+            </span>
+          )}
         </div>
+      </div>
+      {viewAll && (
+        <Link
+          href={viewAll}
+          style={{
+            fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase",
+            color: "rgba(255,255,255,0.28)", textDecoration: "none",
+            fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
+            display: "flex", alignItems: "center", gap: 3,
+          }}
+        >
+          View All <ChevronRight size={12} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ── Movie Row ─────────────────────────────────────────────────────────────────
+
+function MovieRow({
+  eyebrow, title, movies, onPlay, viewAll, isSmall,
+}: {
+  eyebrow?: string; title: string;
+  movies: CardMovie[]; onPlay: (m: CardMovie) => void;
+  viewAll?: string; isSmall: boolean;
+}) {
+  if (!movies.length) return null;
+  return (
+    <section style={{ marginBottom: 48 }}>
+      <SectionHead eyebrow={eyebrow} title={title} count={movies.length} viewAll={viewAll} />
+      <ScrollableRow movies={movies} onPlay={onPlay} isSmall={isSmall} />
+    </section>
+  );
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function SkeletonRow({ isSmall }: { isSmall: boolean }) {
+  const w = isSmall ? 150 : 190;
+  const h = isSmall ? 225 : 285;
+  return (
+    <div style={{ marginBottom: 48 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 18, alignItems: "center" }}>
+        <div className="dj-sk" style={{ width: 3, height: 18, borderRadius: 2 }} />
+        <div className="dj-sk" style={{ width: 200, height: 20, borderRadius: 4 }} />
+      </div>
+      <div style={{ display: "flex", gap: 12 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ position: "relative", width: w, minWidth: w, height: h, borderRadius: 12, overflow: "hidden", background: "#0e0e10", flexShrink: 0 }}>
+            <div className="dj-shimmer" />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// ── MOVIE OF THE DAY ──────────────────────────────────────────────────────────
+// ── Movie of the Day ──────────────────────────────────────────────────────────
 
-function MovieOfTheDay({ movie, onPlay }: { movie: typeof ALL_MOVIES[0]; onPlay: () => void }) {
+function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void }) {
   return (
-    <div style={{
-      position: "relative",
-      borderRadius: 16,
-      overflow: "hidden",
-      background: "#0c0c0e",
-      marginBottom: 40,
-    }}>
-      {/* BG */}
+    <div style={{ position: "relative", borderRadius: 18, overflow: "hidden", background: "#0c0c0e", marginBottom: 44 }}>
       <img
-        src={movie.img}
-        alt={movie.title}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.28) saturate(1.2)" }}
+        src={movie.img} alt={movie.title}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.3) saturate(1.3)" }}
       />
-      {/* Gradient */}
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(8,8,8,0.92) 0%, rgba(8,8,8,0.4) 60%, rgba(229,9,20,0.05) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(130deg, rgba(8,8,8,0.93) 0%, rgba(8,8,8,0.5) 55%, rgba(229,9,20,0.05) 100%)" }} />
+      <div style={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, background: "radial-gradient(circle, rgba(229,9,20,0.09) 0%, transparent 70%)", animation: "discoPulse 5s ease-in-out infinite" }} />
 
-      {/* Animated glow */}
-      <div style={{ position: "absolute", top: -60, right: -60, width: 280, height: 280, background: "radial-gradient(circle, rgba(229,9,20,0.12) 0%, transparent 70%)", animation: "discoPulse 4s ease-in-out infinite" }} />
-
-      <div style={{ position: "relative", padding: "clamp(24px,4vw,40px)" }}>
-        {/* Label */}
+      <div style={{ position: "relative", padding: "clamp(22px,4vw,44px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <Sparkles size={13} color="#f5c518" />
-          <span style={{ fontSize: 9, letterSpacing: "0.5em", textTransform: "uppercase", color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
-            Movie of the Day
-          </span>
+          <Star size={10} color="#f5c518" fill="#f5c518" />
+          <span style={{ fontSize: 9, letterSpacing: "0.52em", textTransform: "uppercase", color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>Movie of the Day</span>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
             · {new Date().toLocaleDateString("en-KE", { weekday: "long", month: "short", day: "numeric" })}
           </span>
         </div>
 
-        <div style={{ display: "flex", gap: "clamp(16px,3vw,32px)", alignItems: "flex-end", flexWrap: "wrap" }}>
-          {/* Poster thumb */}
-          <div style={{ position: "relative", width: "clamp(80px,12vw,120px)", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", flexShrink: 0, boxShadow: "0 20px 60px rgba(0,0,0,0.7)" }}>
+        <div style={{ display: "flex", gap: "clamp(14px,3vw,32px)", alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ position: "relative", width: "clamp(70px,10vw,115px)", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", flexShrink: 0, boxShadow: "0 20px 52px rgba(0,0,0,0.72)" }}>
             <img src={movie.img} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
-
-          {/* Info */}
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-              {movie.dubbed && (
-                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(255,180,0,0.15)", border: "1px solid rgba(255,180,0,0.3)", borderRadius: 3, color: "rgba(255,200,50,0.9)", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
-                  <Mic2 size={8} /> DUBBED
+              {movie.premium && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.22)", borderRadius: 3, color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
+                  <Crown size={7} /> PREMIUM
                 </span>
               )}
-              {movie.premium && (
-                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(245,197,24,0.12)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 3, color: "#f5c518", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
-                  <Crown size={8} /> PREMIUM
+              {movie.is_trending && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 8, padding: "3px 8px", background: "rgba(229,9,20,0.12)", border: "1px solid rgba(229,9,20,0.25)", borderRadius: 3, color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.3em" }}>
+                  <Flame size={7} /> TRENDING
                 </span>
               )}
             </div>
-
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.8rem,4vw,3rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 10px" }}>
+            <h2 style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(1.8rem,4.5vw,3.2rem)",
+              color: "#fff", letterSpacing: "0.03em", lineHeight: 1,
+              margin: "0 0 10px",
+              overflow: "hidden", display: "-webkit-box",
+              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            }}>
               {movie.title}
             </h2>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", marginBottom: 14 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", marginBottom: 12 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 4, color: "#f5c518", fontSize: 13, fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
-                <Star size={12} fill="#f5c518" /> {movie.rating}
+                <Star size={11} fill="#f5c518" strokeWidth={0} /> {movie.rating}
               </span>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>{movie.year}</span>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>{movie.duration}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>
-                <Eye size={11} /> {movie.views}
-              </span>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.34)", fontFamily: "'DM Sans', sans-serif" }}>{movie.genre}</span>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.34)", fontFamily: "'DM Sans', sans-serif" }}>{movie.year}</span>
+              {movie.duration && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.34)", fontFamily: "'DM Sans', sans-serif" }}>{movie.duration}</span>}
+              {movie.views != null && (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 12, color: "rgba(255,255,255,0.34)", fontFamily: "'DM Sans', sans-serif" }}>
+                  <Eye size={10} /> {movie.views.toLocaleString()}
+                </span>
+              )}
             </div>
-
-            <p style={{ fontSize: "clamp(12px,1.5vw,13px)", color: "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.6, margin: "0 0 18px", maxWidth: 420 }}>
-              {movie.description}
-            </p>
-
-            <div style={{ display: "flex", gap: 10 }}>
+            {movie.description && (
+              <p style={{
+                fontSize: "clamp(11px,1.4vw,13px)", color: "rgba(255,255,255,0.42)",
+                fontFamily: "'DM Sans', sans-serif", lineHeight: 1.65,
+                margin: "0 0 18px", maxWidth: 440,
+                overflow: "hidden", display: "-webkit-box",
+                WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
+              }}>
+                {movie.description}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
                 onClick={onPlay}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 24px", background: "#e50914", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", cursor: "pointer", boxShadow: "0 4px 20px rgba(229,9,20,0.4)" }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 24px", background: "#e50914", border: "none", borderRadius: 9, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", cursor: "pointer", boxShadow: "0 4px 22px rgba(229,9,20,0.42)" }}
               >
-                <Play size={14} fill="#fff" /> Play Now
+                <Play size={13} fill="#fff" /> Play Now
               </button>
               <Link
                 href={`/dashboard/movies/${movie.id}`}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 18px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 9, color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}
               >
                 More Info
               </Link>
@@ -242,42 +513,35 @@ function MovieOfTheDay({ movie, onPlay }: { movie: typeof ALL_MOVIES[0]; onPlay:
   );
 }
 
-// ── MOOD PICKER ───────────────────────────────────────────────────────────────
+// ── Mood Picker ───────────────────────────────────────────────────────────────
 
 function MoodPicker({ active, onChange }: { active: string | null; onChange: (id: string | null) => void }) {
   return (
-    <div style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
-          What's Your Mood?
-        </h2>
-      </div>
+    <div style={{ marginBottom: 44 }}>
+      <SectionHead title="What's Your Mood?" />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {MOODS.map(m => (
-          <button
-            key={m.id}
-            onClick={() => onChange(active === m.id ? null : m.id)}
-            style={{
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              padding: "14px 20px",
-              background: active === m.id ? "rgba(229,9,20,0.15)" : "rgba(255,255,255,0.03)",
-              border: `1px solid ${active === m.id ? "rgba(229,9,20,0.4)" : "rgba(255,255,255,0.07)"}`,
-              borderRadius: 12,
-              cursor: "pointer",
-              transition: "all 0.18s",
-              minWidth: 80,
-            }}
-          >
-            <span style={{ fontSize: "1.4rem", lineHeight: 1 }}>{m.emoji}</span>
-            <span style={{ fontSize: 11, color: active === m.id ? "#fff" : "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
-              {m.label}
-            </span>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>
-              {m.desc}
-            </span>
-          </button>
-        ))}
+        {MOODS.map(m => {
+          const isActive = active === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => onChange(isActive ? null : m.id)}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+                padding: "14px 20px", minWidth: 84,
+                background: isActive ? "rgba(229,9,20,0.14)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${isActive ? "rgba(229,9,20,0.38)" : "rgba(255,255,255,0.07)"}`,
+                borderRadius: 12, cursor: "pointer", transition: "all 0.18s",
+              }}
+              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
+              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+            >
+              <m.Icon size={18} color={isActive ? "#e50914" : "rgba(255,255,255,0.38)"} strokeWidth={1.5} />
+              <span style={{ fontSize: 11, color: isActive ? "#fff" : "rgba(255,255,255,0.45)", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>{m.label}</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.18)", fontFamily: "'DM Sans', sans-serif" }}>{m.desc}</span>
+            </button>
+          );
+        })}
         {active && (
           <button
             onClick={() => onChange(null)}
@@ -291,470 +555,420 @@ function MoodPicker({ active, onChange }: { active: string | null; onChange: (id
   );
 }
 
-// ── COLLECTION CARDS ──────────────────────────────────────────────────────────
+// ── Collections — bg image clearly visible ────────────────────────────────────
 
-function Collections({ onCollectionClick }: { onCollectionClick: (filter: (m: typeof ALL_MOVIES[0]) => boolean, title: string) => void }) {
-  return (
-    <div style={{ marginBottom: 44 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-        <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
-          Collections
-        </h2>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-        {COLLECTIONS.map(col => (
-          <button
-            key={col.id}
-            onClick={() => onCollectionClick(col.filter, col.title)}
-            style={{
-              display: "flex", alignItems: "center", gap: 14,
-              padding: "16px 18px",
-              background: "rgba(255,255,255,0.03)",
-              border: `1px solid rgba(255,255,255,0.06)`,
-              borderLeft: `3px solid ${col.accent}`,
-              borderRadius: 10,
-              cursor: "pointer",
-              textAlign: "left",
-              transition: "all 0.18s",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
-          >
-            <span style={{ fontSize: "1.5rem" }}>{col.emoji}</span>
-            <div>
-              <p style={{ fontSize: 13, color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, margin: "0 0 3px" }}>{col.title}</p>
-              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{col.count} films</p>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── DISCOVER CARD (compact, horizontal-scroll row) ────────────────────────────
-
-function DiscoverCard({ movie, onPlay }: { movie: typeof ALL_MOVIES[0]; onPlay: (m: typeof ALL_MOVIES[0]) => void }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: "relative",
-        width: 180, minWidth: 180,
-        borderRadius: 10,
-        overflow: "hidden",
-        background: "#0c0c0e",
-        cursor: "pointer",
-        flexShrink: 0,
-      }}
-    >
-      <Link href={`/dashboard/movies/${movie.id}`} style={{ textDecoration: "none", display: "block" }}>
-        <div style={{ position: "relative", paddingTop: "148%", overflow: "hidden" }}>
-          <img
-            src={movie.img}
-            alt={movie.title}
-            style={{
-              position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-              transform: hovered ? "scale(1.07)" : "scale(1)",
-              transition: "transform 0.45s ease",
-            }}
-          />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(8,8,8,0.95) 0%, transparent 55%)", opacity: hovered ? 1 : 0.65, transition: "opacity 0.3s" }} />
-
-          {/* Badges */}
-          <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-            {movie.dubbed && (
-              <span style={{ fontSize: 7, padding: "2px 6px", background: "rgba(255,180,0,0.15)", border: "1px solid rgba(255,180,0,0.3)", borderRadius: 3, color: "rgba(255,200,50,0.9)", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.25em", display: "flex", alignItems: "center", gap: 2 }}>
-                <Mic2 size={7} /> DUB
-              </span>
-            )}
-            {!movie.premium && (
-              <span style={{ fontSize: 7, padding: "2px 6px", background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 3, color: "#22c55e", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.25em" }}>
-                FREE
-              </span>
-            )}
-          </div>
-
-          {/* Play on hover */}
-          {hovered && (
-            <button
-              onClick={e => { e.preventDefault(); onPlay(movie); }}
-              style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 44, height: 44, background: "#e50914", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 0 24px rgba(229,9,20,0.5)" }}
-            >
-              <Play size={18} fill="#fff" color="#fff" />
-            </button>
-          )}
-
-          {/* Bottom */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 10px 8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-              <span style={{ fontSize: 8, color: "#e50914", letterSpacing: "0.3em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>{movie.genre}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 2, color: "#f5c518", fontSize: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
-                <Star size={8} fill="#f5c518" /> {movie.rating}
-              </span>
-            </div>
-            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.9rem", color: "#fff", letterSpacing: "0.04em", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {movie.title}
-            </h3>
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
-}
-
-// ── HORIZONTAL ROW ────────────────────────────────────────────────────────────
-
-function MovieRow({
-  title, eyebrow, movies, onPlay,
+function Collections({
+  allMovies,
+  onCollectionClick,
 }: {
-  title: string;
-  eyebrow?: string;
-  movies: typeof ALL_MOVIES;
-  onPlay: (m: typeof ALL_MOVIES[0]) => void;
+  allMovies: Movie[];
+  onCollectionClick: (movies: Movie[], title: string) => void;
 }) {
-  if (!movies.length) return null;
   return (
-    <section style={{ marginBottom: 44 }}>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
-          {eyebrow && (
-            <span style={{ fontSize: 9, letterSpacing: "0.45em", textTransform: "uppercase", color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "block", marginBottom: 4 }}>
-              {eyebrow}
-            </span>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.2rem,2.5vw,1.6rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>
-              {title}
-            </h2>
-            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>{movies.length} films</span>
-          </div>
-        </div>
-        <Link href="/dashboard/movies" style={{ fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
-          View All →
-        </Link>
+    <div style={{ marginBottom: 48 }}>
+      <SectionHead title="Collections" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))", gap: 10 }}>
+        {COLLECTIONS.map(col => {
+          const count = allMovies.filter(col.filter).length;
+          return (
+            <button
+              key={col.id}
+              onClick={() => onCollectionClick(allMovies.filter(col.filter), col.title)}
+              className="dj-col-btn"
+              style={{
+                position: "relative", overflow: "hidden",
+                display: "flex", alignItems: "center", gap: 14,
+                padding: "18px 18px",
+                background: "#0c0c0e",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 13,
+                cursor: "pointer", textAlign: "left",
+                transition: "transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s",
+              }}
+            >
+              {/* Background image — brightness raised so it's clearly visible */}
+              <img
+                src={col.img}
+                alt=""
+                aria-hidden
+                className="dj-col-img"
+                style={{
+                  position: "absolute", inset: 0, width: "100%", height: "100%",
+                  objectFit: "cover",
+                  filter: "brightness(0.42) saturate(1.4)",
+                  transition: "transform 0.38s ease, filter 0.38s ease",
+                }}
+              />
+              {/* Dark overlay so text stays readable */}
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(110deg, rgba(8,8,10,0.75) 0%, rgba(8,8,10,0.42) 100%)" }} />
+
+              {/* Icon */}
+              <div style={{ position: "relative", width: 42, height: 42, borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.13)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <col.Icon size={19} color="rgba(255,255,255,0.78)" strokeWidth={1.5} />
+              </div>
+
+              {/* Text */}
+              <div style={{ position: "relative" }}>
+                <p style={{ fontSize: 13, color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, margin: "0 0 4px", letterSpacing: "0.02em" }}>{col.title}</p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>
+                  {count > 0 ? `${count} films` : "—"}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none" }}>
-        {movies.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} />)}
-      </div>
-    </section>
+    </div>
   );
 }
 
-// ── SEARCH RESULTS ────────────────────────────────────────────────────────────
+// ── Search Results ────────────────────────────────────────────────────────────
 
 function SearchResults({
-  query,
-  results,
-  onPlay,
-  onClose,
+  query, results, onPlay, onClose, isSmall,
 }: {
-  query: string;
-  results: typeof ALL_MOVIES;
-  onPlay: (m: typeof ALL_MOVIES[0]) => void;
-  onClose: () => void;
+  query: string; results: CardMovie[];
+  onPlay: (m: CardMovie) => void; onClose: () => void; isSmall: boolean;
 }) {
   return (
-    <div style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+    <div style={{ marginBottom: 44 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 4px" }}>
-            Search Results
-          </p>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.06em", color: "#fff", margin: 0 }}>
+          <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 4px" }}>Search Results</p>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.1rem,2.5vw,1.45rem)", letterSpacing: "0.06em", color: "#fff", margin: 0 }}>
             "{query}" — {results.length} found
           </h2>
         </div>
-        <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.35)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
+        <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.32)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
           <X size={11} /> Clear
         </button>
       </div>
-
       {results.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px" }}>
-          <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🎬</div>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", fontFamily: "'DM Sans', sans-serif" }}>No movies match your search</p>
+        <div style={{ textAlign: "center", padding: "56px 20px" }}>
+          <Film size={36} color="rgba(255,255,255,0.12)" strokeWidth={1} style={{ marginBottom: 12 }} />
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>No movies match your search</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-          {results.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} />)}
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${isSmall ? 146 : 184}px, 1fr))`, gap: 12 }}>
+          {results.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} isSmall={isSmall} />)}
         </div>
       )}
     </div>
   );
 }
 
-// ── PAGE ──────────────────────────────────────────────────────────────────────
+// ── Collection View ───────────────────────────────────────────────────────────
+
+function CollectionView({
+  title, movies, onBack, onPlay, isSmall,
+}: {
+  title: string; movies: CardMovie[];
+  onBack: () => void; onPlay: (m: CardMovie) => void; isSmall: boolean;
+}) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <button
+          onClick={onBack}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 13px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.38)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
+        >
+          <ChevronLeft size={12} /> Back
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 3, height: 18, background: "#e50914", borderRadius: 2 }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.1rem,2.5vw,1.55rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>{title}</h2>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>{movies.length} films</span>
+        </div>
+      </div>
+      {movies.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "56px 0", color: "rgba(255,255,255,0.16)", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+          No movies in this collection yet.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${isSmall ? 146 : 184}px, 1fr))`, gap: 12 }}>
+          {movies.map(m => <DiscoverCard key={m.id} movie={m} onPlay={onPlay} isSmall={isSmall} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Surprise Highlight ────────────────────────────────────────────────────────
+
+function SurpriseHighlight({ movie, onPlay }: { movie: CardMovie; onPlay: () => void }) {
+  return (
+    <div style={{ marginBottom: 44, padding: "18px 20px", background: "rgba(229,9,20,0.05)", border: "1px solid rgba(229,9,20,0.14)", borderRadius: 14, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+      <Shuffle size={22} color="#e50914" strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.8 }} />
+      <div style={{ flex: 1, minWidth: 140 }}>
+        <p style={{ fontSize: 9, letterSpacing: "0.42em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 3px" }}>Surprise Pick</p>
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", color: "#fff", letterSpacing: "0.05em", margin: "0 0 3px" }}>{movie.title}</h3>
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{movie.genre} · {movie.year} · ★ {movie.rating}</p>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <button onClick={onPlay} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "#e50914", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
+          <Play size={12} fill="#fff" /> Play
+        </button>
+        <Link href={`/dashboard/movies/${movie.id}`} style={{ display: "flex", alignItems: "center", padding: "9px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 8, color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>
+          Info
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DiscoverPage() {
   const layout = useDashboardLayout();
-  const { isSmall, sidebarCollapsed, setSidebarCollapsed, scrolled } = layout;
+  const { user } = useAuth();
+  const { isMobile, isSmall, sidebarCollapsed, setSidebarCollapsed, scrolled } = layout;
 
-  const [searchVal,      setSearchVal]      = useState("");
-  const [searchFocused,  setSearchFocused]  = useState(false);
-  const [activeMood,     setActiveMood]     = useState<string | null>(null);
-  const [miniPlayer,     setMiniPlayer]     = useState<typeof ALL_MOVIES[0] | null>(null);
-  const [collectionView, setCollectionView] = useState<{ filter: (m: typeof ALL_MOVIES[0]) => boolean; title: string } | null>(null);
-  const [randomMovie,    setRandomMovie]    = useState<typeof ALL_MOVIES[0] | null>(null);
-  const [loading,        setLoading]        = useState(true);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const userName = user?.name || user?.email?.split("@")[0] || "Guest";
+  const userObj  = { name: userName, email: user?.email ?? "" };
 
-  useEffect(() => { setTimeout(() => setLoading(false), 700); }, []);
+  // ── Data ────────────────────────────────────────────────────────────────────
+  const trending   = useTrendingMovies(24);
+  const latest     = useLatestMovies(24);
+  const topRated   = useTopRated(24);
+  const featured   = useFeaturedMovies(6);
+  const mostViewed = useMostViewed(24);
+  const allMovies  = useMovies();
 
-  // Mood-filtered movies
-  const moodMovies = activeMood
-    ? ALL_MOVIES.filter(m => {
-        const mood = MOODS.find(mo => mo.id === activeMood);
-        if (!mood) return false;
-        if (mood.id === "dubbed") return !!m.dubbed;
-        return mood.genres.includes(m.genre);
-      })
-    : [];
+  const dayOfYear  = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const srcList    = featured.movies.length > 0 ? featured.movies : allMovies.movies;
+  const motdRaw    = srcList.length > 0 ? srcList[dayOfYear % srcList.length] : null;
+  const motd       = motdRaw ? toCard(motdRaw) : null;
 
-  // Search results
-  const searchResults = searchVal.trim().length > 0
-    ? ALL_MOVIES.filter(m => {
+  // ── Mood ────────────────────────────────────────────────────────────────────
+  const [activeMood, setActiveMood] = useState<string | null>(null);
+  const activeMoodData = MOODS.find(m => m.id === activeMood);
+  const moodMovies = useMovies(
+    activeMood && activeMoodData && activeMoodData.genres.length > 0
+      ? { genre: activeMoodData.genres[0] }
+      : undefined
+  );
+
+  // ── Search ──────────────────────────────────────────────────────────────────
+  const [searchVal,     setSearchVal]     = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const searchResults: CardMovie[] = searchVal.trim().length > 0
+    ? allMovies.movies.filter(m => {
         const q = searchVal.toLowerCase();
         return m.title.toLowerCase().includes(q)
-          || m.genre.toLowerCase().includes(q)
-          || m.tags?.some((t: string) => t.toLowerCase().includes(q))
-          || m.description.toLowerCase().includes(q);
-      })
+          || m.genre.some((g: string) => g.toLowerCase().includes(q))
+          || (Array.isArray(m.tags) && m.tags.some((t: string) => t.toLowerCase().includes(q)))
+          || (m.description ?? "").toLowerCase().includes(q)
+          || (m.ai_summary ?? "").toLowerCase().includes(q);
+      }).map(toCard)
     : [];
 
-  // Collection view movies
-  const collectionMovies = collectionView ? ALL_MOVIES.filter(collectionView.filter) : [];
+  // ── Collection ──────────────────────────────────────────────────────────────
+  const [collectionView, setCollectionView] = useState<{ movies: CardMovie[]; title: string } | null>(null);
 
-  const handlePlay = useCallback((movie: typeof ALL_MOVIES[0]) => {
-    setMiniPlayer(movie);
-  }, []);
+  // ── Surprise ────────────────────────────────────────────────────────────────
+  const [randomMovie, setRandomMovie] = useState<CardMovie | null>(null);
+
+  // ── Video Player ────────────────────────────────────────────────────────────
+  const { playerState, openPlayer, closePlayer } = useVideoPlayer();
+  const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
+  const { trackView } = useMovie(currentPlayId);
+
+  useEffect(() => { movieService.warmCache(); }, []);
+
+  useEffect(() => {
+    if (playerState.open && currentPlayId) trackView();
+  }, [playerState.open, currentPlayId, trackView]);
+
+  const handlePlay = useCallback((movie: CardMovie) => {
+    const videoUrl = movie.video_url
+      ?? allMovies.movies.find(m => m.$id === movie.id)?.video_url;
+    if (!videoUrl) return;
+    setCurrentPlayId(movie.id);
+    openPlayer(videoUrl, movie.title, movie.genre, movie.img);
+  }, [allMovies.movies, openPlayer]);
 
   const handleShuffle = useCallback(() => {
-    const r = ALL_MOVIES[Math.floor(Math.random() * ALL_MOVIES.length)];
+    const list = allMovies.movies;
+    if (!list.length) return;
+    const r = toCard(list[Math.floor(Math.random() * list.length)]);
     setRandomMovie(r);
-    setMiniPlayer(r);
+    handlePlay(r);
+  }, [allMovies.movies, handlePlay]);
+
+  const handleCollectionClick = useCallback((movies: Movie[], title: string) => {
+    setCollectionView({ movies: movies.map(toCard), title });
+    setActiveMood(null);
+    setSearchVal("");
   }, []);
 
-  const isSearching = searchVal.trim().length > 0;
+  const isSearching      = searchVal.trim().length > 0;
+  const isCollectionView = !!collectionView;
+  const initialLoading   = trending.loading && latest.loading && allMovies.movies.length === 0;
 
   return (
     <>
+      {playerState.open && (
+        <VideoPlayer
+          src={playerState.src}
+          title={playerState.title}
+          subtitle={playerState.subtitle}
+          poster={playerState.poster}
+          onClose={closePlayer}
+          autoPlay
+        />
+      )}
+
       <div style={{ display: "flex", height: "100svh", background: "#080808", overflow: "hidden" }}>
-        {/* Sidebar */}
+        {/* Sidebar — desktop only (same pattern as dashboard/page.tsx) */}
         {!isSmall && (
-          <DashboardSidebar
-            user={USER}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-          />
+          <DashboardSidebar user={userObj} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
         )}
 
-        {/* Scrollable content */}
         <div
           id="discover-col"
           style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden" }}
         >
-          {/* ── TOP BAR ── */}
+          {/* Top bar */}
           <header style={{
             position: "sticky", top: 0, zIndex: 800,
             display: "flex", alignItems: "center", gap: 12,
             padding: "0 clamp(16px,3vw,28px)",
             height: 64,
-            background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.8)",
-            backdropFilter: "blur(20px)",
+            background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.82)",
+            backdropFilter: "blur(22px)",
             borderBottom: "1px solid rgba(255,255,255,0.05)",
             flexShrink: 0,
+            transition: "background 0.3s",
           }}>
-            {/* Title */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>
-                Discover
-              </h1>
-            </div>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.15rem,2.5vw,1.75rem)", color: "#fff", letterSpacing: "0.1em", margin: 0, flexShrink: 0 }}>
+              Discover
+            </h1>
 
-            {/* Search bar — takes remaining space */}
             <div style={{ flex: 1, maxWidth: 480 }}>
               <div style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 14px",
                 background: searchFocused ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${searchFocused ? "rgba(229,9,20,0.3)" : "rgba(255,255,255,0.07)"}`,
-                borderRadius: 10,
-                transition: "all 0.2s",
+                border: `1px solid ${searchFocused ? "rgba(229,9,20,0.28)" : "rgba(255,255,255,0.07)"}`,
+                borderRadius: 10, transition: "all 0.2s",
               }}>
-                <Search size={14} color={searchFocused ? "#e50914" : "rgba(255,255,255,0.25)"} strokeWidth={1.8} />
+                <Search size={13} color={searchFocused ? "#e50914" : "rgba(255,255,255,0.22)"} strokeWidth={1.8} />
                 <input
-                  ref={searchRef}
                   value={searchVal}
                   onChange={e => { setSearchVal(e.target.value); setCollectionView(null); setActiveMood(null); }}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
-                  placeholder="Search movies, genres, moods…"
-                  style={{
-                    flex: 1, background: "transparent", border: "none",
-                    color: "#fff", fontSize: 13,
-                    fontFamily: "'DM Sans', sans-serif", outline: "none",
-                  }}
+                  placeholder="Search movies, genres…"
+                  style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
                 />
                 {searchVal && (
-                  <button onClick={() => setSearchVal("")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.25)", display: "flex" }}>
+                  <button onClick={() => setSearchVal("")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.22)", display: "flex" }}>
                     <X size={12} />
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Shuffle button */}
             <button
               onClick={handleShuffle}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
-                padding: "9px 16px",
-                background: "rgba(229,9,20,0.1)",
-                border: "1px solid rgba(229,9,20,0.2)",
-                borderRadius: 10,
-                color: "#e50914", fontSize: 11, fontWeight: 700,
+                padding: isSmall ? "9px 12px" : "9px 16px",
+                background: "rgba(229,9,20,0.09)", border: "1px solid rgba(229,9,20,0.18)",
+                borderRadius: 10, color: "#e50914", fontSize: 11, fontWeight: 700,
                 letterSpacing: "0.1em", textTransform: "uppercase",
-                fontFamily: "'DM Sans', sans-serif",
-                cursor: "pointer",
-                flexShrink: 0,
-                transition: "all 0.18s",
+                fontFamily: "'DM Sans', sans-serif", cursor: "pointer", flexShrink: 0,
+                transition: "background 0.18s",
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.2)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.1)"; }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.18)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.09)"; }}
             >
-              <Shuffle size={13} />
+              <Shuffle size={14} />
               {!isSmall && "Surprise Me"}
             </button>
           </header>
 
-          {/* ── BODY ── */}
-          {loading ? (
-            <div style={{ padding: "40px clamp(16px,3vw,28px)" }}>
-              {[300, 200, 180].map((w, i) => (
-                <div key={i} style={{ height: i === 0 ? 260 : 22, width: "100%", maxWidth: w * 2, background: "rgba(255,255,255,0.04)", borderRadius: 10, marginBottom: 20, position: "relative", overflow: "hidden" }}>
-                  <div className="dj-shimmer" />
-                </div>
-              ))}
+          {initialLoading ? (
+            <div style={{ padding: "32px clamp(16px,3vw,28px)" }}>
+              <div style={{ position: "relative", height: 280, borderRadius: 18, overflow: "hidden", background: "#0c0c0e", marginBottom: 44 }}><div className="dj-shimmer" /></div>
+              <SkeletonRow isSmall={isSmall} />
+              <SkeletonRow isSmall={isSmall} />
             </div>
           ) : (
-            <div style={{ padding: "clamp(20px,3vw,36px) clamp(16px,3vw,28px) clamp(80px,12vh,120px)" }}>
+            <div style={{ padding: `clamp(20px,3vw,36px) clamp(16px,3vw,28px) ${isSmall ? "120px" : "80px"}` }}>
 
-              {/* ── SEARCH MODE ── */}
               {isSearching ? (
-                <SearchResults query={searchVal} results={searchResults} onPlay={handlePlay} onClose={() => setSearchVal("")} />
-              ) : collectionView ? (
-                /* ── COLLECTION VIEW ── */
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-                    <button
-                      onClick={() => setCollectionView(null)}
-                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
-                    >
-                      ← Back
-                    </button>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-                      <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>{collectionView.title}</h2>
-                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif" }}>{collectionMovies.length} films</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-                    {collectionMovies.map(m => <DiscoverCard key={m.id} movie={m} onPlay={handlePlay} />)}
-                  </div>
-                </div>
-              ) : (
-                /* ── NORMAL DISCOVER MODE ── */
-                <>
-                  {/* Movie of the Day */}
-                  <MovieOfTheDay movie={MOVIE_OF_DAY} onPlay={() => handlePlay(MOVIE_OF_DAY)} />
+                <SearchResults query={searchVal} results={searchResults} onPlay={handlePlay} onClose={() => setSearchVal("")} isSmall={isSmall} />
 
-                  {/* Mood Picker */}
+              ) : isCollectionView ? (
+                <CollectionView title={collectionView!.title} movies={collectionView!.movies} onBack={() => setCollectionView(null)} onPlay={handlePlay} isSmall={isSmall} />
+
+              ) : (
+                <>
+                  {motd && <MovieOfTheDay movie={motd} onPlay={() => handlePlay(motd)} />}
+
                   <MoodPicker active={activeMood} onChange={mood => { setActiveMood(mood); setCollectionView(null); }} />
 
-                  {/* Mood results */}
                   {activeMood && (
-                    <MovieRow
-                      eyebrow={MOODS.find(m => m.id === activeMood)?.label + " picks"}
-                      title={`${MOODS.find(m => m.id === activeMood)?.emoji} ${MOODS.find(m => m.id === activeMood)?.desc}`}
-                      movies={moodMovies}
-                      onPlay={handlePlay}
-                    />
+                    moodMovies.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                      <MovieRow
+                        eyebrow={`${activeMoodData?.label} picks`}
+                        title={activeMoodData?.desc ?? ""}
+                        movies={moodMovies.movies.map(toCard)}
+                        onPlay={handlePlay}
+                        viewAll="/dashboard/movies"
+                        isSmall={isSmall}
+                      />
+                    )
                   )}
 
-                  {/* Collections */}
                   {!activeMood && (
-                    <Collections onCollectionClick={(filter, title) => { setCollectionView({ filter, title }); setActiveMood(null); }} />
+                    <Collections allMovies={allMovies.movies} onCollectionClick={handleCollectionClick} />
                   )}
 
-                  {/* Surprise pick highlight */}
                   {randomMovie && !activeMood && (
-                    <div style={{ marginBottom: 44, padding: "20px 22px", background: "rgba(229,9,20,0.06)", border: "1px solid rgba(229,9,20,0.15)", borderRadius: 14, display: "flex", gap: 16, alignItems: "center" }}>
-                      <span style={{ fontSize: "1.8rem", flexShrink: 0 }}>🎲</span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "#e50914", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 3px" }}>Surprise Pick</p>
-                        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff", letterSpacing: "0.06em", margin: "0 0 4px" }}>{randomMovie.title}</h3>
-                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", margin: 0 }}>{randomMovie.genre} · {randomMovie.year} · ⭐ {randomMovie.rating}</p>
-                      </div>
-                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                        <button onClick={() => handlePlay(randomMovie)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "#e50914", border: "none", borderRadius: 7, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>
-                          <Play size={12} fill="#fff" /> Play
-                        </button>
-                        <Link href={`/dashboard/movies/${randomMovie.id}`} style={{ display: "flex", alignItems: "center", padding: "9px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>
-                          Info
-                        </Link>
-                      </div>
-                    </div>
+                    <SurpriseHighlight movie={randomMovie} onPlay={() => handlePlay(randomMovie)} />
                   )}
 
-                  {/* Rows */}
-                  <MovieRow
-                    eyebrow="Most Watched This Week"
-                    title="Trending Now"
-                    movies={ALL_MOVIES.filter(m => parseFloat(m.rating) >= 8.5).slice(0, 8)}
-                    onPlay={handlePlay}
-                  />
+                  {trending.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                    <MovieRow eyebrow="Most Watched This Week" title="Trending Now" movies={trending.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                  )}
 
-                  <MovieRow
-                    eyebrow="DJ Afro Exclusive"
-                    title="Dubbed Picks"
-                    movies={ALL_MOVIES.filter(m => m.dubbed).slice(0, 8)}
-                    onPlay={handlePlay}
-                  />
+                  {allMovies.movies.filter(m => !m.premium_only).length > 0 && (
+                    <MovieRow eyebrow="No Subscription Needed" title="Free to Watch" movies={allMovies.movies.filter(m => !m.premium_only).map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                  )}
 
-                  <MovieRow
-                    eyebrow="No Subscription Needed"
-                    title="Free to Watch"
-                    movies={ALL_MOVIES.filter(m => !m.premium)}
-                    onPlay={handlePlay}
-                  />
+                  {latest.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                    <MovieRow eyebrow="Just Added" title="New Arrivals" movies={latest.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                  )}
 
-                  <MovieRow
-                    eyebrow="New & Noteworthy"
-                    title="Latest Releases"
-                    movies={[...ALL_MOVIES].sort((a, b) => b.year - a.year).slice(0, 8)}
-                    onPlay={handlePlay}
-                  />
+                  <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(229,9,20,0.2), transparent)", margin: "0 0 48px" }} />
+
+                  {topRated.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                    <MovieRow eyebrow="Highest Rated" title="Top Rated" movies={topRated.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                  )}
+
+                  {!mostViewed.loading && mostViewed.movies.length > 0 && (
+                    <MovieRow eyebrow="All-Time Most Popular" title="Most Viewed" movies={mostViewed.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                  )}
                 </>
               )}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Mini player */}
-      {miniPlayer && <MiniPlayer movie={miniPlayer} onClose={() => setMiniPlayer(null)} />}
+        {/* Mobile bottom nav — same as dashboard/page.tsx */}
+        {isSmall && <MobileBottomNav />}
+      </div>
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #discover-col::-webkit-scrollbar { display: none; }
         #discover-col { scrollbar-width: none; }
-        ::-webkit-scrollbar { width: 0; height: 0; }
+        .dj-row-scroll::-webkit-scrollbar { display: none; }
+        .dj-row-scroll { scrollbar-width: none; }
 
         @keyframes djShimmer {
           0%   { background-position: -700px 0; }
@@ -766,9 +980,35 @@ export default function DiscoverPage() {
           background-size: 700px 100%;
           animation: djShimmer 1.6s ease-in-out infinite;
         }
+        .dj-sk {
+          background: rgba(255,255,255,0.05);
+          position: relative; overflow: hidden; display: block;
+        }
+        .dj-sk::after {
+          content: "";
+          position: absolute; inset: 0;
+          background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0) 100%);
+          background-size: 700px 100%;
+          animation: djShimmer 1.6s ease-in-out infinite;
+        }
         @keyframes discoPulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50%       { opacity: 1;   transform: scale(1.15); }
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50%       { opacity: 1;   transform: scale(1.18); }
+        }
+        @keyframes popIn {
+          from { transform: translate(-50%,-50%) scale(0.65); opacity: 0; }
+          to   { transform: translate(-50%,-50%) scale(1);    opacity: 1; }
+        }
+
+        /* Collection card hover effects via CSS */
+        .dj-col-btn:hover {
+          transform: translateY(-3px) !important;
+          box-shadow: 0 14px 42px rgba(0,0,0,0.68) !important;
+          border-color: rgba(255,255,255,0.16) !important;
+        }
+        .dj-col-btn:hover .dj-col-img {
+          transform: scale(1.07) !important;
+          filter: brightness(0.56) saturate(1.55) !important;
         }
       `}</style>
     </>

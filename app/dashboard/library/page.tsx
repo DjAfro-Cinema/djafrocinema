@@ -1,214 +1,113 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Play, Clock, Crown, History, Star,
-  RotateCcw, Download, Zap, CheckCircle2,
-  TrendingUp, Film, Lock,
+  RotateCcw, Download, CheckCircle2,
+  Film, Lock, TrendingUp, AlertCircle,
+  RefreshCw, Package,
 } from "lucide-react";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserLibrary } from "@/hooks/useUserLibrary";
+import { WatchProgress, PurchasedMovie } from "@/services/userLibrary.service";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import MobileTopBar from "@/components/dashboard/topbar/MobileTopBar";
 import DesktopTopBar from "@/components/dashboard/topbar/DesktopTopBar";
 
-// ── TYPES ──────────────────────────────────────────────────────────────────
-
-interface Movie {
-  $id: string;
-  title: string;
-  genre: string[];
-  poster_url: string;
-  duration: string;
-  release_year: string;
-  rating: number;
-  premium_only: boolean;
-  quality_options: string[];
-  download_enabled: boolean;
-  view_count: number;
-  is_featured: boolean;
-  is_trending: boolean;
-}
-
-interface WatchProgress {
-  movieId: string;
-  progressPercent: number;
-  lastWatchedAt: string;
-  movie: Movie;
-}
-
-interface Payment {
-  $id: string;
-  movieId: string;
-  amount: number;
-  status: string;
-  paidAt: string;
-  currency: string;
-  movie: Movie;
-}
-
-// ── MOCK DATA ──────────────────────────────────────────────────────────────
-
-const M: Movie[] = [
-  { $id:"m1", title:"Baahubali: The Beginning", genre:["Epic","Action"],   poster_url:"/images/movie2.jpg",  duration:"2h 39m", release_year:"2015", rating:9.1, premium_only:true,  quality_options:["720p","1080p"],        download_enabled:true,  view_count:14200, is_featured:true,  is_trending:false },
-  { $id:"m2", title:"John Wick: Chapter 4",     genre:["Action","Crime"],  poster_url:"/images/movie3.jpg",  duration:"2h 49m", release_year:"2023", rating:8.9, premium_only:true,  quality_options:["480p","720p","1080p"], download_enabled:true,  view_count:9800,  is_featured:false, is_trending:true  },
-  { $id:"m3", title:"Rampage",                  genre:["Thriller"],        poster_url:"/images/movie4.jpg",  duration:"1h 47m", release_year:"2023", rating:8.1, premium_only:false, quality_options:["480p","720p"],         download_enabled:false, view_count:6100,  is_featured:false, is_trending:false },
-  { $id:"m4", title:"Krish III",                genre:["Sci-Fi","Action"], poster_url:"/images/movie5.webp", duration:"2h 10m", release_year:"2013", rating:8.8, premium_only:true,  quality_options:["720p","1080p"],        download_enabled:true,  view_count:11500, is_featured:false, is_trending:false },
-  { $id:"m5", title:"Ghost City",               genre:["Crime","Drama"],   poster_url:"/images/movie8.jpg",  duration:"1h 55m", release_year:"2023", rating:8.7, premium_only:true,  quality_options:["720p","1080p"],        download_enabled:true,  view_count:7300,  is_featured:false, is_trending:true  },
-  { $id:"m6", title:"Thunderbolts*",            genre:["Marvel","Action"], poster_url:"/images/movie6.jpg",  duration:"2h 07m", release_year:"2024", rating:7.9, premium_only:true,  quality_options:["1080p"],              download_enabled:false, view_count:18900, is_featured:true,  is_trending:true  },
-  { $id:"m7", title:"Anaconda Rising",          genre:["Adventure"],       poster_url:"/images/movie7.jpg",  duration:"1h 38m", release_year:"2024", rating:8.4, premium_only:false, quality_options:["480p","720p"],         download_enabled:true,  view_count:5200,  is_featured:false, is_trending:false },
-  { $id:"m8", title:"Red 2",                    genre:["Crime","Action"],  poster_url:"/images/movie9.jpg",  duration:"1h 56m", release_year:"2023", rating:8.5, premium_only:false, quality_options:["720p"],               download_enabled:true,  view_count:4800,  is_featured:false, is_trending:false },
-  { $id:"m9", title:"The Meg",                  genre:["Thriller"],        poster_url:"/images/movie12.jpg", duration:"1h 53m", release_year:"2024", rating:7.9, premium_only:false, quality_options:["480p","720p"],         download_enabled:false, view_count:6700,  is_featured:false, is_trending:false },
-];
-
-const CONTINUE: WatchProgress[] = [
-  { movieId:"m1", progressPercent:65, lastWatchedAt:"2025-03-27T18:30:00Z", movie:M[0] },
-  { movieId:"m2", progressPercent:30, lastWatchedAt:"2025-03-26T21:15:00Z", movie:M[1] },
-  { movieId:"m4", progressPercent:88, lastWatchedAt:"2025-03-25T14:00:00Z", movie:M[3] },
-  { movieId:"m5", progressPercent:12, lastWatchedAt:"2025-03-24T20:45:00Z", movie:M[4] },
-  { movieId:"m6", progressPercent:55, lastWatchedAt:"2025-03-23T19:00:00Z", movie:M[5] },
-];
-
-const PAID: Payment[] = [
-  { $id:"p1", movieId:"m1", amount:150, status:"completed", paidAt:"2025-03-10T12:00:00Z", currency:"KES", movie:M[0] },
-  { $id:"p2", movieId:"m2", amount:150, status:"completed", paidAt:"2025-03-15T09:30:00Z", currency:"KES", movie:M[1] },
-  { $id:"p3", movieId:"m4", amount:150, status:"completed", paidAt:"2025-03-01T16:45:00Z", currency:"KES", movie:M[3] },
-  { $id:"p4", movieId:"m5", amount:150, status:"completed", paidAt:"2025-02-20T11:00:00Z", currency:"KES", movie:M[4] },
-  { $id:"p5", movieId:"m6", amount:200, status:"completed", paidAt:"2025-03-22T08:15:00Z", currency:"KES", movie:M[5] },
-];
-
-const WATCHED: WatchProgress[] = [
-  { movieId:"m7", progressPercent:100, lastWatchedAt:"2025-03-20T22:00:00Z", movie:M[6] },
-  { movieId:"m8", progressPercent:100, lastWatchedAt:"2025-03-18T19:30:00Z", movie:M[7] },
-  { movieId:"m3", progressPercent:100, lastWatchedAt:"2025-03-12T17:00:00Z", movie:M[2] },
-  { movieId:"m9", progressPercent:100, lastWatchedAt:"2025-03-05T20:15:00Z", movie:M[8] },
-];
-
-const USER = { name:"Mwangi", email:"mwangi@djafro.co.ke" };
-
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
-function ago(iso: string) {
+function ago(iso: string | null) {
+  if (!iso) return "—";
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
   if (d === 0) return "Today";
   if (d === 1) return "Yesterday";
-  if (d < 7)  return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-KE", { day:"numeric", month:"short" });
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short" });
 }
 
-function remaining(duration: string, pct: number) {
+function remaining(duration: string | null | undefined, pct: number) {
+  if (!duration) return "";
   const m = duration.match(/(\d+)h\s*(\d+)m/);
   if (!m) return "";
   const total = parseInt(m[1]) * 60 + parseInt(m[2]);
-  const left  = Math.round(total * (1 - pct / 100));
-  if (left < 1)  return "Finishing up";
+  const left = Math.round(total * (1 - pct / 100));
+  if (left < 1) return "Almost done";
   if (left < 60) return `${left}m left`;
-  return `${Math.floor(left/60)}h ${left%60}m left`;
+  return `${Math.floor(left / 60)}h ${left % 60}m left`;
 }
 
 // ── TABS ───────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id:"continue", label:"Continue Watching", shortLabel:"Watching", Icon:Clock,   count:CONTINUE.length },
-  { id:"paid",     label:"My Collection",     shortLabel:"Collection", Icon:Crown,   count:PAID.length },
-  { id:"history",  label:"Watch History",     shortLabel:"History",  Icon:History, count:WATCHED.length },
+  { id: "continue", label: "Continue Watching", shortLabel: "Watching", Icon: Clock },
+  { id: "paid",     label: "My Collection",     shortLabel: "Collection", Icon: Crown },
+  { id: "history",  label: "Watch History",     shortLabel: "History",  Icon: History },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-// ── MOVIE CARD ─────────────────────────────────────────────────────────────
+// ── MOVIE CARD (Continue Watching) ─────────────────────────────────────────
 
-function MovieCard({ item, progress, showProgress = false }: {
-  item: Movie;
-  progress?: WatchProgress;
-  showProgress?: boolean;
-}) {
+function ContinueCard({ item }: { item: WatchProgress }) {
   const [hov, setHov] = useState(false);
-  const pct = progress?.progressPercent ?? 0;
+  const pct = item.progressPercent;
+  const movie = item.movie;
 
   return (
     <div
-      className="movie-card"
+      className="mc"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      {/* Poster area */}
-      <div className="card-poster">
+      <div className="mc-poster">
         <img
-          src={item.poster_url}
-          alt={item.title}
-          className={`poster-img ${hov ? "poster-zoom" : ""}`}
-          onError={e => {
-            const el = e.target as HTMLImageElement;
-            el.style.display = "none";
-            const parent = el.parentElement;
-            if (parent) {
-              parent.style.background = "#1a1a22";
-              const fallback = parent.querySelector(".poster-fallback") as HTMLElement | null;
-              if (fallback) fallback.style.display = "flex";
-            }
-          }}
+          src={movie.poster_url}
+          alt={movie.title}
+          className={`mc-img${hov ? " mc-img--zoom" : ""}`}
+          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
         />
-        <div className="poster-fallback">
-          <Film size={28} color="rgba(255,255,255,0.12)" />
-        </div>
+        <div className="mc-fallback"><Film size={22} color="rgba(255,255,255,0.1)" /></div>
+        <div className={`mc-veil${hov ? " mc-veil--on" : ""}`} />
 
-        {/* Gradient overlay */}
-        <div className={`card-overlay ${hov ? "card-overlay--active" : ""}`} />
-
-        {/* Play button */}
-        <div className={`play-btn-wrap ${hov ? "play-btn-wrap--visible" : ""}`}>
-          <button className="play-btn" aria-label={`Play ${item.title}`}>
-            <Play size={18} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
+        {/* Play */}
+        <div className={`mc-play${hov ? " mc-play--on" : ""}`}>
+          <button className="play-circle" aria-label={`Play ${movie.title}`}>
+            <Play size={14} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
           </button>
         </div>
 
-        {/* Top-left badge */}
-        {item.premium_only && (
-          <div className="badge badge--premium">
-            <Crown size={9} color="#f59e0b" fill="#f59e0b" />
-            <span>Premium</span>
-          </div>
+        {/* Badges */}
+        {movie.premium_only && (
+          <span className="badge badge-prem">
+            <Crown size={7} color="#f59e0b" fill="#f59e0b" /> Premium
+          </span>
         )}
+        <span className="badge badge-rat">
+          <Star size={7} color="#f59e0b" fill="#f59e0b" /> {movie.rating?.toFixed(1)}
+        </span>
 
-        {/* Rating */}
-        <div className="badge badge--rating">
-          <Star size={9} color="#f59e0b" fill="#f59e0b" />
-          <span>{item.rating.toFixed(1)}</span>
+        {/* Single progress bar at bottom of poster */}
+        <div className="poster-prog">
+          <div className="poster-prog-fill" style={{ width: `${pct}%` }} />
         </div>
-
-        {/* Quality */}
-        {item.quality_options.includes("1080p") && (
-          <div className="badge badge--quality">HD</div>
-        )}
-
-        {/* Progress bar */}
-        {showProgress && pct > 0 && (
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
-          </div>
-        )}
       </div>
 
-      {/* Info */}
-      <div className="card-info">
-        <p className="card-title">{item.title}</p>
-        <div className="card-meta">
-          <span className="card-genre">{item.genre[0]}</span>
-          <span className="card-dot">·</span>
-          <span className="card-year">{item.release_year}</span>
-          {item.download_enabled && (
-            <Download size={9} color="rgba(255,255,255,0.2)" strokeWidth={2} style={{ marginLeft: "auto" }} />
+      <div className="mc-info">
+        <p className="mc-title">{movie.title}</p>
+        <div className="mc-meta">
+          <span>{movie.genre?.[0]}</span>
+          <span className="dot">·</span>
+          <span>{movie.release_year}</span>
+          {movie.download_enabled && (
+            <Download size={8} color="rgba(255,255,255,0.18)" style={{ marginLeft: "auto" }} />
           )}
         </div>
-        {showProgress && progress && (
-          <div className="card-progress-row">
-            <div className="mini-track">
-              <div className="mini-fill" style={{ width:`${pct}%` }} />
-            </div>
-            <span className="card-time">{remaining(item.duration, pct)}</span>
-          </div>
-        )}
+        <div className="mc-time-row">
+          <span className="mc-pct">{pct}%</span>
+          <span className="mc-rem">{remaining(movie.duration, pct)}</span>
+        </div>
       </div>
     </div>
   );
@@ -216,53 +115,56 @@ function MovieCard({ item, progress, showProgress = false }: {
 
 // ── COLLECTION CARD ────────────────────────────────────────────────────────
 
-function CollectionCard({ payment }: { payment: Payment }) {
+function CollectionCard({ item }: { item: PurchasedMovie }) {
   const [hov, setHov] = useState(false);
+  const movie = item.movie;
+
   return (
     <div
-      className="movie-card"
+      className="mc"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <div className="card-poster">
+      <div className="mc-poster">
         <img
-          src={payment.movie.poster_url}
-          alt={payment.movie.title}
-          className={`poster-img ${hov ? "poster-zoom" : ""}`}
-          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          src={movie.poster_url}
+          alt={movie.title}
+          className={`mc-img${hov ? " mc-img--zoom" : ""}`}
+          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
         />
-        <div className="poster-fallback"><Film size={28} color="rgba(255,255,255,0.12)" /></div>
-        <div className={`card-overlay ${hov ? "card-overlay--active" : ""}`} />
-        <div className={`play-btn-wrap ${hov ? "play-btn-wrap--visible" : ""}`}>
-          <button className="play-btn" aria-label={`Play ${payment.movie.title}`}>
-            <Play size={18} fill="#fff" color="#fff" style={{ marginLeft:2 }} />
+        <div className="mc-fallback"><Film size={22} color="rgba(255,255,255,0.1)" /></div>
+        <div className={`mc-veil${hov ? " mc-veil--on" : ""}`} />
+
+        <div className={`mc-play${hov ? " mc-play--on" : ""}`}>
+          <button className="play-circle" aria-label={`Play ${movie.title}`}>
+            <Play size={14} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
           </button>
         </div>
-        <div className="badge badge--owned">
-          <CheckCircle2 size={9} color="#10b981" />
-          <span>Owned</span>
-        </div>
-        <div className="badge badge--rating">
-          <Star size={9} color="#f59e0b" fill="#f59e0b" />
-          <span>{payment.movie.rating.toFixed(1)}</span>
-        </div>
-        {payment.movie.quality_options.includes("1080p") && (
-          <div className="badge badge--quality">HD</div>
+
+        <span className="badge badge-owned">
+          <CheckCircle2 size={7} color="#10b981" /> Owned
+        </span>
+        <span className="badge badge-rat">
+          <Star size={7} color="#f59e0b" fill="#f59e0b" /> {movie.rating?.toFixed(1)}
+        </span>
+        {movie.quality_options?.includes("1080p") && (
+          <span className="badge badge-hd">HD</span>
         )}
       </div>
-      <div className="card-info">
-        <p className="card-title">{payment.movie.title}</p>
-        <div className="card-meta">
-          <span className="card-genre">{payment.movie.genre[0]}</span>
-          <span className="card-dot">·</span>
-          <span className="card-year">{payment.movie.duration}</span>
-          {payment.movie.download_enabled && (
-            <Download size={9} color="rgba(255,255,255,0.2)" strokeWidth={2} style={{ marginLeft:"auto" }} />
+
+      <div className="mc-info">
+        <p className="mc-title">{movie.title}</p>
+        <div className="mc-meta">
+          <span>{movie.genre?.[0]}</span>
+          <span className="dot">·</span>
+          <span>{movie.duration}</span>
+          {movie.download_enabled && (
+            <Download size={8} color="rgba(255,255,255,0.18)" style={{ marginLeft: "auto" }} />
           )}
         </div>
-        <div className="card-price-row">
-          <span className="card-price">KES {payment.amount}</span>
-          <span className="card-paid-when">{ago(payment.paidAt)}</span>
+        <div className="mc-price-row">
+          <span className="mc-price">KES {item.amount?.toLocaleString()}</span>
+          <span className="mc-when">{ago(item.paidAt)}</span>
         </div>
       </div>
     </div>
@@ -273,61 +175,114 @@ function CollectionCard({ payment }: { payment: Payment }) {
 
 function HistoryRow({ item, i }: { item: WatchProgress; i: number }) {
   const [hov, setHov] = useState(false);
+  const movie = item.movie;
+
   return (
     <div
-      className={`history-row ${hov ? "history-row--hov" : ""}`}
+      className={`hrow${hov ? " hrow--hov" : ""}`}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <span className="history-num">{String(i + 1).padStart(2, "0")}</span>
+      <span className="hrow-num">{String(i + 1).padStart(2, "0")}</span>
 
-      <div className="history-thumb">
+      <div className="hrow-thumb">
         <img
-          src={item.movie.poster_url}
-          alt={item.movie.title}
-          style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
-          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          src={movie.poster_url}
+          alt={movie.title}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
         />
-        <div className={`history-thumb-overlay ${hov ? "history-thumb-overlay--visible" : ""}`}>
-          <RotateCcw size={13} color="#fff" />
+        <div className={`hrow-thumb-veil${hov ? " hrow-thumb-veil--on" : ""}`}>
+          <RotateCcw size={11} color="#fff" />
         </div>
       </div>
 
-      <div className="history-meta">
-        <p className="history-title">{item.movie.title}</p>
-        <p className="history-sub">{item.movie.genre[0]} · {item.movie.release_year} · {item.movie.duration}</p>
+      <div className="hrow-meta">
+        <p className="hrow-title">{movie.title}</p>
+        <p className="hrow-sub">{movie.genre?.[0]} · {movie.release_year} · {movie.duration}</p>
       </div>
 
-      <div className="history-right">
-        <div className="history-rating">
-          <Star size={11} color="#f59e0b" fill="#f59e0b" />
-          <span>{item.movie.rating.toFixed(1)}</span>
+      <div className="hrow-right">
+        <div className="hrow-rating">
+          <Star size={10} color="#f59e0b" fill="#f59e0b" />
+          <span>{movie.rating?.toFixed(1)}</span>
         </div>
-        <span className="history-when">{ago(item.lastWatchedAt)}</span>
+        <span className="hrow-when">{ago(item.lastWatchedAt)}</span>
       </div>
     </div>
   );
 }
 
-// ── STATS ──────────────────────────────────────────────────────────────────
+// ── STATS BAR ─────────────────────────────────────────────────────────────
 
-function Stats({ isMobile }: { isMobile: boolean }) {
-  const avgPct = Math.round(CONTINUE.reduce((a, c) => a + c.progressPercent, 0) / CONTINUE.length);
-  const stats = [
-    { Icon: Crown,        val: PAID.length,     label: "Owned",       accent: "#f59e0b" },
-    { Icon: Clock,        val: CONTINUE.length, label: "Watching",    accent: "#e50914" },
-    { Icon: CheckCircle2, val: WATCHED.length,  label: "Completed",   accent: "#10b981" },
-    { Icon: TrendingUp,   val: `${avgPct}%`,    label: "Avg. Progress", accent: "#818cf8" },
+function StatsBar({ stats, isMobile }: {
+  stats: { owned: number; inProgress: number; completed: number; avgProgress: number };
+  isMobile: boolean;
+}) {
+  const cells = [
+    { Icon: Crown,        val: stats.owned,       label: "Owned",     accent: "#f59e0b" },
+    { Icon: Clock,        val: stats.inProgress,  label: "Watching",  accent: "#e50914" },
+    { Icon: CheckCircle2, val: stats.completed,   label: "Completed", accent: "#10b981" },
+    { Icon: TrendingUp,   val: `${stats.avgProgress}%`, label: "Avg. Progress", accent: "#818cf8" },
   ];
+
   return (
-    <div className="stats-grid" style={{ gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)" }}>
-      {stats.map(s => (
-        <div key={s.label} className="stat-cell">
-          <s.Icon size={14} color={s.accent} strokeWidth={1.8} />
-          <span className="stat-val">{s.val}</span>
-          <span className="stat-label">{s.label}</span>
+    <div className="stats-row" style={{ gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)" }}>
+      {cells.map((c) => (
+        <div key={c.label} className="stat-cell">
+          <c.Icon size={13} color={c.accent} strokeWidth={1.8} />
+          <span className="stat-val">{c.val}</span>
+          <span className="stat-lbl">{c.label}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── SKELETON ──────────────────────────────────────────────────────────────
+
+function SkeletonGrid({ cols }: { cols: number }) {
+  return (
+    <div className="sk-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
+      {Array.from({ length: cols * 2 }).map((_, i) => (
+        <div key={i} className="sk-card">
+          <div className="shimmer" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── EMPTY STATE ────────────────────────────────────────────────────────────
+
+function EmptyState({ tab }: { tab: Tab }) {
+  const map = {
+    continue: { Icon: Clock,    title: "Nothing in progress",  sub: "Start watching a movie to see your progress here." },
+    paid:     { Icon: Package,  title: "No movies owned yet",  sub: "Purchase a movie to start your collection."       },
+    history:  { Icon: Film,     title: "No watch history yet", sub: "Movies you finish will appear here."              },
+  };
+  const { Icon, title, sub } = map[tab];
+  return (
+    <div className="empty">
+      <div className="empty-icon"><Icon size={28} color="rgba(255,255,255,0.12)" /></div>
+      <p className="empty-title">{title}</p>
+      <p className="empty-sub">{sub}</p>
+      <Link href="/dashboard/movies" className="empty-cta">Browse Movies</Link>
+    </div>
+  );
+}
+
+// ── ERROR STATE ────────────────────────────────────────────────────────────
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="empty">
+      <div className="empty-icon"><AlertCircle size={28} color="rgba(229,9,20,0.5)" /></div>
+      <p className="empty-title">Failed to load library</p>
+      <p className="empty-sub">{message}</p>
+      <button className="empty-cta" onClick={onRetry} style={{ border: "none", cursor: "pointer" }}>
+        <RefreshCw size={12} style={{ marginRight: 6 }} /> Retry
+      </button>
     </div>
   );
 }
@@ -336,8 +291,13 @@ function Stats({ isMobile }: { isMobile: boolean }) {
 
 export default function LibraryPage() {
   const layout = useDashboardLayout();
-  const [tab, setTab]         = useState<Tab>("continue");
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const {
+    continueWatching, watchHistory, purchased, stats,
+    loading, error, refetch,
+  } = useUserLibrary(user?.$id);
+
+  const [tab, setTab] = useState<Tab>("continue");
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -348,23 +308,24 @@ export default function LibraryPage() {
     scrolled,
   } = layout;
 
-  useEffect(() => {
-    setMounted(true);
-    const t = setTimeout(() => setLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const cols = isMobile ? 2 : isSmall ? 3 : 5;
-  const gridCols = `repeat(${cols},1fr)`;
+  const cols = isMobile ? 2 : isSmall ? 3 : 4;
+
+  const tabData = {
+    continue: continueWatching.length,
+    paid:     purchased.length,
+    history:  watchHistory.length,
+  };
 
   return (
     <>
       <style>{CSS}</style>
 
-      <div className="root-shell">
+      <div className="shell">
         {!isSmall && (
           <DashboardSidebar
-            user={USER}
+            user={user ? { name: user.name, email: user.email } : { name: "", email: "" }}
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
           />
@@ -372,7 +333,7 @@ export default function LibraryPage() {
 
         <div id="dj-content-col" className="content-col">
           {isSmall ? (
-            <MobileTopBar onSearchOpen={() => setSearchOpen(true)} notifCount={2} userName={USER.name} />
+            <MobileTopBar onSearchOpen={() => setSearchOpen(true)} notifCount={2} userName={user?.name ?? ""} />
           ) : (
             <DesktopTopBar
               scrolled={scrolled}
@@ -380,34 +341,46 @@ export default function LibraryPage() {
               onSearchOpen={() => setSearchOpen(true)}
               onSearchClose={() => { setSearchOpen(false); setSearchVal(""); }}
               onSearchChange={setSearchVal}
-              notifCount={2} userName={USER.name}
+              notifCount={2} userName={user?.name ?? ""}
             />
           )}
 
-          <div className="page-body" style={{ padding: isSmall ? "24px 16px 110px" : "36px 32px 80px" }}>
+          <div className="page-body" style={{ padding: isSmall ? "24px 16px 110px" : "32px 28px 80px" }}>
 
             {/* Header */}
-            <div className="page-header">
-              <h1 className="page-title">My Library</h1>
-              <p className="page-sub">Your personal cinema collection</p>
+            <div className="page-hd">
+              <div>
+                <h1 className="page-title">My Library</h1>
+                <p className="page-sub">
+                  {user ? `${user.name}'s personal cinema` : "Your personal cinema collection"}
+                </p>
+              </div>
+              {!loading && (
+                <button className="refetch-btn" onClick={refetch} title="Refresh library">
+                  <RefreshCw size={13} />
+                </button>
+              )}
             </div>
 
             {/* Stats */}
-            {!loading && <Stats isMobile={isMobile} />}
+            {!loading && !error && <StatsBar stats={stats} isMobile={isMobile} />}
 
             {/* Tabs */}
             <div className="tabs-bar">
-              {TABS.map(t => {
+              {TABS.map((t) => {
                 const active = tab === t.id;
+                const count = tabData[t.id];
                 return (
                   <button
                     key={t.id}
-                    className={`tab-btn ${active ? "tab-btn--active" : ""}`}
+                    className={`tab-btn${active ? " tab-btn--active" : ""}`}
                     onClick={() => setTab(t.id)}
                   >
-                    <t.Icon size={13} strokeWidth={active ? 2.2 : 1.6} />
-                    <span className="tab-label">{isMobile ? t.shortLabel : t.label}</span>
-                    <span className={`tab-count ${active ? "tab-count--active" : ""}`}>{t.count}</span>
+                    <t.Icon size={12} strokeWidth={active ? 2.2 : 1.6} />
+                    <span>{isMobile ? t.shortLabel : t.label}</span>
+                    {count > 0 && (
+                      <span className={`tab-count${active ? " tab-count--active" : ""}`}>{count}</span>
+                    )}
                   </button>
                 );
               })}
@@ -415,61 +388,60 @@ export default function LibraryPage() {
 
             {/* Content */}
             {loading ? (
-              <div className="skeleton-grid" style={{ gridTemplateColumns: gridCols }}>
-                {Array.from({ length: cols * 2 }).map((_, i) => (
-                  <div key={i} className="skeleton-card">
-                    <div className="shimmer" />
-                  </div>
-                ))}
-              </div>
+              <SkeletonGrid cols={cols} />
+            ) : error ? (
+              <ErrorState message={error} onRetry={refetch} />
             ) : (
-              <div className={`tab-content ${mounted ? "tab-content--visible" : ""}`}>
+              <div className={`tab-body${mounted ? " tab-body--in" : ""}`}>
 
                 {/* ── CONTINUE WATCHING ── */}
                 {tab === "continue" && (
-                  CONTINUE.length === 0
+                  continueWatching.length === 0
                     ? <EmptyState tab="continue" />
-                    : <div className="grid-section" style={{ gridTemplateColumns: gridCols }}>
-                        {CONTINUE.map(item => (
-                          <MovieCard
-                            key={item.movieId}
-                            item={item.movie}
-                            progress={item}
-                            showProgress
-                          />
+                    : (
+                      <div className="card-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
+                        {continueWatching.map((item) => (
+                          <ContinueCard key={item.entry.$id} item={item} />
                         ))}
                       </div>
+                    )
                 )}
 
                 {/* ── COLLECTION ── */}
                 {tab === "paid" && (
-                  PAID.length === 0
+                  purchased.length === 0
                     ? <EmptyState tab="paid" />
-                    : <>
-                        <div className="collection-banner">
-                          <div className="collection-banner-left">
-                            <Crown size={14} color="#f59e0b" />
-                            <span>{PAID.length} movies in your collection</span>
+                    : (
+                      <>
+                        <div className="coll-banner">
+                          <div className="coll-banner-left">
+                            <Crown size={13} color="#f59e0b" />
+                            <span>{purchased.length} movie{purchased.length !== 1 ? "s" : ""} owned</span>
                           </div>
-                          <span className="collection-spent">
-                            KES {PAID.reduce((a, p) => a + p.amount, 0).toLocaleString()} total
+                          <span className="coll-total">
+                            KES {purchased.reduce((a, p) => a + (p.amount ?? 0), 0).toLocaleString()} total
                           </span>
                         </div>
-                        <div className="grid-section" style={{ gridTemplateColumns: gridCols }}>
-                          {PAID.map(p => <CollectionCard key={p.$id} payment={p} />)}
+                        <div className="card-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
+                          {purchased.map((item) => (
+                            <CollectionCard key={item.entry.$id} item={item} />
+                          ))}
                         </div>
                       </>
+                    )
                 )}
 
                 {/* ── HISTORY ── */}
                 {tab === "history" && (
-                  WATCHED.length === 0
+                  watchHistory.length === 0
                     ? <EmptyState tab="history" />
-                    : <div className="history-list">
-                        {WATCHED.map((item, i) => (
-                          <HistoryRow key={item.movieId} item={item} i={i} />
+                    : (
+                      <div className="hlist">
+                        {watchHistory.map((item, i) => (
+                          <HistoryRow key={item.entry.$id} item={item} i={i} />
                         ))}
                       </div>
+                    )
                 )}
               </div>
             )}
@@ -482,25 +454,6 @@ export default function LibraryPage() {
   );
 }
 
-// ── EMPTY STATE ────────────────────────────────────────────────────────────
-
-function EmptyState({ tab }: { tab: Tab }) {
-  const map = {
-    continue: { icon: <Clock size={32} color="rgba(255,255,255,0.12)" />, msg:"Nothing in progress",  sub:"Start watching a movie to see your progress here." },
-    paid:     { icon: <Lock  size={32} color="rgba(255,255,255,0.12)" />, msg:"No movies owned yet",   sub:"Purchase a movie to build your collection."           },
-    history:  { icon: <Film  size={32} color="rgba(255,255,255,0.12)" />, msg:"No watch history",      sub:"Movies you finish will appear here."                  },
-  };
-  const { icon, msg, sub } = map[tab];
-  return (
-    <div className="empty-state">
-      <div className="empty-icon">{icon}</div>
-      <p className="empty-title">{msg}</p>
-      <p className="empty-sub">{sub}</p>
-      <Link href="/dashboard/movies" className="empty-cta">Browse Movies</Link>
-    </div>
-  );
-}
-
 // ── CSS ────────────────────────────────────────────────────────────────────
 
 const CSS = `
@@ -510,573 +463,416 @@ const CSS = `
   html, body { background: #070709; color: #fff; margin: 0; padding: 0; overflow: hidden; }
 
   /* ── Layout ── */
-  .root-shell {
-    display: flex;
-    height: 100svh;
-    background: #070709;
-    overflow: hidden;
-  }
+  .shell { display: flex; height: 100svh; background: #070709; overflow: hidden; }
   .content-col {
-    flex: 1;
-    min-width: 0;
-    height: 100svh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
+    flex: 1; min-width: 0; height: 100svh;
+    overflow-y: auto; overflow-x: hidden;
+    display: flex; flex-direction: column;
+    scrollbar-width: none;
   }
   .content-col::-webkit-scrollbar { display: none; }
-  .content-col { scrollbar-width: none; }
   .page-body { flex: 1; }
 
   /* ── Page header ── */
-  .page-header { margin-bottom: 28px; }
+  .page-hd {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    gap: 12px;
+  }
   .page-title {
     font-family: 'Syne', sans-serif;
-    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
     font-weight: 800;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     color: #fff;
-    margin: 0 0 4px;
+    margin: 0 0 3px;
     line-height: 1;
   }
   .page-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    color: rgba(255,255,255,0.28);
+    font-size: 12px;
+    color: rgba(255,255,255,0.25);
     margin: 0;
-    font-weight: 400;
   }
+  .refetch-btn {
+    margin-top: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 7px 9px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.3);
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .refetch-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); }
 
   /* ── Stats ── */
-  .stats-grid {
+  .stats-row {
     display: grid;
     gap: 1px;
     background: rgba(255,255,255,0.04);
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
     border: 1px solid rgba(255,255,255,0.05);
   }
   .stat-cell {
-    background: #0e0e13;
-    padding: 18px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    background: #0c0c10;
+    padding: 16px 14px 14px;
+    display: flex; flex-direction: column; gap: 5px;
     transition: background 0.15s;
   }
-  .stat-cell:hover { background: #111117; }
+  .stat-cell:hover { background: #101015; }
   .stat-val {
     font-family: 'Syne', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
-    line-height: 1;
+    font-size: 1.75rem; font-weight: 700;
+    color: #fff; line-height: 1;
     letter-spacing: -0.02em;
   }
-  .stat-label {
+  .stat-lbl {
     font-family: 'Outfit', sans-serif;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.22);
+    font-size: 9.5px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.2);
   }
 
   /* ── Tabs ── */
   .tabs-bar {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 24px;
-    background: rgba(255,255,255,0.03);
+    display: flex; gap: 2px;
+    margin-bottom: 20px;
+    background: rgba(255,255,255,0.025);
     border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: 10px;
+    padding: 3px;
   }
   .tab-btn {
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 9px 6px;
-    border-radius: 9px;
-    border: none;
-    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 8px 6px;
+    border-radius: 8px; border: none; cursor: pointer;
     background: transparent;
     font-family: 'Outfit', sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.3);
-    transition: background 0.18s, color 0.18s;
-    white-space: nowrap;
-    overflow: hidden;
-    min-width: 0;
+    font-size: 11px; font-weight: 500;
+    color: rgba(255,255,255,0.28);
+    transition: background 0.16s, color 0.16s;
+    white-space: nowrap; overflow: hidden; min-width: 0;
   }
-  .tab-btn:hover { color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.03); }
+  .tab-btn:hover { color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.03); }
   .tab-btn--active {
-    background: #e50914;
-    color: #fff;
-    font-weight: 600;
-    box-shadow: 0 4px 18px rgba(229,9,20,0.28);
+    background: #e50914; color: #fff; font-weight: 600;
+    box-shadow: 0 3px 16px rgba(229,9,20,0.3);
   }
   .tab-btn--active:hover { background: #e50914; color: #fff; }
-  .tab-label { /* nothing special */ }
   .tab-count {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 9.5px; font-weight: 600;
     background: rgba(255,255,255,0.07);
-    border-radius: 99px;
-    padding: 1px 7px;
-    color: rgba(255,255,255,0.3);
-    font-family: 'Outfit', sans-serif;
+    border-radius: 99px; padding: 1px 6px;
+    color: rgba(255,255,255,0.25);
     flex-shrink: 0;
   }
+  .tab-count--active { background: rgba(255,255,255,0.18); color: #fff; }
   @media (max-width: 480px) {
     .tab-count { display: none; }
-    .tab-btn { gap: 5px; font-size: 10.5px; }
-  }
-  .tab-count--active {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
+    .tab-btn { font-size: 10px; gap: 4px; }
   }
 
-  /* ── Tab content animation ── */
-  .tab-content {
-    opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.22s ease, transform 0.22s ease;
-  }
-  .tab-content--visible {
-    opacity: 1;
-    transform: none;
-  }
+  /* ── Tab body fade ── */
+  .tab-body { opacity: 0; transform: translateY(6px); transition: opacity 0.2s ease, transform 0.2s ease; }
+  .tab-body--in { opacity: 1; transform: none; }
+
+  /* ── Card grid ── */
+  .card-grid { display: grid; gap: 8px; }
 
   /* ── Movie card ── */
-  .movie-card {
-    position: relative;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #0e0e13;
+  .mc {
+    border-radius: 9px; overflow: hidden;
+    background: #0c0c10;
     border: 1px solid rgba(255,255,255,0.05);
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
-  .movie-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.7);
-    border-color: rgba(255,255,255,0.1);
+  .mc:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.7);
+    border-color: rgba(255,255,255,0.09);
   }
-
-  .card-poster {
+  .mc-poster {
     position: relative;
     aspect-ratio: 2/3;
-    background: #1a1a22;
+    background: #161620;
     overflow: hidden;
   }
-  .poster-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+  .mc-img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform 0.4s ease;
   }
-  .poster-zoom { transform: scale(1.07); }
-
-  .poster-fallback {
-    display: none;
-    position: absolute;
-    inset: 0;
-    align-items: center;
-    justify-content: center;
+  .mc-img--zoom { transform: scale(1.06); }
+  .mc-fallback {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
   }
-
-  .card-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.1);
+  .mc-veil {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.05);
     transition: background 0.2s;
   }
-  .card-overlay--active { background: rgba(0,0,0,0.55); }
+  .mc-veil--on { background: rgba(0,0,0,0.52); }
 
   /* Play button */
-  .play-btn-wrap {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.18s;
+  .mc-play {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.16s;
   }
-  .play-btn-wrap--visible { opacity: 1; }
-  .play-btn {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: #e50914;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 28px rgba(229,9,20,0.6);
-    transition: transform 0.15s, box-shadow 0.15s;
+  .mc-play--on { opacity: 1; }
+  .play-circle {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #e50914; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 24px rgba(229,9,20,0.55);
+    transition: transform 0.14s;
   }
-  .play-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 40px rgba(229,9,20,0.8);
-  }
-  .play-btn:active { transform: scale(0.96); }
+  .play-circle:hover { transform: scale(1.1); }
+  .play-circle:active { transform: scale(0.95); }
 
   /* Badges */
   .badge {
     position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    border-radius: 5px;
-    padding: 3px 7px;
+    display: inline-flex; align-items: center; gap: 3px;
+    border-radius: 4px; padding: 2px 6px;
     font-family: 'Outfit', sans-serif;
-    font-size: 8.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-size: 8px; font-weight: 600; letter-spacing: 0.04em;
+    line-height: 1.4;
   }
-  .badge span { line-height: 1; }
-
-  .badge--premium {
-    top: 8px;
-    left: 8px;
-    background: rgba(245,158,11,0.15);
-    border: 1px solid rgba(245,158,11,0.3);
+  .badge-prem {
+    top: 7px; left: 7px;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.25);
     color: #f59e0b;
   }
-  .badge--owned {
-    top: 8px;
-    left: 8px;
-    background: rgba(16,185,129,0.12);
-    border: 1px solid rgba(16,185,129,0.25);
+  .badge-owned {
+    top: 7px; left: 7px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.22);
     color: #10b981;
   }
-  .badge--rating {
-    top: 8px;
-    right: 8px;
-    background: rgba(0,0,0,0.65);
+  .badge-rat {
+    top: 7px; right: 7px;
+    background: rgba(0,0,0,0.6);
     border: 1px solid rgba(255,255,255,0.06);
     color: #fff;
     backdrop-filter: blur(6px);
   }
-  .badge--quality {
-    bottom: 8px;
-    right: 8px;
-    background: rgba(0,0,0,0.7);
+  .badge-hd {
+    bottom: 14px; right: 7px;
+    background: rgba(0,0,0,0.65);
     border: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.6);
-    font-size: 8px;
-    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.5);
+    font-size: 7.5px; letter-spacing: 0.08em;
   }
 
-  /* Progress bar on poster */
-  .progress-track {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+  /* Poster progress bar (single, clean) */
+  .poster-prog {
+    position: absolute; bottom: 0; left: 0; right: 0;
     height: 3px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.08);
   }
-  .progress-fill {
+  .poster-prog-fill {
     height: 100%;
-    background: #e50914;
-    transition: width 0.5s ease;
+    background: linear-gradient(90deg, #e50914, #ff4d58);
+    transition: width 0.4s ease;
+    border-radius: 0 2px 2px 0;
   }
 
   /* Card info */
-  .card-info { padding: 11px 11px 12px; }
-  .card-title {
+  .mc-info { padding: 9px 10px 10px; }
+  .mc-title {
     font-family: 'Outfit', sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.88);
-    margin: 0 0 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 11.5px; font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    margin: 0 0 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  .mc-meta {
+    display: flex; align-items: center; gap: 4px;
     font-family: 'Outfit', sans-serif;
-    font-size: 10px;
-    color: rgba(255,255,255,0.22);
+    font-size: 9.5px; color: rgba(255,255,255,0.2);
   }
-  .card-genre { color: rgba(255,255,255,0.3); }
-  .card-dot { color: rgba(255,255,255,0.12); }
-  .card-year { color: rgba(255,255,255,0.2); }
+  .dot { color: rgba(255,255,255,0.1); }
 
-  /* Progress row (continue watching) */
-  .card-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
+  /* Time row (continue) */
+  .mc-time-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 6px;
   }
-  .mini-track {
-    flex: 1;
-    height: 2px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .mini-fill {
-    height: 100%;
-    background: #e50914;
-    border-radius: 2px;
-  }
-  .card-time {
+  .mc-pct {
     font-family: 'Outfit', sans-serif;
-    font-size: 9.5px;
-    color: rgba(229,9,20,0.7);
-    font-weight: 500;
-    white-space: nowrap;
-    flex-shrink: 0;
+    font-size: 9px; font-weight: 700;
+    color: rgba(229,9,20,0.65);
   }
-
-  /* Collection extras */
-  .card-price-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 7px;
-  }
-  .card-price {
-    font-family: 'Outfit', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.35);
-    letter-spacing: 0.02em;
-  }
-  .card-paid-when {
-    font-family: 'Outfit', sans-serif;
-    font-size: 9px;
-    color: rgba(255,255,255,0.15);
-  }
-
-  /* Grid */
-  .grid-section {
-    display: grid;
-    gap: 10px;
-  }
-
-  /* Collection banner */
-  .collection-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 11px 14px;
-    background: rgba(245,158,11,0.04);
-    border: 1px solid rgba(245,158,11,0.1);
-    border-radius: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .collection-banner-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.55);
-  }
-  .collection-spent {
-    font-family: 'Outfit', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.2);
-    letter-spacing: 0.04em;
-  }
-
-  /* History list */
-  .history-list {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .history-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 14px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.01);
-    border: 1px solid rgba(255,255,255,0.03);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .history-row--hov {
-    background: rgba(255,255,255,0.035);
-    border-color: rgba(255,255,255,0.07);
-  }
-
-  .history-num {
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.1);
-    width: 22px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-  .history-thumb {
-    width: 44px;
-    height: 62px;
-    border-radius: 7px;
-    overflow: hidden;
-    flex-shrink: 0;
-    background: #1a1a22;
-    position: relative;
-  }
-  .history-thumb-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-  .history-thumb-overlay--visible { opacity: 1; }
-
-  .history-meta {
-    flex: 1;
-    min-width: 0;
-  }
-  .history-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.78);
-    margin: 0 0 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: color 0.15s;
-  }
-  .history-row--hov .history-title { color: #fff; }
-  .history-sub {
-    font-family: 'Outfit', sans-serif;
-    font-size: 10.5px;
-    color: rgba(255,255,255,0.22);
-    margin: 0;
-  }
-
-  .history-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .history-rating {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    color: #fff;
-  }
-  .history-when {
+  .mc-rem {
     font-family: 'Outfit', sans-serif;
     font-size: 9px;
     color: rgba(255,255,255,0.18);
   }
 
-  /* Skeleton */
-  .skeleton-grid {
-    display: grid;
-    gap: 10px;
+  /* Price row (collection) */
+  .mc-price-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 6px;
   }
-  .skeleton-card {
-    border-radius: 10px;
-    background: #0e0e13;
-    aspect-ratio: 2/3;
-    overflow: hidden;
-    position: relative;
+  .mc-price {
+    font-family: 'Outfit', sans-serif;
+    font-size: 9.5px; font-weight: 600;
+    color: rgba(255,255,255,0.3);
+  }
+  .mc-when {
+    font-family: 'Outfit', sans-serif;
+    font-size: 8.5px;
+    color: rgba(255,255,255,0.14);
   }
 
+  /* ── Collection banner ── */
+  .coll-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 13px;
+    background: rgba(245,158,11,0.04);
+    border: 1px solid rgba(245,158,11,0.1);
+    border-radius: 9px;
+    margin-bottom: 14px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .coll-banner-left {
+    display: flex; align-items: center; gap: 7px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 11.5px; font-weight: 500;
+    color: rgba(255,255,255,0.5);
+  }
+  .coll-total {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10.5px; font-weight: 600;
+    color: rgba(255,255,255,0.18);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── History list ── */
+  .hlist { display: flex; flex-direction: column; gap: 2px; }
+  .hrow {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.01);
+    border: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: background 0.14s, border-color 0.14s;
+  }
+  .hrow--hov { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); }
+
+  .hrow-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px; font-weight: 700;
+    color: rgba(255,255,255,0.08);
+    width: 20px; text-align: right; flex-shrink: 0;
+  }
+  .hrow-thumb {
+    width: 38px; height: 54px; border-radius: 6px;
+    overflow: hidden; flex-shrink: 0;
+    background: #161620; position: relative;
+  }
+  .hrow-thumb-veil {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.14s;
+  }
+  .hrow-thumb-veil--on { opacity: 1; }
+
+  .hrow-meta { flex: 1; min-width: 0; }
+  .hrow-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12.5px; font-weight: 600;
+    color: rgba(255,255,255,0.75);
+    margin: 0 0 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color 0.14s;
+  }
+  .hrow--hov .hrow-title { color: #fff; }
+  .hrow-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    color: rgba(255,255,255,0.2); margin: 0;
+  }
+
+  .hrow-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+  .hrow-rating {
+    display: flex; align-items: center; gap: 3px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 12.5px; font-weight: 600; color: #fff;
+  }
+  .hrow-when {
+    font-family: 'Outfit', sans-serif;
+    font-size: 8.5px; color: rgba(255,255,255,0.16);
+  }
+
+  /* ── Skeleton ── */
+  .sk-grid { display: grid; gap: 8px; }
+  .sk-card {
+    border-radius: 9px; background: #0c0c10;
+    aspect-ratio: 2/3; overflow: hidden; position: relative;
+  }
   @keyframes shimmer {
     0%   { background-position: -600px 0; }
     100% { background-position:  600px 0; }
   }
   .shimmer {
-    position: absolute;
-    inset: 0;
+    position: absolute; inset: 0;
     background: linear-gradient(90deg,
       rgba(255,255,255,0) 0%,
-      rgba(255,255,255,0.035) 50%,
+      rgba(255,255,255,0.03) 50%,
       rgba(255,255,255,0) 100%
     );
     background-size: 600px 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }
 
-  /* Empty state */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 72px 24px;
-    text-align: center;
+  /* ── Empty / Error ── */
+  .empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 24px; text-align: center;
   }
   .empty-icon {
-    width: 68px;
-    height: 68px;
-    border-radius: 16px;
+    width: 60px; height: 60px; border-radius: 14px;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
   }
   .empty-title {
     font-family: 'Syne', sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: rgba(255,255,255,0.7);
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
+    font-size: 1.05rem; font-weight: 700;
+    color: rgba(255,255,255,0.65);
+    margin: 0 0 7px;
   }
   .empty-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    color: rgba(255,255,255,0.25);
-    margin: 0 0 24px;
-    max-width: 260px;
-    line-height: 1.6;
+    font-size: 12px; color: rgba(255,255,255,0.22);
+    margin: 0 0 22px; max-width: 240px; line-height: 1.65;
   }
   .empty-cta {
-    padding: 10px 24px;
-    background: #e50914;
-    border-radius: 8px;
+    display: inline-flex; align-items: center;
+    padding: 9px 22px;
+    background: #e50914; border-radius: 7px;
     font-family: 'Outfit', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #fff;
-    text-decoration: none;
-    transition: background 0.15s, transform 0.15s;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: #fff; text-decoration: none;
+    transition: background 0.14s, transform 0.14s;
   }
-  .empty-cta:hover {
-    background: #ff1a27;
-    transform: translateY(-1px);
-  }
+  .empty-cta:hover { background: #ff1a27; transform: translateY(-1px); }
 `;
