@@ -1,26 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  Home, Film, Compass, Library, User,
-  Bell, Settings, LogOut, ChevronRight,
-  Clapperboard,
+  Home,
+  Film,
+  Compass,
+  BookOpen,
+  User,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Star,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "@/hooks/useAuth";
+
+// ── NAV CONFIG ────────────────────────────────────────────────────────────────
 
 const NAV_MAIN = [
-  { label: "Home",     href: "/dashboard",          Icon: Home },
-  { label: "Movies",   href: "/dashboard/movies",   Icon: Film },
-  { label: "Discover", href: "/dashboard/discover", Icon: Compass },
-  { label: "Library",  href: "/dashboard/library",  Icon: Library },
-  { label: "Profile",  href: "/dashboard/profile",  Icon: User },
+  { label: "Home",     href: "/dashboard",          Icon: Home     },
+  { label: "Movies",   href: "/dashboard/movies",   Icon: Film     },
+  { label: "Discover", href: "/dashboard/discover", Icon: Compass  },
+  { label: "Library",  href: "/dashboard/library",  Icon: BookOpen },
+  { label: "Profile",  href: "/dashboard/profile",  Icon: User     },
 ];
 
 const NAV_GENERAL = [
-  { label: "Notifications", href: "/dashboard/notifications", Icon: Bell,     badge: 2 },
-  { label: "Settings",      href: "/dashboard/settings",      Icon: Settings, badge: 0 },
+  { label: "Settings", href: "/dashboard/settings", Icon: Settings, badge: 0 },
 ];
 
 export interface DashboardSidebarProps {
@@ -29,13 +38,20 @@ export interface DashboardSidebarProps {
   onCollapsedChange?: (v: boolean) => void;
 }
 
-const W_EXPANDED  = 200;
-const W_COLLAPSED = 60;
+const W_EXPANDED  = 178;
+const W_COLLAPSED = 52;
+
+const BORDER_RADIUS = "0 24px 24px 0";
 
 // ── PORTAL TOOLTIP ────────────────────────────────────────────────────────────
-// Renders into document.body so it's never clipped by overflow:hidden parents
 
-function PortalTooltip({ label, anchorRef }: { label: string; anchorRef: React.RefObject<HTMLElement | null> }) {
+function PortalTooltip({
+  label,
+  anchorRef,
+}: {
+  label: string;
+  anchorRef: React.RefObject<HTMLElement | null>;
+}) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
 
@@ -43,45 +59,57 @@ function PortalTooltip({ label, anchorRef }: { label: string; anchorRef: React.R
     setMounted(true);
     if (anchorRef.current) {
       const r = anchorRef.current.getBoundingClientRect();
-      setPos({
-        top:  r.top + r.height / 2,
-        left: r.right + 12,
-      });
+      setPos({ top: r.top + r.height / 2, left: r.right + 14 });
     }
   }, [anchorRef]);
 
   if (!mounted) return null;
 
   return createPortal(
-    <div style={{
-      position: "fixed",
-      top: pos.top,
-      left: pos.left,
-      transform: "translateY(-50%)",
-      background: "#1c1c1f",
-      border: "1px solid rgba(255,255,255,0.09)",
-      borderRadius: 8,
-      padding: "5px 12px",
-      whiteSpace: "nowrap",
-      fontSize: 12,
-      fontFamily: "'DM Sans', sans-serif",
-      fontWeight: 500,
-      color: "rgba(255,255,255,0.82)",
-      pointerEvents: "none",
-      zIndex: 99999,
-      boxShadow: "0 6px 24px rgba(0,0,0,0.6)",
-      letterSpacing: "0.01em",
-    }}>
-      {/* Arrow */}
+    <div
+      style={{
+        position: "fixed",
+        top: pos.top,
+        left: pos.left,
+        transform: "translateY(-50%)",
+        background: "rgba(12,12,14,0.97)",
+        border: "1px solid rgba(229,9,20,0.2)",
+        borderRadius: 8,
+        padding: "6px 14px",
+        whiteSpace: "nowrap",
+        fontSize: 11.5,
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: 500,
+        color: "rgba(255,255,255,0.85)",
+        pointerEvents: "none",
+        zIndex: 99999,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(229,9,20,0.06)",
+        letterSpacing: "0.02em",
+        backdropFilter: "blur(12px)",
+        animation: "tooltipIn 0.15s cubic-bezier(0.34,1.56,0.64,1) forwards",
+      }}
+    >
+      <style>{`
+        @keyframes tooltipIn {
+          from { opacity: 0; transform: translateY(-50%) translateX(-6px); }
+          to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+        }
+      `}</style>
       <span style={{
-        position: "absolute",
-        right: "100%",
-        top: "50%",
+        position: "absolute", right: "100%", top: "50%",
         transform: "translateY(-50%)",
         width: 0, height: 0,
         borderTop: "5px solid transparent",
         borderBottom: "5px solid transparent",
-        borderRight: "6px solid #1c1c1f",
+        borderRight: "6px solid rgba(229,9,20,0.22)",
+      }} />
+      <span style={{
+        position: "absolute", right: "calc(100% - 1px)", top: "50%",
+        transform: "translateY(-50%)",
+        width: 0, height: 0,
+        borderTop: "4px solid transparent",
+        borderBottom: "4px solid transparent",
+        borderRight: "5px solid rgba(12,12,14,0.97)",
       }} />
       {label}
     </div>,
@@ -111,94 +139,97 @@ function NavItem({
           position: "relative",
           display: "flex",
           alignItems: "center",
-          gap: 9,
-          padding: collapsed ? "10px 0" : "9px 12px",
+          gap: 10,
+          padding: collapsed ? "11px 0" : "9px 13px",
           justifyContent: collapsed ? "center" : "flex-start",
-          borderRadius: 9,
+          borderRadius: 10,
           textDecoration: "none",
           background: active
-            ? "rgba(229,9,20,0.1)"
+            ? "rgba(229,9,20,0.10)"
             : hovered
-            ? "rgba(255,255,255,0.04)"
+            ? "rgba(255,255,255,0.045)"
             : "transparent",
-          transition: "background 0.13s",
+          transition: "background 0.18s ease, transform 0.15s ease",
           marginBottom: 1,
+          transform: hovered && !active ? "translateX(2px)" : "translateX(0)",
+          overflow: "hidden",
         }}
       >
         {active && (
           <span style={{
-            position: "absolute",
-            left: 0, top: "22%", bottom: "22%",
-            width: 2.5,
-            borderRadius: "0 3px 3px 0",
-            background: "#e50914",
-            boxShadow: "0 0 8px rgba(229,9,20,0.7)",
+            position: "absolute", inset: 0,
+            background: "linear-gradient(90deg, rgba(229,9,20,0.14) 0%, transparent 70%)",
+            borderRadius: 10, pointerEvents: "none",
+          }} />
+        )}
+
+        {active && (
+          <span style={{
+            position: "absolute", left: 0, top: "18%", bottom: "18%",
+            width: 3, borderRadius: "0 4px 4px 0",
+            background: "linear-gradient(180deg, #ff5555, #e50914)",
+            boxShadow: "0 0 10px rgba(229,9,20,0.8), 0 0 20px rgba(229,9,20,0.4)",
           }} />
         )}
 
         <div style={{ position: "relative", flexShrink: 0 }}>
           <Icon
-            size={15}
+            size={16}
             strokeWidth={active ? 2.2 : 1.6}
-            color={active ? "#e50914" : hovered ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.32)"}
-            style={{ transition: "color 0.13s", display: "block" }}
+            color={active ? "#ff5555" : hovered ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.28)"}
+            style={{
+              transition: "color 0.18s ease, filter 0.18s ease",
+              filter: active ? "drop-shadow(0 0 6px rgba(229,9,20,0.7))" : "none",
+              display: "block",
+            }}
           />
           {badge > 0 && (
             <span style={{
-              position: "absolute",
-              top: -5, right: -6,
-              minWidth: 14, height: 14,
-              borderRadius: 99,
-              background: "#e50914",
-              color: "#fff",
-              fontSize: 7.5, fontWeight: 700,
+              position: "absolute", top: -5, right: -6,
+              minWidth: 15, height: 15, borderRadius: 99,
+              background: "linear-gradient(135deg, #ff5555, #e50914)",
+              color: "#fff", fontSize: 8, fontWeight: 700,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "'DM Sans', sans-serif",
-              padding: "0 2px",
+              fontFamily: "'DM Sans', sans-serif", padding: "0 3px",
+              boxShadow: "0 0 8px rgba(229,9,20,0.6)",
+              animation: "badgePulse 2s ease-in-out infinite",
             }}>{badge}</span>
           )}
         </div>
 
         {!collapsed && (
           <span style={{
-            flex: 1,
-            fontSize: 12.5,
-            fontFamily: "'DM Sans', sans-serif",
+            flex: 1, fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
             fontWeight: active ? 600 : 400,
-            color: active ? "#f0f0f0" : hovered ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.38)",
-            whiteSpace: "nowrap",
-            letterSpacing: "0.01em",
-            transition: "color 0.13s",
+            color: active ? "#f5f5f5" : hovered ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.34)",
+            whiteSpace: "nowrap", letterSpacing: "0.015em",
+            transition: "color 0.18s ease",
           }}>{label}</span>
         )}
 
         {active && !collapsed && (
           <span style={{
-            width: 4, height: 4, borderRadius: "50%",
+            width: 5, height: 5, borderRadius: "50%",
             background: "#e50914",
-            boxShadow: "0 0 6px rgba(229,9,20,0.9)",
+            boxShadow: "0 0 8px rgba(229,9,20,1), 0 0 16px rgba(229,9,20,0.5)",
             flexShrink: 0,
+            animation: "dotPulse 2s ease-in-out infinite",
           }} />
         )}
       </Link>
 
-      {/* Portal tooltip — outside all overflow:hidden containers */}
       {collapsed && hovered && <PortalTooltip label={label} anchorRef={ref} />}
     </>
   );
 }
 
-// ── FOOTER ROW (profile + signout) ────────────────────────────────────────────
+// ── FOOTER WRAPPER ────────────────────────────────────────────────────────────
 
 function FooterNavItem({
   label, hovered, onEnter, onLeave, collapsed, anchorRef, children,
 }: {
-  label: string;
-  hovered: boolean;
-  onEnter: () => void;
-  onLeave: () => void;
-  collapsed: boolean;
-  anchorRef: React.RefObject<HTMLElement | null>;
+  label: string; hovered: boolean; onEnter: () => void; onLeave: () => void;
+  collapsed: boolean; anchorRef: React.RefObject<HTMLElement | null>;
   children: React.ReactNode;
 }) {
   return (
@@ -219,14 +250,9 @@ function FooterNavItem({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 8.5,
-      fontFamily: "'DM Sans', sans-serif",
-      fontWeight: 700,
-      letterSpacing: "0.22em",
-      textTransform: "uppercase",
-      color: "rgba(255,255,255,0.14)",
-      padding: "10px 12px 4px",
-      userSelect: "none",
+      fontSize: 8, fontFamily: "'DM Sans', sans-serif",
+      fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase",
+      color: "rgba(255,255,255,0.12)", padding: "10px 13px 5px", userSelect: "none",
     }}>
       {children}
     </div>
@@ -236,11 +262,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
 export default function DashboardSidebar({
-  user = { name: "Mwangi", email: "mwangi@djafro.co.ke" },
+  user: userProp = { name: "Mwangi", email: "mwangi@djafro.co.ke" },
   collapsed = false,
   onCollapsedChange,
 }: DashboardSidebarProps) {
-  const pathname = usePathname() ?? "";
+  const pathname   = usePathname() ?? "";
+  const router     = useRouter();
+  const { logout } = useAuth();
+
   const [logoutHovered, setLogoutHovered]   = useState(false);
   const [profileHovered, setProfileHovered] = useState(false);
   const [toggleHovered, setToggleHovered]   = useState(false);
@@ -255,122 +284,179 @@ export default function DashboardSidebar({
   const W      = collapsed ? W_COLLAPSED : W_EXPANDED;
   const SPACER = W + 8;
 
-  const initials = user.name
+  const initials = userProp.name
     .split(" ").slice(0, 2)
-    .map(w => w[0]?.toUpperCase() ?? "")
+    .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   return (
     <>
+      <style>{`
+        @keyframes dotPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.55; transform: scale(0.8); }
+        }
+        @keyframes badgePulse {
+          0%, 100% { box-shadow: 0 0 8px rgba(229,9,20,0.6); }
+          50% { box-shadow: 0 0 14px rgba(229,9,20,0.9); }
+        }
+        @keyframes slideInLeft {
+          from { opacity: 0; transform: translateX(-100%); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes filmFlicker {
+          0%, 94%, 100% { opacity: 1; }
+          95% { opacity: 0.93; }
+          97% { opacity: 1; }
+          98.5% { opacity: 0.96; }
+        }
+        .nav-scroll::-webkit-scrollbar { display: none; }
+        .nav-scroll { scrollbar-width: none; }
+      `}</style>
+
       <aside
         style={{
           position: "fixed",
-          top: 8, left: 0, bottom: 8,
+          top: 10, left: 0, bottom: 10,
           width: W,
           zIndex: 900,
-          borderRadius: "0 14px 14px 0",
-          background: "linear-gradient(180deg, #111114 0%, #0d0d0f 100%)",
-          border: "1px solid rgba(255,255,255,0.05)",
-          borderLeft: "none",
-          boxShadow: "4px 0 32px rgba(0,0,0,0.5), inset -1px 0 0 rgba(255,255,255,0.025)",
-          display: "flex",
-          flexDirection: "column",
-          // NOTE: overflow must be visible on the aside itself so portal tooltips
-          // are never clipped. The inner wrapper handles visual clipping.
+          borderRadius: BORDER_RADIUS,
           overflow: "visible",
-          transition: "width 0.25s cubic-bezier(0.25,1,0.5,1)",
+          transition: "width 0.3s cubic-bezier(0.25, 1, 0.5, 1)",
           willChange: "width",
+          animation: "slideInLeft 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) both",
         }}
       >
-        {/* Visual clip wrapper — clips the background/border-radius only */}
+        {/* ── BACKGROUND ── */}
         <div style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "0 14px 14px 0",
-          overflow: "hidden",
-          pointerEvents: "none",
-          zIndex: 0,
-          background: "linear-gradient(180deg, #111114 0%, #0d0d0f 100%)",
+          position: "absolute", inset: 0,
+          borderRadius: BORDER_RADIUS,
+          overflow: "hidden", pointerEvents: "none", zIndex: 0,
+        }}>
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(160deg, #111115 0%, #0b0b0e 55%, #0e0b0b 100%)",
+            animation: "filmFlicker 9s ease-in-out infinite",
+          }} />
+
+          <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.04, pointerEvents:"none" }} xmlns="http://www.w3.org/2000/svg">
+            <filter id="sg">
+              <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch"/>
+              <feColorMatrix type="saturate" values="0"/>
+            </filter>
+            <rect width="100%" height="100%" filter="url(#sg)"/>
+          </svg>
+
+          <div style={{
+            position:"absolute", top:-40, left:-20,
+            width:180, height:180, borderRadius:"50%",
+            background:"radial-gradient(circle, rgba(229,9,20,0.09) 0%, transparent 70%)",
+          }} />
+          <div style={{
+            position:"absolute", bottom:60, right:-30,
+            width:140, height:140, borderRadius:"50%",
+            background:"radial-gradient(circle, rgba(229,9,20,0.05) 0%, transparent 70%)",
+          }} />
+
+          <div style={{
+            position:"absolute", inset:0,
+            borderRadius: BORDER_RADIUS,
+            border:"1px solid rgba(255,255,255,0.055)",
+            borderLeft:"none", pointerEvents:"none",
+          }} />
+          <div style={{
+            position:"absolute", inset:0,
+            borderRadius: BORDER_RADIUS,
+            boxShadow:"6px 0 40px rgba(0,0,0,0.6), inset -1px 0 0 rgba(255,255,255,0.02)",
+            pointerEvents:"none",
+          }} />
+        </div>
+
+        {/* Shimmer top hairline — full left, fades out before right curve */}
+        <div style={{
+          position:"absolute", top:0, left:0, right:"15%",
+          height:1, zIndex:1,
+          background:"linear-gradient(90deg, rgba(229,9,20,0.5) 0%, rgba(255,120,120,0.95) 40%, rgba(229,9,20,0.7) 70%, transparent 100%)",
+          backgroundSize:"200% 100%",
+          animation:"shimmer 3.5s ease-in-out infinite",
+          pointerEvents:"none",
+          boxShadow:"0 0 12px rgba(229,9,20,0.4)",
+        }} />
+        {/* Shimmer bottom hairline — full left, fades out before right curve */}
+        <div style={{
+          position:"absolute", bottom:0, left:0, right:"15%",
+          height:1, zIndex:1,
+          background:"linear-gradient(90deg, rgba(229,9,20,0.4) 0%, rgba(255,120,120,0.75) 40%, rgba(229,9,20,0.5) 70%, transparent 100%)",
+          backgroundSize:"200% 100%",
+          animation:"shimmer 3.5s ease-in-out infinite",
+          animationDelay:"1.75s",
+          pointerEvents:"none",
+          boxShadow:"0 0 10px rgba(229,9,20,0.3)",
         }} />
 
-        {/* Red hairline */}
+        {/* ── CONTENT ── */}
         <div style={{
-          position: "absolute",
-          top: 0, left: "10%", right: "10%",
-          height: 1, zIndex: 1,
-          background: "linear-gradient(90deg, transparent, rgba(229,9,20,0.5), transparent)",
-          pointerEvents: "none",
-          borderRadius: "0 14px 0 0",
-        }} />
-
-        {/* All interactive content sits above the clip overlay */}
-        <div style={{
-          position: "relative",
-          zIndex: 2,
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
+          position:"relative", zIndex:2,
+          display:"flex", flexDirection:"column", height:"100%",
         }}>
 
           {/* ── LOGO ── */}
           <div style={{
-            height: 58,
-            display: "flex",
-            alignItems: "center",
-            padding: collapsed ? "0" : "0 14px",
+            height: 64,
+            display:"flex", alignItems:"center",
+            padding: collapsed ? "0" : "0 16px",
             justifyContent: collapsed ? "center" : "flex-start",
-            gap: 9,
-            borderBottom: "1px solid rgba(255,255,255,0.04)",
+            borderBottom:"1px solid rgba(255,255,255,0.045)",
             flexShrink: 0,
           }}>
-            <div style={{
-              width: 28, height: 28,
-              borderRadius: 8,
-              background: "linear-gradient(145deg, #e50914, #7d050c)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-              boxShadow: "0 0 0 1px rgba(229,9,20,0.2), 0 4px 12px rgba(229,9,20,0.28)",
-            }}>
-              <Clapperboard size={12} color="#fff" strokeWidth={2.3} />
-            </div>
-
-            <div style={{
-              overflow: "hidden",
-              opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? 0 : 140,
-              transition: "opacity 0.15s, max-width 0.15s",
-              whiteSpace: "nowrap",
-              pointerEvents: collapsed ? "none" : "auto",
-            }}>
-              <span style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 14.5,
-                letterSpacing: "0.1em",
-                lineHeight: 1,
+            {collapsed ? (
+              <div style={{
+                width: 36, height: 36, position:"relative",
+                filter: "drop-shadow(0 0 10px rgba(229,9,20,0.55))",
+                transition: "transform 0.2s ease",
+                flexShrink: 0,
               }}>
-                <span style={{ color: "#e50914" }}>DJ</span>
-                <span style={{ color: "#ddd" }}>AFRO</span>
-                <span style={{ color: "rgba(255,255,255,0.22)", marginLeft: 4 }}>CINEMA</span>
-              </span>
-            </div>
+                <Image src="/logo2.png" alt="D" fill className="object-contain" priority />
+              </div>
+            ) : (
+              <div style={{
+                position:"relative", height:42,
+                width:"auto", minWidth:110, maxWidth:185,
+                flex:"1 1 auto",
+                filter:"drop-shadow(0 0 12px rgba(229,9,20,0.55)) drop-shadow(0 0 24px rgba(229,9,20,0.25))",
+                transition:"opacity 0.2s ease",
+              }}>
+                <Image src="/logo.png" alt="DjAfro Cinema" fill className="object-contain object-left" priority />
+              </div>
+            )}
           </div>
 
           {/* ── NAV ── */}
-          <nav style={{
-            flex: 1,
-            padding: collapsed ? "8px 5px" : "8px 7px",
-            display: "flex",
-            flexDirection: "column",
-            overflowY: "auto",
-            overflowX: "visible",
-            scrollbarWidth: "none",
+          <nav className="nav-scroll" style={{
+            flex:1,
+            padding: collapsed ? "10px 6px" : "10px 8px",
+            display:"flex", flexDirection:"column",
+            overflowY:"auto", overflowX:"visible",
           }}>
             {!collapsed && <SectionLabel>Main</SectionLabel>}
             {NAV_MAIN.map(item => (
               <NavItem key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
             ))}
 
-            <div style={{ height: 1, background: "rgba(255,255,255,0.045)", margin: "5px 6px" }} />
+            <div style={{
+              height:1,
+              background:"linear-gradient(90deg, transparent, rgba(229,9,20,0.15), rgba(255,255,255,0.05), transparent)",
+              margin:"8px 8px",
+            }} />
 
             {!collapsed && <SectionLabel>General</SectionLabel>}
             {NAV_GENERAL.map(item => (
@@ -380,60 +466,53 @@ export default function DashboardSidebar({
 
           {/* ── FOOTER ── */}
           <div style={{
-            borderTop: "1px solid rgba(255,255,255,0.04)",
-            padding: collapsed ? "7px 5px" : "7px 7px",
-            flexShrink: 0,
+            borderTop:"1px solid rgba(255,255,255,0.045)",
+            padding: collapsed ? "8px 6px" : "8px 8px",
+            flexShrink:0,
           }}>
             {/* Profile */}
             <FooterNavItem
-              label={user.name}
+              label={userProp.name}
               hovered={profileHovered}
               onEnter={() => setProfileHovered(true)}
               onLeave={() => setProfileHovered(false)}
               collapsed={collapsed}
               anchorRef={profileRef}
             >
-              <Link
-                href="/dashboard/profile"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  padding: collapsed ? "9px 0" : "8px 10px",
-                  justifyContent: collapsed ? "center" : "flex-start",
-                  borderRadius: 9,
-                  textDecoration: "none",
-                  background: profileHovered ? "rgba(255,255,255,0.04)" : "transparent",
-                  transition: "background 0.13s",
-                  marginBottom: 2,
-                }}
-              >
+              <Link href="/dashboard/profile" style={{
+                display:"flex", alignItems:"center", gap:10,
+                padding: collapsed ? "10px 0" : "8px 10px",
+                justifyContent: collapsed ? "center" : "flex-start",
+                borderRadius:10, textDecoration:"none",
+                background: profileHovered ? "rgba(255,255,255,0.045)" : "transparent",
+                transition:"background 0.18s", marginBottom:2,
+              }}>
                 <div style={{
-                  width: 28, height: 28,
-                  borderRadius: "50%",
-                  background: "linear-gradient(145deg, #e50914, #7d050c)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: "#fff",
-                  fontFamily: "'DM Sans', sans-serif",
-                  flexShrink: 0,
-                  boxShadow: "0 0 0 1.5px rgba(229,9,20,0.25)",
+                  width:30, height:30, borderRadius:"50%",
+                  background:"linear-gradient(145deg, #e50914, #7d050c)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:11, fontWeight:700, color:"#fff",
+                  fontFamily:"'DM Sans', sans-serif", flexShrink:0,
+                  boxShadow:"0 0 0 2px rgba(229,9,20,0.22), 0 0 12px rgba(229,9,20,0.25)",
                 }}>{initials || "?"}</div>
 
                 {!collapsed && (
-                  <div style={{ overflow: "hidden", flex: 1, minWidth: 0 }}>
+                  <div style={{ overflow:"hidden", flex:1, minWidth:0 }}>
                     <div style={{
-                      fontSize: 12, fontWeight: 500,
-                      color: "rgba(255,255,255,0.78)",
-                      fontFamily: "'DM Sans', sans-serif",
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{user.name}</div>
+                      fontSize:12, fontWeight:600,
+                      color:"rgba(255,255,255,0.82)",
+                      fontFamily:"'DM Sans', sans-serif",
+                      whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                    }}>{userProp.name}</div>
                     <div style={{
-                      fontSize: 9.5, color: "rgba(255,255,255,0.22)",
-                      fontFamily: "'DM Sans', sans-serif",
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      marginTop: 1,
-                    }}>{user.email}</div>
+                      fontSize:9.5, color:"rgba(255,255,255,0.22)",
+                      fontFamily:"'DM Sans', sans-serif",
+                      whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginTop:1,
+                    }}>{userProp.email}</div>
                   </div>
+                )}
+                {!collapsed && (
+                  <Star size={11} color="rgba(229,9,20,0.4)" strokeWidth={2} style={{ flexShrink:0 }} />
                 )}
               </Link>
             </FooterNavItem>
@@ -448,32 +527,31 @@ export default function DashboardSidebar({
               anchorRef={logoutRef}
             >
               <button
+                onClick={handleLogout}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  padding: collapsed ? "9px 0" : "8px 10px",
+                  display:"flex", alignItems:"center", gap:10,
+                  padding: collapsed ? "10px 0" : "8px 10px",
                   justifyContent: collapsed ? "center" : "flex-start",
-                  borderRadius: 9,
-                  background: logoutHovered ? "rgba(229,9,20,0.06)" : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  width: "100%",
-                  transition: "background 0.13s",
+                  borderRadius:10,
+                  background: logoutHovered ? "rgba(229,9,20,0.07)" : "transparent",
+                  border:"none", cursor:"pointer", width:"100%",
+                  transition:"background 0.18s",
                 }}
               >
                 <LogOut
-                  size={14}
-                  color={logoutHovered ? "rgba(229,9,20,0.65)" : "rgba(255,255,255,0.2)"}
+                  size={15}
+                  color={logoutHovered ? "rgba(229,9,20,0.75)" : "rgba(255,255,255,0.18)"}
                   strokeWidth={1.8}
-                  style={{ transition: "color 0.13s", flexShrink: 0 }}
+                  style={{
+                    transition:"color 0.18s, transform 0.18s", flexShrink:0,
+                    transform: logoutHovered ? "translateX(2px)" : "translateX(0)",
+                  }}
                 />
                 {!collapsed && (
                   <span style={{
-                    fontSize: 12,
-                    fontFamily: "'DM Sans', sans-serif",
-                    color: logoutHovered ? "rgba(229,9,20,0.65)" : "rgba(255,255,255,0.26)",
-                    transition: "color 0.13s",
+                    fontSize:12, fontFamily:"'DM Sans', sans-serif",
+                    color: logoutHovered ? "rgba(229,9,20,0.75)" : "rgba(255,255,255,0.24)",
+                    transition:"color 0.18s",
                   }}>Sign out</span>
                 )}
               </button>
@@ -487,30 +565,35 @@ export default function DashboardSidebar({
         onClick={() => onCollapsedChange?.(!collapsed)}
         onMouseEnter={() => setToggleHovered(true)}
         onMouseLeave={() => setToggleHovered(false)}
-        title={collapsed ? "Expand" : "Collapse"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         style={{
-          position: "fixed",
-          left: W - 9,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 902,
-          width: 18, height: 40,
-          borderRadius: 9,
-          background: toggleHovered ? "#222225" : "#17171a",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer",
-          color: toggleHovered ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.28)",
-          boxShadow: "2px 0 12px rgba(0,0,0,0.4)",
-          transition: "left 0.25s cubic-bezier(0.25,1,0.5,1), background 0.13s, color 0.13s",
-          padding: 0,
+          position:"fixed",
+          left: W - 10,
+          top:"50%",
+          transform:"translateY(-50%)",
+          zIndex:902,
+          width:20, height:44,
+          borderRadius:10,
+          background: toggleHovered
+            ? "linear-gradient(180deg, #252528, #1c1c1f)"
+            : "linear-gradient(180deg, #1a1a1d, #141416)",
+          border:"1px solid rgba(255,255,255,0.09)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          cursor:"pointer",
+          color: toggleHovered ? "rgba(229,9,20,0.85)" : "rgba(255,255,255,0.28)",
+          boxShadow: toggleHovered
+            ? "3px 0 16px rgba(229,9,20,0.22), 0 0 0 1px rgba(229,9,20,0.14)"
+            : "3px 0 16px rgba(0,0,0,0.5)",
+          transition:"left 0.3s cubic-bezier(0.25,1,0.5,1), background 0.18s, color 0.18s, box-shadow 0.18s",
+          padding:0,
         }}
       >
         <ChevronRight
           size={11}
           style={{
             transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
-            transition: "transform 0.25s cubic-bezier(0.25,1,0.5,1)",
+            transition:"transform 0.3s cubic-bezier(0.25,1,0.5,1)",
           }}
         />
       </button>
@@ -519,11 +602,9 @@ export default function DashboardSidebar({
       <div
         aria-hidden
         style={{
-          width: SPACER,
-          flexShrink: 0,
-          transition: "width 0.25s cubic-bezier(0.25,1,0.5,1)",
-          pointerEvents: "none",
-          minWidth: SPACER,
+          width: SPACER, flexShrink:0,
+          transition:"width 0.3s cubic-bezier(0.25,1,0.5,1)",
+          pointerEvents:"none", minWidth:SPACER,
         }}
       />
     </>
