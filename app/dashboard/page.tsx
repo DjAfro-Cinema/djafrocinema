@@ -1,15 +1,12 @@
 "use client";
 
 // app/dashboard/page.tsx
-// KEY RULE: MovieCard and MovieBanner are NOT changed.
-// They call onPlay(movie) as before.
-// handlePlay HERE intercepts and passes through the premium gate.
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Search, X, Bell, Film, Star, Flame, Sparkles,
-  TrendingUp, Sun, Sunset, Moon, Projector,
+  Search, X, Film, Star, Flame,
+  Sun, Sunset, Moon, Projector,
 } from "lucide-react";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,7 +57,6 @@ function toBannerMovie(m: Movie): BannerMovie {
     img:         m.poster_url ?? "/images/placeholder.jpg",
     duration:    m.duration ?? undefined,
     kenBurns:    KB[Math.floor(Math.random() * KB.length)],
-    // premium field for the banner's visual badge (optional display only)
     premium:     m.premium_only,
   };
 }
@@ -101,69 +97,78 @@ function EmptyRow({ label }: { label: string }) {
   );
 }
 
-// ── MobileTopBar ──────────────────────────────────────────────────────────────
+// ── Floating Desktop Search ───────────────────────────────────────────────────
+// Floats absolutely over the banner — no header bar at all
 
-function MobileTopBar({ onSearchOpen, notifCount = 0, userName }: { onSearchOpen: () => void; notifCount?: number; userName: string }) {
-  return (
-    <header style={{ position: "sticky", top: 0, zIndex: 800, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(8,8,10,0.97)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", letterSpacing: "0.1em", display: "flex", gap: 3, lineHeight: 1 }}>
-        <span style={{ color: "#e50914" }}>DJ</span>
-        <span style={{ color: "#e8e8e8" }}>AFRO</span>
-        <span style={{ color: "rgba(255,255,255,0.28)", marginLeft: 4 }}>CINEMA</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button onClick={onSearchOpen} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, cursor: "pointer", color: "rgba(255,255,255,0.5)" }}>
-          <Search size={15} strokeWidth={1.8} />
-        </button>
-        <Link href="/dashboard/notifications" style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", textDecoration: "none", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10 }}>
-          <Bell size={15} strokeWidth={1.8} />
-          {notifCount > 0 && <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, background: "#e50914", borderRadius: "50%", boxShadow: "0 0 6px rgba(229,9,20,0.7)" }} />}
-        </Link>
-        <Link href="/dashboard/profile" style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(145deg, #e50914, #8b060d)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 0 0 2px rgba(229,9,20,0.2)", letterSpacing: "0.03em" }}>
-          {userName[0]?.toUpperCase()}
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-// ── DesktopTopBar ─────────────────────────────────────────────────────────────
-
-function DesktopTopBar({ scrolled, searchOpen, searchVal, onSearchOpen, onSearchClose, onSearchChange, notifCount, userName }: {
-  scrolled: boolean; searchOpen: boolean; searchVal: string;
+function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, onSearchChange }: {
+  searchOpen: boolean; searchVal: string;
   onSearchOpen: () => void; onSearchClose: () => void; onSearchChange: (v: string) => void;
-  notifCount: number; userName: string;
 }) {
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 800, height: 62, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px", background: scrolled ? "rgba(8,8,10,0.97)" : "transparent", backdropFilter: scrolled ? "blur(20px)" : "none", borderBottom: scrolled ? "1px solid rgba(255,255,255,0.05)" : "none", transition: "background 0.3s, backdrop-filter 0.3s, border-bottom 0.3s", flexShrink: 0 }}>
-      <div style={{ flex: 1, maxWidth: 380 }}>
-        {searchOpen ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(229,9,20,0.25)", borderRadius: 10 }}>
-            <Search size={13} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />
-            <input autoFocus value={searchVal} onChange={e => onSearchChange(e.target.value)} placeholder="Search movies, genres…" style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none" }} />
-            <button onClick={onSearchClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex" }}><X size={12} /></button>
-          </div>
-        ) : (
-          <button onClick={onSearchOpen} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, cursor: "pointer", color: "rgba(255,255,255,0.28)", fontSize: 12.5, fontFamily: "'DM Sans', sans-serif" }}>
-            <Search size={13} strokeWidth={1.8} /><span>Search movies…</span>
-            <kbd style={{ marginLeft: 8, fontSize: 9, padding: "2px 6px", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 5, color: "rgba(255,255,255,0.18)", fontFamily: "monospace", background: "transparent" }}>⌘K</kbd>
+    <div style={{
+      position: "absolute",
+      top: 20,
+      right: 28,
+      zIndex: 810,
+      width: searchOpen ? 320 : 200,
+      transition: "width 0.25s cubic-bezier(0.25,1,0.5,1)",
+    }}>
+      {searchOpen ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 14px",
+          background: "rgba(8,8,10,0.85)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          border: "1px solid rgba(229,9,20,0.3)",
+          borderRadius: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(229,9,20,0.08)",
+        }}>
+          <Search size={13} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
+          <input
+            autoFocus
+            value={searchVal}
+            onChange={e => onSearchChange(e.target.value)}
+            placeholder="Search movies…"
+            style={{
+              flex: 1, background: "transparent", border: "none",
+              color: "#fff", fontSize: 13,
+              fontFamily: "'DM Sans', sans-serif", outline: "none",
+            }}
+          />
+          <button onClick={onSearchClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex", padding: 0 }}>
+            <X size={12} />
           </button>
-        )}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Link href="/dashboard/notifications" style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", textDecoration: "none", color: "rgba(255,255,255,0.5)" }}>
-          <Bell size={16} strokeWidth={1.8} />
-          {notifCount > 0 && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 99, background: "#e50914", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", boxShadow: "0 0 10px rgba(229,9,20,0.5)" }}>{notifCount}</span>}
-        </Link>
-        <Link href="/dashboard/profile" style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(145deg, #e50914, #8b060d)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", textDecoration: "none", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.02em", boxShadow: "0 0 0 2px rgba(229,9,20,0.2), 0 4px 12px rgba(229,9,20,0.22)" }}>
-          {userName[0]?.toUpperCase()}
-        </Link>
-      </div>
-    </header>
+        </div>
+      ) : (
+        <button onClick={onSearchOpen} style={{
+          display: "flex", alignItems: "center", gap: 9,
+          padding: "9px 14px", width: "100%",
+          background: "rgba(8,8,10,0.6)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 12, cursor: "pointer",
+          color: "rgba(255,255,255,0.38)",
+          fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+          transition: "border-color 0.18s, background 0.18s",
+        }}>
+          <Search size={13} strokeWidth={1.8} />
+          <span style={{ flex: 1, textAlign: "left" }}>Search movies…</span>
+          <kbd style={{
+            fontSize: 9, padding: "2px 6px",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 5, color: "rgba(255,255,255,0.2)",
+            fontFamily: "monospace", background: "transparent",
+          }}>⌘K</kbd>
+        </button>
+      )}
+    </div>
   );
 }
 
-// ── Mobile Search ─────────────────────────────────────────────────────────────
+// ── Mobile Search Overlay ─────────────────────────────────────────────────────
 
 function MobileSearchOverlay({ open, val, onChange, onClose }: { open: boolean; val: string; onChange: (v: string) => void; onClose: () => void }) {
   if (!open) return null;
@@ -215,10 +220,10 @@ function Greeting({ name, movieCount }: { name: string; movieCount: number }) {
 
 function StatsWidget({ isMobile, movieCount }: { isMobile: boolean; movieCount: number }) {
   const items = [
-    { Icon: Film,      val: movieCount > 0 ? `${movieCount}+` : "…", label: "Movies",   sub: "available" },
-    { Icon: Star,      val: "Top",                                     label: "Rated",    sub: "picks"     },
-    { Icon: Flame,     val: "Hot",                                     label: "Trending", sub: "now"       },
-    { Icon: Projector, val: "New",                                     label: "Arrivals", sub: "weekly"    },
+    { Icon: Film,     val: movieCount > 0 ? `${movieCount}+` : "…", label: "Movies",   sub: "available" },
+    { Icon: Star,     val: "Top",                                     label: "Rated",    sub: "picks"     },
+    { Icon: Flame,    val: "Hot",                                     label: "Trending", sub: "now"       },
+    { Icon: Projector,val: "New",                                     label: "Arrivals", sub: "weekly"    },
   ];
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 2, background: "rgba(255,255,255,0.035)", borderRadius: 4, overflow: "hidden", marginBottom: 44 }}>
@@ -268,37 +273,30 @@ function GenreFilter({ genres, active, onChange }: { genres: string[]; active: s
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const layout  = useDashboardLayout();
+  const layout   = useDashboardLayout();
   const { user } = useAuth();
-  const { requestPlay } = usePremiumGate(); // ← THE ONLY GATE INTEGRATION
+  const { requestPlay } = usePremiumGate();
 
   const userName = user?.name || user?.email?.split("@")[0] || "Guest";
   const userObj  = { name: userName, email: user?.email ?? "" };
 
-  const { isMobile, isSmall, sidebarCollapsed, setSidebarCollapsed, searchOpen, setSearchOpen, searchVal, setSearchVal, scrolled } = layout;
+  const { isMobile, isSmall, sidebarCollapsed, setSidebarCollapsed, searchOpen, setSearchOpen, searchVal, setSearchVal } = layout;
 
-  // Data hooks — UNCHANGED
-  const featured     = useFeaturedMovies(6);
-  const trending     = useTrendingMovies(20);
-  const latest       = useLatestMovies(20);
-  const topRated     = useTopRated(20);
-  const allMovies    = useMovies();
-  const genreData    = useAllGenres();
+  const featured      = useFeaturedMovies(6);
+  const trending      = useTrendingMovies(20);
+  const latest        = useLatestMovies(20);
+  const topRated      = useTopRated(20);
+  const allMovies     = useMovies();
+  const genreData     = useAllGenres();
   const [activeGenre, setActiveGenre] = useState("All");
   const exploreMovies = useMovies({ genre: activeGenre === "All" ? undefined : activeGenre });
 
-  // Video player — UNCHANGED
   const { playerState, openPlayer, closePlayer } = useVideoPlayer();
   const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
   const { trackView } = useMovie(currentPlayId);
 
   useEffect(() => { movieService.warmCache(); }, []);
   useEffect(() => { if (playerState.open && currentPlayId) trackView(); }, [playerState.open, currentPlayId, trackView]);
-
-  // ── handlePlay — the ONE place we gate premium ────────────────────────────
-  // This is the ONLY change from your original page.
-  // Cards still call onPlay(card) exactly as before.
-  // We intercept here and go through the gate.
 
   const openVideoPlayer = useCallback((movieId: string) => {
     const full = allMovies.movies.find(m => m.$id === movieId);
@@ -310,30 +308,14 @@ export default function DashboardPage() {
   const handlePlayCard = useCallback((card: MovieCardData) => {
     const full = allMovies.movies.find(m => m.$id === card.id);
     if (!full) return;
-    requestPlay({
-      movieId:    full.$id,
-      movieTitle: full.title,
-      posterUrl:  full.poster_url ?? undefined,
-      isPremium:  full.premium_only,
-      videoUrl:   full.video_url,
-      onUnlocked: openVideoPlayer,  // called only after payment confirmed
-    });
+    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url, onUnlocked: openVideoPlayer });
   }, [allMovies.movies, requestPlay, openVideoPlayer]);
 
   const handlePlayBanner = useCallback((banner: BannerMovie) => {
     const full = allMovies.movies.find(m => m.$id === banner.id);
     if (!full) return;
-    requestPlay({
-      movieId:    full.$id,
-      movieTitle: full.title,
-      posterUrl:  full.poster_url ?? undefined,
-      isPremium:  full.premium_only,
-      videoUrl:   full.video_url,
-      onUnlocked: openVideoPlayer,
-    });
+    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url, onUnlocked: openVideoPlayer });
   }, [allMovies.movies, requestPlay, openVideoPlayer]);
-
-  // ── Derived data — UNCHANGED ──────────────────────────────────────────────
 
   const initialLoading = featured.loading && trending.loading && latest.loading;
   const bannerMovies   = featured.movies.map(toBannerMovie);
@@ -344,20 +326,12 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Video Player — UNCHANGED */}
       {playerState.open && (
-        <VideoPlayer
-          src={playerState.src}
-          title={playerState.title}
-          subtitle={playerState.subtitle}
-          poster={playerState.poster}
-          onClose={closePlayer}
-          autoPlay
-        />
+        <VideoPlayer src={playerState.src} title={playerState.title} subtitle={playerState.subtitle} poster={playerState.poster} onClose={closePlayer} autoPlay />
       )}
 
-      {/* Mobile search overlay — UNCHANGED */}
-      {isMobile && (
+      {/* Mobile search overlay */}
+      {isSmall && (
         <MobileSearchOverlay
           open={searchOpen}
           val={searchVal}
@@ -371,19 +345,10 @@ export default function DashboardPage() {
           <DashboardSidebar user={userObj} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
         )}
 
-        <div id="dj-content-col" style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
-          {isSmall ? (
-            <MobileTopBar onSearchOpen={() => setSearchOpen(true)} notifCount={0} userName={userName} />
-          ) : (
-            <DesktopTopBar
-              scrolled={scrolled} searchOpen={searchOpen} searchVal={searchVal}
-              onSearchOpen={() => setSearchOpen(true)}
-              onSearchClose={() => { setSearchOpen(false); setSearchVal(""); }}
-              onSearchChange={setSearchVal}
-              notifCount={0} userName={userName}
-            />
-          )}
-
+        <div
+          id="dj-content-col"
+          style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}
+        >
           {initialLoading ? (
             <>
               <SkeletonBanner />
@@ -393,10 +358,23 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              {bannerMovies.length > 0 && (
-                // MovieBanner is UNCHANGED — just pass onPlay
-                <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} />
-              )}
+              {/* Banner section — wraps relative so floating search can sit on top */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                {bannerMovies.length > 0 && (
+                  <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} />
+                )}
+
+                {/* Desktop floating search — over the banner, top-right */}
+                {!isSmall && (
+                  <FloatingSearch
+                    searchOpen={searchOpen}
+                    searchVal={searchVal}
+                    onSearchOpen={() => setSearchOpen(true)}
+                    onSearchClose={() => { setSearchOpen(false); setSearchVal(""); }}
+                    onSearchChange={setSearchVal}
+                  />
+                )}
+              </div>
 
               <div style={{ padding: isSmall ? "28px 16px 100px" : "40px 28px 80px" }}>
                 <Greeting name={userName} movieCount={allMovies.total} />

@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserLibrary } from "@/hooks/useUserLibrary";
 import { usePayments } from "@/hooks/usePayment";
 import { WatchProgress, UserLibraryEntry } from "@/services/userLibrary.service";
-import { Payment } from "@/services/paymentService";
+import { Payment } from "@/services/payment.service";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import MobileTopBar from "@/components/dashboard/topbar/MobileTopBar";
