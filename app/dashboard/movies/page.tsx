@@ -120,7 +120,6 @@ function MovieCard({ movie, view, onPlay }: { movie: Movie; view: "grid" | "list
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
-  // Pull live paid state from context — updates instantly after payment
   const { paidMovieIds } = usePremiumGate();
   const isPaid   = paidMovieIds.includes(movie.$id);
   const isLocked = !!movie.premium_only && !isPaid;
@@ -368,7 +367,6 @@ export default function MoviesPage() {
       posterUrl:  movie.poster_url ?? undefined,
       isPremium:  !!movie.premium_only,
       onUnlocked: (movieId: string) => {
-        // Called only after access is confirmed — open the actual player
         if (!movie.video_url) return;
         openPlayer(movie.video_url, movie.title, movie.genre[0], movie.poster_url ?? undefined);
       },
@@ -440,15 +438,23 @@ export default function MoviesPage() {
         <div id="movies-scroll-col" style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
 
           {/* ── STICKY TOP BAR ── */}
-          <header style={{ position: "sticky", top: 0, zIndex: 800, height: 62, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 clamp(16px,3vw,28px)", background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0, gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0 }}>Movies</h1>
-              <span style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", background: "rgba(229,9,20,0.1)", border: "1px solid rgba(229,9,20,0.2)", padding: "3px 8px", borderRadius: 3 }}>
-                {allMovies.length} FILMS
-              </span>
-            </div>
+          <header style={{
+            position: "sticky", top: 0, zIndex: 800,
+            height: 62,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "0 clamp(16px,3vw,28px)",
+            background: scrolled ? "rgba(8,8,10,0.97)" : "rgba(8,8,10,0.85)",
+            backdropFilter: "blur(20px)",
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            flexShrink: 0, gap: 12,
+          }}>
+            {/* Title — always visible */}
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.3rem,2.5vw,1.8rem)", color: "#fff", letterSpacing: "0.1em", margin: 0, flexShrink: 0 }}>
+              Movies
+            </h1>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Desktop controls — hidden on mobile */}
+            <div className="topbar-desktop" style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {searchOpen ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(229,9,20,0.25)", borderRadius: 8 }}>
                   <Search size={13} color="rgba(255,255,255,0.3)" strokeWidth={1.8} />
@@ -475,8 +481,19 @@ export default function MoviesPage() {
 
               <button onClick={() => setShowFilter(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px", height: 38, background: showFilter ? "rgba(229,9,20,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${showFilter ? "rgba(229,9,20,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 9, cursor: "pointer", color: showFilter ? "#e50914" : "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "'DM Sans', sans-serif" }}>
                 <Filter size={13} />
-                {!isSmall && "Filter"}
+                Filter
               </button>
+            </div>
+
+            {/* Mobile controls — only grid/list toggle */}
+            <div className="topbar-mobile" style={{ display: "none", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, overflow: "hidden" }}>
+                {(["grid", "list"] as const).map(v => (
+                  <button key={v} onClick={() => setView(v)} style={{ width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", background: view === v ? "rgba(229,9,20,0.2)" : "transparent", border: "none", cursor: "pointer", color: view === v ? "#e50914" : "rgba(255,255,255,0.3)", transition: "all 0.15s" }}>
+                    {v === "grid" ? <Grid3X3 size={15} /> : <LayoutList size={15} />}
+                  </button>
+                ))}
+              </div>
             </div>
           </header>
 
@@ -593,6 +610,16 @@ export default function MoviesPage() {
           background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0) 100%);
           background-size: 700px 100%;
           animation: djShimmer 1.6s ease-in-out infinite;
+        }
+
+        /* Mobile top bar: hide desktop controls, show mobile-only toggle */
+        @media (max-width: 640px) {
+          .topbar-desktop { display: none !important; }
+          .topbar-mobile  { display: flex !important; }
+        }
+        /* Desktop: hide mobile controls */
+        @media (min-width: 641px) {
+          .topbar-mobile { display: none !important; }
         }
       `}</style>
     </>

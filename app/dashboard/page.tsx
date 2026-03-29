@@ -308,13 +308,13 @@ export default function DashboardPage() {
   const handlePlayCard = useCallback((card: MovieCardData) => {
     const full = allMovies.movies.find(m => m.$id === card.id);
     if (!full) return;
-    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url, onUnlocked: openVideoPlayer });
+    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url ?? undefined, onUnlocked: openVideoPlayer });
   }, [allMovies.movies, requestPlay, openVideoPlayer]);
 
   const handlePlayBanner = useCallback((banner: BannerMovie) => {
     const full = allMovies.movies.find(m => m.$id === banner.id);
     if (!full) return;
-    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url, onUnlocked: openVideoPlayer });
+    requestPlay({ movieId: full.$id, movieTitle: full.title, posterUrl: full.poster_url ?? undefined, isPremium: full.premium_only, videoUrl: full.video_url ?? undefined, onUnlocked: openVideoPlayer });
   }, [allMovies.movies, requestPlay, openVideoPlayer]);
 
   const initialLoading = featured.loading && trending.loading && latest.loading;
@@ -361,7 +361,7 @@ export default function DashboardPage() {
               {/* Banner section — wraps relative so floating search can sit on top */}
               <div style={{ position: "relative", flexShrink: 0 }}>
                 {bannerMovies.length > 0 && (
-                  <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} />
+                 <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} userId={user?.$id ?? ""} />
                 )}
 
                 {/* Desktop floating search — over the banner, top-right */}
@@ -383,14 +383,14 @@ export default function DashboardPage() {
                 <section style={{ marginBottom: 48 }}>
                   <SectionHead eyebrow="Most Watched This Week" title="Trending Now" viewAll="/dashboard/movies" />
                   {trending.loading ? <SkeletonRow /> : trendingCards.length > 0
-                    ? <MovieRow title="" movies={trendingCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" />
+                    ? <MovieRow title="" movies={trendingCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" userId={user?.$id ?? ""} />
                     : <EmptyRow label="trending movies" />}
                 </section>
 
                 <section style={{ marginBottom: 48 }}>
                   <SectionHead eyebrow="Just Added" title="New Arrivals" viewAll="/dashboard/movies" />
                   {latest.loading ? <SkeletonRow /> : latestCards.length > 0
-                    ? <MovieRow title="" movies={latestCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" />
+                    ? <MovieRow title="" movies={latestCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" userId={user?.$id ?? ""} />
                     : <EmptyRow label="new movies" />}
                 </section>
 
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                 <section style={{ marginBottom: 48 }}>
                   <SectionHead eyebrow="Highest Rated" title="Top Rated" viewAll="/dashboard/movies" />
                   {topRated.loading ? <SkeletonRow /> : topRatedCards.length > 0
-                    ? <MovieRow title="" movies={topRatedCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" />
+                    ? <MovieRow title="" movies={topRatedCards} onPlay={handlePlayCard} viewAllHref="/dashboard/movies" userId={user?.$id ?? ""} />
                     : <EmptyRow label="top rated movies" />}
                 </section>
 
@@ -407,7 +407,7 @@ export default function DashboardPage() {
                   <SectionHead eyebrow="Find Something New" title="Explore by Genre" />
                   <GenreFilter genres={genreData.genres} active={activeGenre} onChange={setActiveGenre} />
                   {exploreMovies.loading ? <SkeletonRow /> : exploreCards.length > 0
-                    ? <MovieGrid movies={exploreCards} onPlay={handlePlayCard} />
+                    ? <MovieGrid movies={exploreCards} onPlay={handlePlayCard} userId={user?.$id ?? ""} />
                     : <EmptyRow label="movies in this genre" />}
                 </section>
               </div>
