@@ -2,17 +2,11 @@
 
 // hooks/usePayments.ts
 import { useState, useEffect, useCallback } from "react";
-import { paymentService, Payment, PaymentResult } from "@/services/payment.service";
+import { paymentService, Payment, PaymentResult, PaymentStats } from "@/services/payment.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface PaymentStats {
-  totalSpent: number;
-  totalMovies: number;
-  pendingCount: number;
-}
 
 interface UsePaymentsReturn {
   // Data
@@ -49,7 +43,8 @@ export function usePayments(userId: string | null | undefined): UsePaymentsRetur
   const [stats, setStats] = useState<PaymentStats>({
     totalSpent: 0,
     totalMovies: 0,
-    pendingCount: 0,
+    completedPayments: 0,
+    pendingPayments: 0,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +101,6 @@ export function usePayments(userId: string | null | undefined): UsePaymentsRetur
           movieIds,
           offerReference
         );
-        // Optimistically refresh paid IDs after a short delay
         if (result.success && !result.data?.alreadyPaid) {
           setTimeout(() => fetchAll(), 8000);
         }
