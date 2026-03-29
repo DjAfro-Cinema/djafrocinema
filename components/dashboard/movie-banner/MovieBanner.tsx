@@ -40,7 +40,7 @@ export default function MovieBanner({
   const [kenKey, setKenKey] = useState(0);
   const [tickKey, setTickKey] = useState(0);
   const [inLib, setInLib] = useState<Set<string>>(new Set());
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const goTo = useCallback((idx: number) => {
     if (transitioning) return;

@@ -290,7 +290,7 @@ export default function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef  = useRef<HTMLDivElement>(null);
   const hlsRef       = useRef<{ destroy: () => void; startLoad: () => void; recoverMediaError: () => void } | null>(null);
-  const hideTimer    = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimer    = useRef<ReturnType<typeof setTimeout>>(undefined);
   const toastIdx     = useRef(0);
   const retryCount   = useRef(0);
   const MAX_RETRIES  = 3;

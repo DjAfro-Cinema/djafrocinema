@@ -94,7 +94,7 @@ export default function HeroImage() {
   const [direction, setDirection] = useState<"next" | "prev">("next");
   const [kenKey, setKenKey] = useState(0);          // restart Ken Burns on slide change
   const [progressKey, setProgressKey] = useState(0); // restart progress bar
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
   const goTo = useCallback(
@@ -115,9 +115,11 @@ export default function HeroImage() {
 
   // Auto-advance
   useEffect(() => {
-    clearTimeout(timerRef.current);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
     timerRef.current = setTimeout(next, AUTO_INTERVAL);
-    return () => clearTimeout(timerRef.current);
+    return () => clearTimeout(timerRef.current as ReturnType<typeof setTimeout> | undefined);
   }, [current, next]);
 
   // Keyboard nav

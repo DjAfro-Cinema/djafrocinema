@@ -165,6 +165,7 @@ interface MovieRowProps {
   onPlay?: (movie: MovieCardData) => void;
   onAddToLibrary?: (movie: MovieCardData) => void;
   viewAllHref?: string;
+  autoScroll?: boolean;
 }
 
 export function MovieRow({ title, eyebrow, movies, size = "md", onPlay, onAddToLibrary, viewAllHref = "/dashboard/movies" }: MovieRowProps) {

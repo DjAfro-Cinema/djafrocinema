@@ -54,7 +54,7 @@ function toCard(m: Movie): CardMovie {
     img:         m.poster_url ?? "/images/hero1.jpg",
     views:       m.view_count,
     description: m.description ?? m.ai_summary ?? "",
-    video_url:   m.video_url,
+    video_url:   m.video_url ?? undefined,
     is_trending: m.is_trending,
     is_featured: m.is_featured,
   };

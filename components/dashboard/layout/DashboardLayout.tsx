@@ -104,7 +104,7 @@ export default function DashboardLayout({
       }}>
         {/* ── INLINE SIDEBAR (desktop / TV) ── */}
         {showInlineSidebar && (
-          <DashboardSidebar user={user} xp={xp} xpMax={xpMax} />
+          <DashboardSidebar user={user}  />
         )}
 
         {/* ── MOBILE/TABLET DRAWER BACKDROP ── */}
@@ -133,7 +133,7 @@ export default function DashboardLayout({
             transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
             transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1)",
           }}>
-            <DashboardSidebar user={user} xp={xp} xpMax={xpMax} />
+            <DashboardSidebar user={user}  />
           </div>
         )}
 
