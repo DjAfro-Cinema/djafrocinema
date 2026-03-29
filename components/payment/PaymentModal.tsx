@@ -7,7 +7,7 @@ import {
   CheckCircle, Clock, AlertCircle, Play,
   Sparkles, TrendingUp, Users,
 } from "lucide-react";
-import type { PaymentGuardState } from "@/hooks/usePaymentGuard";
+import type { PaymentGuardState } from "@/hooks/Usepaymentguard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lottie (dynamic import to avoid SSR issues)
