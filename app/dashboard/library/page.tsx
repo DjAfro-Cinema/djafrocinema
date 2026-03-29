@@ -3,15 +3,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Play, Clock, Crown, History, Star,
-  RotateCcw, Download, CheckCircle2,
-  Film, Lock, TrendingUp, AlertCircle,
-  RefreshCw, Package,
+  Play, Clock, Heart, CreditCard,
+  Film, Star, RotateCcw, CheckCircle2,
+  Crown, RefreshCw, Package, AlertCircle,
+  Download, TrendingUp, Bookmark, Lock,
+  ChevronRight, Wallet,
 } from "lucide-react";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLibrary } from "@/hooks/useUserLibrary";
-import { WatchProgress, PurchasedMovie } from "@/services/userLibrary.service";
+import { usePayments } from "@/hooks/usePayment";
+import { WatchProgress, UserLibraryEntry } from "@/services/userLibrary.service";
+import { Payment } from "@/services/paymentService";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import MobileTopBar from "@/components/dashboard/topbar/MobileTopBar";
@@ -19,13 +22,14 @@ import DesktopTopBar from "@/components/dashboard/topbar/DesktopTopBar";
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
-function ago(iso: string | null) {
+function ago(iso: string | number | null | undefined) {
   if (!iso) return "—";
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
+  const ts = typeof iso === "number" ? iso : new Date(iso).getTime();
+  const d = Math.floor((Date.now() - ts) / 864e5);
   if (d === 0) return "Today";
   if (d === 1) return "Yesterday";
   if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short" });
+  return new Date(ts).toLocaleDateString("en-KE", { day: "numeric", month: "short" });
 }
 
 function remaining(duration: string | null | undefined, pct: number) {
@@ -39,198 +43,39 @@ function remaining(duration: string | null | undefined, pct: number) {
   return `${Math.floor(left / 60)}h ${left % 60}m left`;
 }
 
+function statusColor(s: string): string {
+  if (s === "completed") return "#10b981";
+  if (s === "pending") return "#f59e0b";
+  if (s === "failed") return "#e50914";
+  return "rgba(255,255,255,0.3)";
+}
+
 // ── TABS ───────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "continue", label: "Continue Watching", shortLabel: "Watching", Icon: Clock },
-  { id: "paid",     label: "My Collection",     shortLabel: "Collection", Icon: Crown },
-  { id: "history",  label: "Watch History",     shortLabel: "History",  Icon: History },
+  { id: "continue",  label: "Continue",  Icon: Clock       },
+  { id: "wishlist",  label: "Wishlist",   Icon: Heart       },
+  { id: "payments",  label: "Payments",  Icon: CreditCard  },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-// ── MOVIE CARD (Continue Watching) ─────────────────────────────────────────
-
-function ContinueCard({ item }: { item: WatchProgress }) {
-  const [hov, setHov] = useState(false);
-  const pct = item.progressPercent;
-  const movie = item.movie;
-
-  return (
-    <div
-      className="mc"
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      <div className="mc-poster">
-        <img
-          src={movie.poster_url}
-          alt={movie.title}
-          className={`mc-img${hov ? " mc-img--zoom" : ""}`}
-          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
-        />
-        <div className="mc-fallback"><Film size={22} color="rgba(255,255,255,0.1)" /></div>
-        <div className={`mc-veil${hov ? " mc-veil--on" : ""}`} />
-
-        {/* Play */}
-        <div className={`mc-play${hov ? " mc-play--on" : ""}`}>
-          <button className="play-circle" aria-label={`Play ${movie.title}`}>
-            <Play size={14} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
-          </button>
-        </div>
-
-        {/* Badges */}
-        {movie.premium_only && (
-          <span className="badge badge-prem">
-            <Crown size={7} color="#f59e0b" fill="#f59e0b" /> Premium
-          </span>
-        )}
-        <span className="badge badge-rat">
-          <Star size={7} color="#f59e0b" fill="#f59e0b" /> {movie.rating?.toFixed(1)}
-        </span>
-
-        {/* Single progress bar at bottom of poster */}
-        <div className="poster-prog">
-          <div className="poster-prog-fill" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-
-      <div className="mc-info">
-        <p className="mc-title">{movie.title}</p>
-        <div className="mc-meta">
-          <span>{movie.genre?.[0]}</span>
-          <span className="dot">·</span>
-          <span>{movie.release_year}</span>
-          {movie.download_enabled && (
-            <Download size={8} color="rgba(255,255,255,0.18)" style={{ marginLeft: "auto" }} />
-          )}
-        </div>
-        <div className="mc-time-row">
-          <span className="mc-pct">{pct}%</span>
-          <span className="mc-rem">{remaining(movie.duration, pct)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── COLLECTION CARD ────────────────────────────────────────────────────────
-
-function CollectionCard({ item }: { item: PurchasedMovie }) {
-  const [hov, setHov] = useState(false);
-  const movie = item.movie;
-
-  return (
-    <div
-      className="mc"
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      <div className="mc-poster">
-        <img
-          src={movie.poster_url}
-          alt={movie.title}
-          className={`mc-img${hov ? " mc-img--zoom" : ""}`}
-          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
-        />
-        <div className="mc-fallback"><Film size={22} color="rgba(255,255,255,0.1)" /></div>
-        <div className={`mc-veil${hov ? " mc-veil--on" : ""}`} />
-
-        <div className={`mc-play${hov ? " mc-play--on" : ""}`}>
-          <button className="play-circle" aria-label={`Play ${movie.title}`}>
-            <Play size={14} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
-          </button>
-        </div>
-
-        <span className="badge badge-owned">
-          <CheckCircle2 size={7} color="#10b981" /> Owned
-        </span>
-        <span className="badge badge-rat">
-          <Star size={7} color="#f59e0b" fill="#f59e0b" /> {movie.rating?.toFixed(1)}
-        </span>
-        {movie.quality_options?.includes("1080p") && (
-          <span className="badge badge-hd">HD</span>
-        )}
-      </div>
-
-      <div className="mc-info">
-        <p className="mc-title">{movie.title}</p>
-        <div className="mc-meta">
-          <span>{movie.genre?.[0]}</span>
-          <span className="dot">·</span>
-          <span>{movie.duration}</span>
-          {movie.download_enabled && (
-            <Download size={8} color="rgba(255,255,255,0.18)" style={{ marginLeft: "auto" }} />
-          )}
-        </div>
-        <div className="mc-price-row">
-          <span className="mc-price">KES {item.amount?.toLocaleString()}</span>
-          <span className="mc-when">{ago(item.paidAt)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── HISTORY ROW ───────────────────────────────────────────────────────────
-
-function HistoryRow({ item, i }: { item: WatchProgress; i: number }) {
-  const [hov, setHov] = useState(false);
-  const movie = item.movie;
-
-  return (
-    <div
-      className={`hrow${hov ? " hrow--hov" : ""}`}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      <span className="hrow-num">{String(i + 1).padStart(2, "0")}</span>
-
-      <div className="hrow-thumb">
-        <img
-          src={movie.poster_url}
-          alt={movie.title}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
-        />
-        <div className={`hrow-thumb-veil${hov ? " hrow-thumb-veil--on" : ""}`}>
-          <RotateCcw size={11} color="#fff" />
-        </div>
-      </div>
-
-      <div className="hrow-meta">
-        <p className="hrow-title">{movie.title}</p>
-        <p className="hrow-sub">{movie.genre?.[0]} · {movie.release_year} · {movie.duration}</p>
-      </div>
-
-      <div className="hrow-right">
-        <div className="hrow-rating">
-          <Star size={10} color="#f59e0b" fill="#f59e0b" />
-          <span>{movie.rating?.toFixed(1)}</span>
-        </div>
-        <span className="hrow-when">{ago(item.lastWatchedAt)}</span>
-      </div>
-    </div>
-  );
-}
-
 // ── STATS BAR ─────────────────────────────────────────────────────────────
 
-function StatsBar({ stats, isMobile }: {
-  stats: { owned: number; inProgress: number; completed: number; avgProgress: number };
-  isMobile: boolean;
+function StatsBar({ owned, watching, wishlistCount, spent }: {
+  owned: number; watching: number; wishlistCount: number; spent: number;
 }) {
   const cells = [
-    { Icon: Crown,        val: stats.owned,       label: "Owned",     accent: "#f59e0b" },
-    { Icon: Clock,        val: stats.inProgress,  label: "Watching",  accent: "#e50914" },
-    { Icon: CheckCircle2, val: stats.completed,   label: "Completed", accent: "#10b981" },
-    { Icon: TrendingUp,   val: `${stats.avgProgress}%`, label: "Avg. Progress", accent: "#818cf8" },
+    { Icon: Film,      val: owned,           label: "Owned",    accent: "#e50914" },
+    { Icon: Clock,     val: watching,        label: "Watching", accent: "#e50914" },
+    { Icon: Heart,     val: wishlistCount,   label: "Wishlist", accent: "#e50914" },
+    { Icon: Wallet,    val: `${spent}`,      label: "Streak",   accent: "#e50914" },
   ];
 
   return (
-    <div className="stats-row" style={{ gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)" }}>
+    <div className="stats-row">
       {cells.map((c) => (
         <div key={c.label} className="stat-cell">
-          <c.Icon size={13} color={c.accent} strokeWidth={1.8} />
+          <c.Icon size={18} color={c.accent} strokeWidth={1.6} />
           <span className="stat-val">{c.val}</span>
           <span className="stat-lbl">{c.label}</span>
         </div>
@@ -239,14 +84,140 @@ function StatsBar({ stats, isMobile }: {
   );
 }
 
+// ── CONTINUE WATCHING ROW (matches mobile app style) ──────────────────────
+
+function ContinueRow({ item }: { item: WatchProgress }) {
+  const pct = item.progressPercent;
+  const movie = item.movie;
+
+  return (
+    <Link href={`/dashboard/movies/${movie.$id}`} className="cw-row">
+      <div className="cw-thumb">
+        <img
+          src={movie.poster_url}
+          alt={movie.title}
+          className="cw-img"
+          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
+        />
+        <div className="cw-thumb-overlay">
+          <div className="cw-play-sm">
+            <Play size={10} fill="#fff" color="#fff" style={{ marginLeft: 1 }} />
+          </div>
+        </div>
+        {/* Progress bar at bottom of thumb */}
+        <div className="cw-prog-bar">
+          <div className="cw-prog-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      <div className="cw-info">
+        <p className="cw-title">{movie.title}</p>
+        <p className="cw-sub">Last watched {ago(item.lastWatchedAt)}</p>
+        <div className="cw-progress-row">
+          <div className="cw-track">
+            <div className="cw-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="cw-pct">{pct}%</span>
+        </div>
+        <p className="cw-remain">{remaining(movie.duration, pct)}</p>
+      </div>
+
+      <div className="cw-play-btn">
+        <Play size={11} fill="#fff" color="#fff" style={{ marginLeft: 1 }} />
+      </div>
+    </Link>
+  );
+}
+
+// ── WISHLIST CARD (2-col grid, matches mobile Wishlist tab) ───────────────
+
+function WishlistCard({ entry }: { entry: UserLibraryEntry & { movie?: import("@/services/userLibrary.service").Movie } }) {
+  const [hov, setHov] = useState(false);
+  const movie = entry.movie;
+  if (!movie) return null;
+
+  return (
+    <Link
+      href={`/dashboard/movies/${movie.$id}`}
+      className="wl-card"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      <div className="wl-poster">
+        <img
+          src={movie.poster_url}
+          alt={movie.title}
+          className={`wl-img${hov ? " wl-img--zoom" : ""}`}
+          onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
+        />
+        {/* Rating badge top-left */}
+        <div className="wl-badge-rat">
+          <Star size={9} color="#f59e0b" fill="#f59e0b" />
+          <span>{movie.rating?.toFixed(1) ?? "—"}</span>
+        </div>
+        {/* Bookmark icon top-right */}
+        <div className="wl-badge-bm">
+          <Bookmark size={11} color="#fff" fill="rgba(255,255,255,0.9)" />
+        </div>
+        {/* Play button center on hover */}
+        <div className={`wl-play${hov ? " wl-play--on" : ""}`}>
+          <div className="wl-play-circle">
+            <Play size={13} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
+          </div>
+        </div>
+        {/* Premium lock */}
+        {movie.premium_only && (
+          <div className="wl-lock">
+            <Lock size={9} color="#f59e0b" />
+          </div>
+        )}
+      </div>
+      <div className="wl-info">
+        <p className="wl-title">{movie.title}</p>
+        <p className="wl-sub">{movie.genre?.[0] ?? "—"} · {movie.release_year}</p>
+      </div>
+    </Link>
+  );
+}
+
+// ── PAYMENT ROW (matches Payments tab in mobile app) ──────────────────────
+
+function PaymentRow({ payment, movieTitle }: { payment: Payment; movieTitle?: string }) {
+  const color = statusColor(payment.status);
+
+  return (
+    <div className="pay-row">
+      <div className="pay-thumb">
+        <CreditCard size={16} color="rgba(255,255,255,0.2)" />
+      </div>
+
+      <div className="pay-info">
+        <p className="pay-title">{movieTitle ?? payment.movieId}</p>
+        <p className="pay-date">{ago(payment.$createdAt)}</p>
+      </div>
+
+      <div className="pay-right">
+        <span className="pay-status" style={{ color, borderColor: `${color}33`, background: `${color}12` }}>
+          {payment.status.toUpperCase()}
+        </span>
+        <span className="pay-amount">KES {payment.amount.toLocaleString()}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── SKELETON ──────────────────────────────────────────────────────────────
 
-function SkeletonGrid({ cols }: { cols: number }) {
+function SkeletonRows() {
   return (
-    <div className="sk-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
-      {Array.from({ length: cols * 2 }).map((_, i) => (
-        <div key={i} className="sk-card">
-          <div className="shimmer" />
+    <div className="sk-list">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="sk-row">
+          <div className="sk-thumb shimmer" />
+          <div className="sk-lines">
+            <div className="sk-line sk-line--lg shimmer" />
+            <div className="sk-line sk-line--sm shimmer" />
+          </div>
         </div>
       ))}
     </div>
@@ -256,15 +227,15 @@ function SkeletonGrid({ cols }: { cols: number }) {
 // ── EMPTY STATE ────────────────────────────────────────────────────────────
 
 function EmptyState({ tab }: { tab: Tab }) {
-  const map = {
-    continue: { Icon: Clock,    title: "Nothing in progress",  sub: "Start watching a movie to see your progress here." },
-    paid:     { Icon: Package,  title: "No movies owned yet",  sub: "Purchase a movie to start your collection."       },
-    history:  { Icon: Film,     title: "No watch history yet", sub: "Movies you finish will appear here."              },
+  const map: Record<Tab, { Icon: React.ElementType; title: string; sub: string }> = {
+    continue: { Icon: Clock,      title: "Nothing in progress",  sub: "Start watching a movie to see your progress here." },
+    wishlist: { Icon: Heart,      title: "Wishlist is empty",    sub: "Bookmark movies you want to watch later."          },
+    payments: { Icon: CreditCard, title: "No payments yet",      sub: "Purchase a movie to see your payment history."     },
   };
   const { Icon, title, sub } = map[tab];
   return (
     <div className="empty">
-      <div className="empty-icon"><Icon size={28} color="rgba(255,255,255,0.12)" /></div>
+      <div className="empty-icon"><Icon size={26} color="rgba(255,255,255,0.1)" /></div>
       <p className="empty-title">{title}</p>
       <p className="empty-sub">{sub}</p>
       <Link href="/dashboard/movies" className="empty-cta">Browse Movies</Link>
@@ -272,16 +243,14 @@ function EmptyState({ tab }: { tab: Tab }) {
   );
 }
 
-// ── ERROR STATE ────────────────────────────────────────────────────────────
-
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="empty">
-      <div className="empty-icon"><AlertCircle size={28} color="rgba(229,9,20,0.5)" /></div>
-      <p className="empty-title">Failed to load library</p>
+      <div className="empty-icon"><AlertCircle size={26} color="rgba(229,9,20,0.5)" /></div>
+      <p className="empty-title">Failed to load</p>
       <p className="empty-sub">{message}</p>
-      <button className="empty-cta" onClick={onRetry} style={{ border: "none", cursor: "pointer" }}>
-        <RefreshCw size={12} style={{ marginRight: 6 }} /> Retry
+      <button className="empty-cta" onClick={onRetry}>
+        <RefreshCw size={11} style={{ marginRight: 5 }} /> Retry
       </button>
     </div>
   );
@@ -294,8 +263,12 @@ export default function LibraryPage() {
   const { user } = useAuth();
   const {
     continueWatching, watchHistory, purchased, stats,
-    loading, error, refetch,
+    loading: libLoading, error: libError, refetch: refetchLib,
   } = useUserLibrary(user?.$id);
+
+  const {
+    payments, loading: payLoading, error: payError, refetch: refetchPay,
+  } = usePayments(user?.$id);
 
   const [tab, setTab] = useState<Tab>("continue");
   const [mounted, setMounted] = useState(false);
@@ -310,13 +283,24 @@ export default function LibraryPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const cols = isMobile ? 2 : isSmall ? 3 : 4;
+  // Wishlist entries — entries with isWishlisted === true
+  // We'll derive these from watchHistory + continueWatching entries — 
+  // actually we need all entries. For now use purchased to avoid extra fetch.
+  // In a full impl you'd add getAllEntries to the hook. We filter from available data.
+  const wishlistEntries = [
+    ...continueWatching.map((w) => ({ ...w.entry, movie: w.movie })),
+    ...watchHistory.map((w) => ({ ...w.entry, movie: w.movie })),
+  ].filter((e) => e.isWishlisted);
 
-  const tabData = {
+  const tabCounts = {
     continue: continueWatching.length,
-    paid:     purchased.length,
-    history:  watchHistory.length,
+    wishlist: wishlistEntries.length,
+    payments: payments.length,
   };
+
+  const loading = libLoading || payLoading;
+  const error = libError || payError;
+  const refetch = async () => { await Promise.all([refetchLib(), refetchPay()]); };
 
   return (
     <>
@@ -345,50 +329,53 @@ export default function LibraryPage() {
             />
           )}
 
-          <div className="page-body" style={{ padding: isSmall ? "24px 16px 110px" : "32px 28px 80px" }}>
+          <div className="page-body" style={{ padding: isSmall ? "20px 16px 100px" : "28px 24px 72px" }}>
 
             {/* Header */}
             <div className="page-hd">
               <div>
-                <h1 className="page-title">My Library</h1>
-                <p className="page-sub">
-                  {user ? `${user.name}'s personal cinema` : "Your personal cinema collection"}
-                </p>
+                <h1 className="page-title">My List</h1>
+                <p className="page-sub">Your personal collection</p>
               </div>
-              {!loading && (
-                <button className="refetch-btn" onClick={refetch} title="Refresh library">
-                  <RefreshCw size={13} />
-                </button>
-              )}
+              <button className="refetch-btn" onClick={refetch} title="Refresh">
+                <RefreshCw size={14} />
+              </button>
             </div>
 
-            {/* Stats */}
-            {!loading && !error && <StatsBar stats={stats} isMobile={isMobile} />}
-
-            {/* Tabs */}
+            {/* Tabs — pill style matching mobile app */}
             <div className="tabs-bar">
               {TABS.map((t) => {
                 const active = tab === t.id;
-                const count = tabData[t.id];
                 return (
                   <button
                     key={t.id}
                     className={`tab-btn${active ? " tab-btn--active" : ""}`}
                     onClick={() => setTab(t.id)}
                   >
-                    <t.Icon size={12} strokeWidth={active ? 2.2 : 1.6} />
-                    <span>{isMobile ? t.shortLabel : t.label}</span>
-                    {count > 0 && (
-                      <span className={`tab-count${active ? " tab-count--active" : ""}`}>{count}</span>
-                    )}
+                    {t.label}
                   </button>
                 );
               })}
             </div>
 
+            {/* Stats */}
+            {!loading && !error && (
+              <StatsBar
+                owned={stats.owned}
+                watching={stats.inProgress}
+                wishlistCount={wishlistEntries.length}
+                spent={0}
+              />
+            )}
+
+            {/* Section label */}
+            {!loading && !error && tab === "continue" && continueWatching.length > 0 && (
+              <p className="section-label">Continue Watching</p>
+            )}
+
             {/* Content */}
             {loading ? (
-              <SkeletonGrid cols={cols} />
+              <SkeletonRows />
             ) : error ? (
               <ErrorState message={error} onRetry={refetch} />
             ) : (
@@ -399,46 +386,35 @@ export default function LibraryPage() {
                   continueWatching.length === 0
                     ? <EmptyState tab="continue" />
                     : (
-                      <div className="card-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
+                      <div className="cw-list">
                         {continueWatching.map((item) => (
-                          <ContinueCard key={item.entry.$id} item={item} />
+                          <ContinueRow key={item.entry.$id} item={item} />
                         ))}
                       </div>
                     )
                 )}
 
-                {/* ── COLLECTION ── */}
-                {tab === "paid" && (
-                  purchased.length === 0
-                    ? <EmptyState tab="paid" />
+                {/* ── WISHLIST ── */}
+                {tab === "wishlist" && (
+                  wishlistEntries.length === 0
+                    ? <EmptyState tab="wishlist" />
                     : (
-                      <>
-                        <div className="coll-banner">
-                          <div className="coll-banner-left">
-                            <Crown size={13} color="#f59e0b" />
-                            <span>{purchased.length} movie{purchased.length !== 1 ? "s" : ""} owned</span>
-                          </div>
-                          <span className="coll-total">
-                            KES {purchased.reduce((a, p) => a + (p.amount ?? 0), 0).toLocaleString()} total
-                          </span>
-                        </div>
-                        <div className="card-grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)` }}>
-                          {purchased.map((item) => (
-                            <CollectionCard key={item.entry.$id} item={item} />
-                          ))}
-                        </div>
-                      </>
+                      <div className="wl-grid" style={{ gridTemplateColumns: `repeat(${isMobile ? 2 : isSmall ? 2 : 3}, 1fr)` }}>
+                        {wishlistEntries.map((entry) => (
+                          <WishlistCard key={entry.$id} entry={entry} />
+                        ))}
+                      </div>
                     )
                 )}
 
-                {/* ── HISTORY ── */}
-                {tab === "history" && (
-                  watchHistory.length === 0
-                    ? <EmptyState tab="history" />
+                {/* ── PAYMENTS ── */}
+                {tab === "payments" && (
+                  payments.length === 0
+                    ? <EmptyState tab="payments" />
                     : (
-                      <div className="hlist">
-                        {watchHistory.map((item, i) => (
-                          <HistoryRow key={item.entry.$id} item={item} i={i} />
+                      <div className="pay-list">
+                        {payments.map((p) => (
+                          <PaymentRow key={p.$id} payment={p} />
                         ))}
                       </div>
                     )
@@ -475,404 +451,353 @@ const CSS = `
 
   /* ── Page header ── */
   .page-hd {
-    display: flex;
-    align-items: flex-start;
+    display: flex; align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 22px;
-    gap: 12px;
+    margin-bottom: 18px; gap: 12px;
   }
   .page-title {
     font-family: 'Syne', sans-serif;
-    font-size: clamp(1.5rem, 3vw, 2.1rem);
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    color: #fff;
-    margin: 0 0 3px;
-    line-height: 1;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 800; letter-spacing: -0.025em;
+    color: #fff; margin: 0 0 2px; line-height: 1;
   }
   .page-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 12px;
-    color: rgba(255,255,255,0.25);
-    margin: 0;
+    font-size: 12px; color: rgba(255,255,255,0.25); margin: 0;
   }
   .refetch-btn {
-    margin-top: 4px;
+    background: transparent; border: none;
+    cursor: pointer; color: rgba(255,255,255,0.3);
+    padding: 4px; margin-top: 2px;
+    transition: color 0.15s;
+    display: flex; align-items: center;
+  }
+  .refetch-btn:hover { color: rgba(255,255,255,0.6); }
+
+  /* ── Tabs — pill style matching mobile ── */
+  .tabs-bar {
+    display: flex; gap: 4px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 8px;
-    padding: 7px 9px;
-    cursor: pointer;
-    color: rgba(255,255,255,0.3);
-    transition: background 0.15s, color 0.15s;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 20px;
   }
-  .refetch-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.6); }
+  .tab-btn {
+    flex: 1;
+    padding: 9px 8px;
+    border-radius: 999px; border: none; cursor: pointer;
+    background: transparent;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.35);
+    transition: background 0.16s, color 0.16s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: rgba(255,255,255,0.6); }
+  .tab-btn--active {
+    background: #e50914; color: #fff; font-weight: 600;
+    box-shadow: 0 2px 12px rgba(229,9,20,0.35);
+  }
+  .tab-btn--active:hover { background: #e50914; color: #fff; }
 
   /* ── Stats ── */
   .stats-row {
     display: grid;
-    gap: 1px;
-    background: rgba(255,255,255,0.04);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 22px;
-    border: 1px solid rgba(255,255,255,0.05);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
   }
   .stat-cell {
-    background: #0c0c10;
-    padding: 16px 14px 14px;
-    display: flex; flex-direction: column; gap: 5px;
-    transition: background 0.15s;
+    background: rgba(229,9,20,0.07);
+    border: 1px solid rgba(229,9,20,0.12);
+    border-radius: 12px;
+    padding: 14px 8px 12px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 5px;
   }
-  .stat-cell:hover { background: #101015; }
   .stat-val {
     font-family: 'Syne', sans-serif;
-    font-size: 1.75rem; font-weight: 700;
+    font-size: 1.4rem; font-weight: 700;
     color: #fff; line-height: 1;
-    letter-spacing: -0.02em;
   }
   .stat-lbl {
     font-family: 'Outfit', sans-serif;
-    font-size: 9.5px; font-weight: 500;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: rgba(255,255,255,0.2);
-  }
-
-  /* ── Tabs ── */
-  .tabs-bar {
-    display: flex; gap: 2px;
-    margin-bottom: 20px;
-    background: rgba(255,255,255,0.025);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 3px;
-  }
-  .tab-btn {
-    flex: 1;
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-    padding: 8px 6px;
-    border-radius: 8px; border: none; cursor: pointer;
-    background: transparent;
-    font-family: 'Outfit', sans-serif;
-    font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.28);
-    transition: background 0.16s, color 0.16s;
-    white-space: nowrap; overflow: hidden; min-width: 0;
-  }
-  .tab-btn:hover { color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.03); }
-  .tab-btn--active {
-    background: #e50914; color: #fff; font-weight: 600;
-    box-shadow: 0 3px 16px rgba(229,9,20,0.3);
-  }
-  .tab-btn--active:hover { background: #e50914; color: #fff; }
-  .tab-count {
-    font-size: 9.5px; font-weight: 600;
-    background: rgba(255,255,255,0.07);
-    border-radius: 99px; padding: 1px 6px;
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.05em; text-transform: uppercase;
     color: rgba(255,255,255,0.25);
-    flex-shrink: 0;
-  }
-  .tab-count--active { background: rgba(255,255,255,0.18); color: #fff; }
-  @media (max-width: 480px) {
-    .tab-count { display: none; }
-    .tab-btn { font-size: 10px; gap: 4px; }
   }
 
-  /* ── Tab body fade ── */
-  .tab-body { opacity: 0; transform: translateY(6px); transition: opacity 0.2s ease, transform 0.2s ease; }
+  /* ── Section label ── */
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700;
+    color: #fff; margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── Tab body ── */
+  .tab-body { opacity: 0; transform: translateY(5px); transition: opacity 0.18s ease, transform 0.18s ease; }
   .tab-body--in { opacity: 1; transform: none; }
 
-  /* ── Card grid ── */
-  .card-grid { display: grid; gap: 8px; }
-
-  /* ── Movie card ── */
-  .mc {
-    border-radius: 9px; overflow: hidden;
-    background: #0c0c10;
-    border: 1px solid rgba(255,255,255,0.05);
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  }
-  .mc:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.7);
-    border-color: rgba(255,255,255,0.09);
-  }
-  .mc-poster {
-    position: relative;
-    aspect-ratio: 2/3;
-    background: #161620;
-    overflow: hidden;
-  }
-  .mc-img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-    transition: transform 0.4s ease;
-  }
-  .mc-img--zoom { transform: scale(1.06); }
-  .mc-fallback {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
-  }
-  .mc-veil {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.05);
-    transition: background 0.2s;
-  }
-  .mc-veil--on { background: rgba(0,0,0,0.52); }
-
-  /* Play button */
-  .mc-play {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.16s;
-  }
-  .mc-play--on { opacity: 1; }
-  .play-circle {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: #e50914; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 24px rgba(229,9,20,0.55);
-    transition: transform 0.14s;
-  }
-  .play-circle:hover { transform: scale(1.1); }
-  .play-circle:active { transform: scale(0.95); }
-
-  /* Badges */
-  .badge {
-    position: absolute;
-    display: inline-flex; align-items: center; gap: 3px;
-    border-radius: 4px; padding: 2px 6px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 8px; font-weight: 600; letter-spacing: 0.04em;
-    line-height: 1.4;
-  }
-  .badge-prem {
-    top: 7px; left: 7px;
-    background: rgba(245,158,11,0.12);
-    border: 1px solid rgba(245,158,11,0.25);
-    color: #f59e0b;
-  }
-  .badge-owned {
-    top: 7px; left: 7px;
-    background: rgba(16,185,129,0.1);
-    border: 1px solid rgba(16,185,129,0.22);
-    color: #10b981;
-  }
-  .badge-rat {
-    top: 7px; right: 7px;
-    background: rgba(0,0,0,0.6);
+  /* ── Continue Watching rows ── */
+  .cw-list { display: flex; flex-direction: column; gap: 10px; }
+  .cw-row {
+    display: flex; align-items: center; gap: 13px;
+    background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
-    color: #fff;
-    backdrop-filter: blur(6px);
-  }
-  .badge-hd {
-    bottom: 14px; right: 7px;
-    background: rgba(0,0,0,0.65);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.5);
-    font-size: 7.5px; letter-spacing: 0.08em;
-  }
-
-  /* Poster progress bar (single, clean) */
-  .poster-prog {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 3px;
-    background: rgba(255,255,255,0.08);
-  }
-  .poster-prog-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #e50914, #ff4d58);
-    transition: width 0.4s ease;
-    border-radius: 0 2px 2px 0;
-  }
-
-  /* Card info */
-  .mc-info { padding: 9px 10px 10px; }
-  .mc-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 11.5px; font-weight: 600;
-    color: rgba(255,255,255,0.85);
-    margin: 0 0 4px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .mc-meta {
-    display: flex; align-items: center; gap: 4px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 9.5px; color: rgba(255,255,255,0.2);
-  }
-  .dot { color: rgba(255,255,255,0.1); }
-
-  /* Time row (continue) */
-  .mc-time-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 6px;
-  }
-  .mc-pct {
-    font-family: 'Outfit', sans-serif;
-    font-size: 9px; font-weight: 700;
-    color: rgba(229,9,20,0.65);
-  }
-  .mc-rem {
-    font-family: 'Outfit', sans-serif;
-    font-size: 9px;
-    color: rgba(255,255,255,0.18);
-  }
-
-  /* Price row (collection) */
-  .mc-price-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 6px;
-  }
-  .mc-price {
-    font-family: 'Outfit', sans-serif;
-    font-size: 9.5px; font-weight: 600;
-    color: rgba(255,255,255,0.3);
-  }
-  .mc-when {
-    font-family: 'Outfit', sans-serif;
-    font-size: 8.5px;
-    color: rgba(255,255,255,0.14);
-  }
-
-  /* ── Collection banner ── */
-  .coll-banner {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 13px;
-    background: rgba(245,158,11,0.04);
-    border: 1px solid rgba(245,158,11,0.1);
-    border-radius: 9px;
-    margin-bottom: 14px;
-    flex-wrap: wrap; gap: 8px;
-  }
-  .coll-banner-left {
-    display: flex; align-items: center; gap: 7px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 11.5px; font-weight: 500;
-    color: rgba(255,255,255,0.5);
-  }
-  .coll-total {
-    font-family: 'Outfit', sans-serif;
-    font-size: 10.5px; font-weight: 600;
-    color: rgba(255,255,255,0.18);
-    letter-spacing: 0.04em;
-  }
-
-  /* ── History list ── */
-  .hlist { display: flex; flex-direction: column; gap: 2px; }
-  .hrow {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px;
-    border-radius: 9px;
-    background: rgba(255,255,255,0.01);
-    border: 1px solid rgba(255,255,255,0.03);
-    cursor: pointer;
+    border-radius: 14px;
+    padding: 10px 12px 10px 10px;
+    text-decoration: none;
     transition: background 0.14s, border-color 0.14s;
+    cursor: pointer;
   }
-  .hrow--hov { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); }
+  .cw-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
 
-  .hrow-num {
-    font-family: 'Syne', sans-serif;
-    font-size: 12px; font-weight: 700;
-    color: rgba(255,255,255,0.08);
-    width: 20px; text-align: right; flex-shrink: 0;
-  }
-  .hrow-thumb {
-    width: 38px; height: 54px; border-radius: 6px;
+  .cw-thumb {
+    width: 56px; height: 78px; border-radius: 8px;
     overflow: hidden; flex-shrink: 0;
     background: #161620; position: relative;
   }
-  .hrow-thumb-veil {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.55);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.14s;
+  .cw-img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
   }
-  .hrow-thumb-veil--on { opacity: 1; }
+  .cw-thumb-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cw-play-sm {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(229,9,20,0.9);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cw-prog-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 3px; background: rgba(255,255,255,0.1);
+  }
+  .cw-prog-fill {
+    height: 100%; background: #e50914;
+    border-radius: 0 2px 2px 0;
+    transition: width 0.4s ease;
+  }
 
-  .hrow-meta { flex: 1; min-width: 0; }
-  .hrow-title {
+  .cw-info { flex: 1; min-width: 0; }
+  .cw-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: rgba(255,255,255,0.9);
+    margin: 0 0 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cw-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10.5px; color: rgba(255,255,255,0.25);
+    margin: 0 0 8px;
+  }
+  .cw-progress-row {
+    display: flex; align-items: center; gap: 7px;
+    margin-bottom: 4px;
+  }
+  .cw-track {
+    flex: 1; height: 3px; border-radius: 99px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .cw-fill {
+    height: 100%; background: linear-gradient(90deg, #e50914, #ff3a46);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .cw-pct {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px; font-weight: 700;
+    color: rgba(255,255,255,0.3); flex-shrink: 0;
+  }
+  .cw-remain {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px; color: rgba(255,255,255,0.2); margin: 0;
+  }
+  .cw-play-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #e50914; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 16px rgba(229,9,20,0.4);
+    transition: transform 0.13s;
+  }
+  .cw-row:hover .cw-play-btn { transform: scale(1.07); }
+
+  /* ── Wishlist grid ── */
+  .wl-grid {
+    display: grid; gap: 10px;
+  }
+  .wl-card {
+    border-radius: 10px; overflow: hidden;
+    background: #0c0c10;
+    border: 1px solid rgba(255,255,255,0.05);
+    text-decoration: none;
+    cursor: pointer;
+    display: block;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+  .wl-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.1); }
+  .wl-poster {
+    position: relative; aspect-ratio: 2/3;
+    background: #161620; overflow: hidden;
+  }
+  .wl-img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    transition: transform 0.35s ease;
+  }
+  .wl-img--zoom { transform: scale(1.05); }
+  .wl-badge-rat {
+    position: absolute; top: 6px; left: 6px;
+    display: flex; align-items: center; gap: 3px;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    border-radius: 6px; padding: 3px 7px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px; font-weight: 700; color: #fff;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .wl-badge-bm {
+    position: absolute; top: 6px; right: 6px;
+    width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wl-play {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s;
+    background: rgba(0,0,0,0.35);
+  }
+  .wl-play--on { opacity: 1; }
+  .wl-play-circle {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: #e50914;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 24px rgba(229,9,20,0.5);
+  }
+  .wl-lock {
+    position: absolute; bottom: 8px; right: 8px;
+    background: rgba(0,0,0,0.6); border-radius: 5px;
+    padding: 3px 5px;
+  }
+  .wl-info { padding: 8px 9px 10px; }
+  .wl-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px; font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    margin: 0 0 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wl-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px; color: rgba(255,255,255,0.2); margin: 0;
+  }
+
+  /* ── Payment rows ── */
+  .pay-list { display: flex; flex-direction: column; gap: 8px; }
+  .pay-row {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .pay-thumb {
+    width: 40px; height: 40px; border-radius: 9px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .pay-info { flex: 1; min-width: 0; }
+  .pay-title {
     font-family: 'Outfit', sans-serif;
     font-size: 12.5px; font-weight: 600;
-    color: rgba(255,255,255,0.75);
-    margin: 0 0 2px;
+    color: rgba(255,255,255,0.8);
+    margin: 0 0 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    transition: color 0.14s;
   }
-  .hrow--hov .hrow-title { color: #fff; }
-  .hrow-sub {
+  .pay-date {
     font-family: 'Outfit', sans-serif;
-    font-size: 10px;
-    color: rgba(255,255,255,0.2); margin: 0;
+    font-size: 10px; color: rgba(255,255,255,0.22); margin: 0;
   }
-
-  .hrow-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
-  .hrow-rating {
-    display: flex; align-items: center; gap: 3px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 12.5px; font-weight: 600; color: #fff;
+  .pay-right {
+    display: flex; flex-direction: column; align-items: flex-end;
+    gap: 4px; flex-shrink: 0;
   }
-  .hrow-when {
+  .pay-status {
     font-family: 'Outfit', sans-serif;
-    font-size: 8.5px; color: rgba(255,255,255,0.16);
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 99px;
+    border: 1px solid transparent;
+  }
+  .pay-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px; font-weight: 700; color: #fff;
   }
 
   /* ── Skeleton ── */
-  .sk-grid { display: grid; gap: 8px; }
-  .sk-card {
-    border-radius: 9px; background: #0c0c10;
-    aspect-ratio: 2/3; overflow: hidden; position: relative;
-  }
   @keyframes shimmer {
     0%   { background-position: -600px 0; }
     100% { background-position:  600px 0; }
   }
   .shimmer {
-    position: absolute; inset: 0;
     background: linear-gradient(90deg,
       rgba(255,255,255,0) 0%,
-      rgba(255,255,255,0.03) 50%,
+      rgba(255,255,255,0.04) 50%,
       rgba(255,255,255,0) 100%
     );
     background-size: 600px 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }
+  .sk-list { display: flex; flex-direction: column; gap: 10px; }
+  .sk-row {
+    display: flex; gap: 13px; align-items: center;
+    padding: 10px; border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .sk-thumb { width: 56px; height: 78px; border-radius: 8px; flex-shrink: 0; }
+  .sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .sk-line { height: 10px; border-radius: 6px; }
+  .sk-line--lg { width: 70%; }
+  .sk-line--sm { width: 45%; }
 
   /* ── Empty / Error ── */
   .empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 60px 24px; text-align: center;
+    padding: 50px 24px; text-align: center;
   }
   .empty-icon {
-    width: 60px; height: 60px; border-radius: 14px;
+    width: 56px; height: 56px; border-radius: 14px;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
   .empty-title {
     font-family: 'Syne', sans-serif;
-    font-size: 1.05rem; font-weight: 700;
-    color: rgba(255,255,255,0.65);
+    font-size: 1rem; font-weight: 700;
+    color: rgba(255,255,255,0.6);
     margin: 0 0 7px;
   }
   .empty-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 12px; color: rgba(255,255,255,0.22);
-    margin: 0 0 22px; max-width: 240px; line-height: 1.65;
+    font-size: 12px; color: rgba(255,255,255,0.2);
+    margin: 0 0 20px; max-width: 230px; line-height: 1.6;
   }
   .empty-cta {
     display: inline-flex; align-items: center;
     padding: 9px 22px;
-    background: #e50914; border-radius: 7px;
+    background: #e50914; border-radius: 999px;
     font-family: 'Outfit', sans-serif;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: 0.07em; text-transform: uppercase;
-    color: #fff; text-decoration: none;
+    font-size: 12px; font-weight: 600;
+    color: #fff; text-decoration: none; border: none; cursor: pointer;
     transition: background 0.14s, transform 0.14s;
   }
-  .empty-cta:hover { background: #ff1a27; transform: translateY(-1px); }
+  .empty-cta:hover { background: #ff1f2b; transform: translateY(-1px); }
 `;
