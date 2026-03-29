@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Play, Info, Plus, Check, Star, ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface BannerMovie {
@@ -32,6 +33,7 @@ export default function MovieBanner({
   autoInterval = 6000,
   compact = false,
 }: MovieBannerProps) {
+  const router = useRouter();
   const [current, setCurrent] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [kenKey, setKenKey] = useState(0);
@@ -71,13 +73,18 @@ export default function MovieBanner({
   const slide = movies[current];
   const minH = compact ? "min(52vh, 400px)" : "min(80vh, 680px)";
 
+  const handleMoreInfo = (movie: BannerMovie) => {
+    if (onMoreInfo) {
+      onMoreInfo(movie);
+    } else {
+      router.push(`/dashboard/movies/${movie.id}`);
+    }
+  };
+
   return (
     <section style={{
-      position: "relative",
-      width: "100%",
-      minHeight: minH,
-      overflow: "hidden",
-      marginBottom: 36,
+      position: "relative", width: "100%", minHeight: minH,
+      overflow: "hidden", marginBottom: 36,
     }}>
       {/* Background slides */}
       {movies.map((s, i) => {
@@ -128,56 +135,35 @@ export default function MovieBanner({
         <div style={{ maxWidth: 540 }}>
 
           {/* Tag + meta */}
-          <div
-            key={`tag-${current}`}
-            style={{
-              display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both",
-            }}
-          >
+          <div key={`tag-${current}`} style={{
+            display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
+            animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both",
+          }}>
             <span style={{
               fontSize: 8.5, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-              letterSpacing: "0.35em", textTransform: "uppercase",
-              padding: "3px 9px",
-              color: "#e50914",
-              background: "rgba(229,9,20,0.12)",
-              border: "1px solid rgba(229,9,20,0.28)",
+              letterSpacing: "0.35em", textTransform: "uppercase", padding: "3px 9px",
+              color: "#e50914", background: "rgba(229,9,20,0.12)", border: "1px solid rgba(229,9,20,0.28)",
             }}>{slide.tag}</span>
             <span style={{ width: 20, height: 1, background: "rgba(255,255,255,0.18)" }} />
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: "0.25em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>{slide.genre}</span>
             <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.18)" }} />
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: "0.15em", fontFamily: "'DM Sans', sans-serif" }}>{slide.year}</span>
-            {slide.dubbed && (
-              <span style={{
-                fontSize: 8, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-                letterSpacing: "0.2em", padding: "2px 7px",
-                background: "rgba(37,211,102,0.1)", color: "#25d366",
-                border: "1px solid rgba(37,211,102,0.22)",
-              }}>DUBBED</span>
-            )}
           </div>
 
           {/* Title */}
-          <h1
-            key={`title-${current}`}
-            style={{
-              fontSize: compact ? "clamp(2rem,5vw,3.2rem)" : "clamp(2.4rem,6vw,4.8rem)",
-              fontFamily: "var(--font-display)",
-              color: "#fff", letterSpacing: "0.02em", lineHeight: 0.92,
-              marginBottom: 14,
-              textShadow: "0 2px 30px rgba(0,0,0,0.5)",
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.07s both",
-            }}
-          >{slide.title}</h1>
+          <h1 key={`title-${current}`} style={{
+            fontSize: compact ? "clamp(2rem,5vw,3.2rem)" : "clamp(2.4rem,6vw,4.8rem)",
+            fontFamily: "var(--font-display)", color: "#fff", letterSpacing: "0.02em",
+            lineHeight: 0.92, marginBottom: 14,
+            textShadow: "0 2px 30px rgba(0,0,0,0.5)",
+            animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.07s both",
+          }}>{slide.title}</h1>
 
           {/* Rating */}
-          <div
-            key={`rating-${current}`}
-            style={{
-              display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.12s both",
-            }}
-          >
+          <div key={`rating-${current}`} style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+            animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.12s both",
+          }}>
             <div style={{ display: "flex", gap: 2 }}>
               {Array.from({ length: 5 }).map((_, i) => {
                 const filled = i < Math.round(parseFloat(slide.rating) / 2);
@@ -195,37 +181,26 @@ export default function MovieBanner({
           </div>
 
           {/* Description */}
-          <p
-            key={`desc-${current}`}
-            style={{
-              fontSize: "clamp(0.8rem,1.2vw,0.9rem)",
-              color: "rgba(255,255,255,0.5)",
-              lineHeight: 1.65, maxWidth: 430,
-              marginBottom: 24,
-              fontFamily: "'DM Sans', sans-serif",
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both",
-            }}
-          >{slide.description}</p>
+          <p key={`desc-${current}`} style={{
+            fontSize: "clamp(0.8rem,1.2vw,0.9rem)",
+            color: "rgba(255,255,255,0.5)", lineHeight: 1.65, maxWidth: 430,
+            marginBottom: 24, fontFamily: "'DM Sans', sans-serif",
+            animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both",
+          }}>{slide.description}</p>
 
           {/* CTAs */}
-          <div
-            key={`cta-${current}`}
-            style={{
-              display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both",
-            }}
-          >
+          <div key={`cta-${current}`} style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
+            animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both",
+          }}>
             <button
               onClick={() => onPlay?.(slide)}
               style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "11px 26px",
-                background: "#e50914", border: "none", cursor: "pointer",
-                color: "#fff", fontSize: 10.5,
-                fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 8, padding: "11px 26px",
+                background: "#e50914", border: "none", cursor: "pointer", color: "#fff",
+                fontSize: 10.5, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
                 letterSpacing: "0.2em", textTransform: "uppercase",
-                boxShadow: "0 0 30px rgba(229,9,20,0.4)",
-                transition: "box-shadow 0.25s",
+                boxShadow: "0 0 30px rgba(229,9,20,0.4)", transition: "box-shadow 0.25s",
               }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 0 50px rgba(229,9,20,0.65)"}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 0 30px rgba(229,9,20,0.4)"}
@@ -234,18 +209,24 @@ export default function MovieBanner({
               Watch Now
             </button>
 
+            {/* More Info — goes to /dashboard/movies/[id] */}
             <button
-              onClick={() => onMoreInfo?.(slide)}
+              onClick={() => handleMoreInfo(slide)}
               style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "11px 20px",
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
-                color: "rgba(255,255,255,0.7)", fontSize: 10.5,
+                display: "flex", alignItems: "center", gap: 8, padding: "11px 20px",
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                cursor: "pointer", color: "rgba(255,255,255,0.7)", fontSize: 10.5,
                 fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
                 letterSpacing: "0.2em", textTransform: "uppercase",
-                backdropFilter: "blur(8px)",
-                transition: "border-color 0.2s, color 0.2s",
+                backdropFilter: "blur(8px)", transition: "border-color 0.2s, color 0.2s, background 0.2s",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)";
+                (e.currentTarget as HTMLElement).style.color = "#fff";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+                (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)";
               }}
             >
               <Info size={13} />
@@ -263,8 +244,7 @@ export default function MovieBanner({
                 background: inLib.has(slide.id) ? "rgba(37,211,102,0.1)" : "rgba(255,255,255,0.06)",
                 border: `1px solid ${inLib.has(slide.id) ? "rgba(37,211,102,0.28)" : "rgba(255,255,255,0.12)"}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.2s",
+                cursor: "pointer", transition: "all 0.2s",
               }}
             >
               {inLib.has(slide.id)
@@ -282,58 +262,36 @@ export default function MovieBanner({
           display: "flex", flexDirection: "column", gap: 8,
         }}>
           {movies.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              style={{
-                width: 4,
-                height: i === current ? 24 : 6,
-                border: "none", cursor: "pointer",
-                background: i === current ? "#e50914" : "rgba(255,255,255,0.2)",
-                boxShadow: i === current ? "0 0 8px #e50914" : "none",
-                transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
-              }}
-            />
+            <button key={i} onClick={() => goTo(i)} style={{
+              width: 4, height: i === current ? 24 : 6,
+              border: "none", cursor: "pointer",
+              background: i === current ? "#e50914" : "rgba(255,255,255,0.2)",
+              boxShadow: i === current ? "0 0 8px #e50914" : "none",
+              transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
+            }} />
           ))}
         </div>
 
         {/* Arrows */}
-        <button
-          onClick={prev}
-          style={{
-            position: "absolute", left: 16, bottom: "36%",
-            width: 38, height: 38,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(10px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "rgba(255,255,255,0.45)",
-            transition: "all 0.2s", zIndex: 20,
-          }}
-        >
+        <button onClick={prev} style={{
+          position: "absolute", left: 16, bottom: "36%", width: 38, height: 38,
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20,
+        }}>
           <ChevronLeft size={16} />
         </button>
-        <button
-          onClick={next}
-          style={{
-            position: "absolute", right: 46, bottom: "36%",
-            width: 38, height: 38,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(10px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "rgba(255,255,255,0.45)",
-            transition: "all 0.2s", zIndex: 20,
-          }}
-        >
+        <button onClick={next} style={{
+          position: "absolute", right: 46, bottom: "36%", width: 38, height: 38,
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+          backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", color: "rgba(255,255,255,0.45)", transition: "all 0.2s", zIndex: 20,
+        }}>
           <ChevronRight size={16} />
         </button>
 
         {/* Slide counter */}
-        <div style={{
-          position: "absolute", bottom: 16, right: 16, zIndex: 20,
-          display: "flex", alignItems: "baseline", gap: 3,
-        }}>
+        <div style={{ position: "absolute", bottom: 16, right: 16, zIndex: 20, display: "flex", alignItems: "baseline", gap: 3 }}>
           <span style={{ fontSize: 20, fontFamily: "var(--font-display)", color: "#fff", letterSpacing: "0.08em", lineHeight: 1 }}>
             {String(current + 1).padStart(2, "0")}
           </span>
@@ -342,13 +300,10 @@ export default function MovieBanner({
 
         {/* Progress bar */}
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 20, height: 2, background: "rgba(255,255,255,0.04)" }}>
-          <div
-            key={`progress-${progressKey}`}
-            style={{
-              height: "100%", background: "#e50914",
-              animation: `djBannerProgress ${autoInterval}ms linear forwards`,
-            }}
-          />
+          <div key={`progress-${progressKey}`} style={{
+            height: "100%", background: "#e50914",
+            animation: `djBannerProgress ${autoInterval}ms linear forwards`,
+          }} />
         </div>
       </div>
 

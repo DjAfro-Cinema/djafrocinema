@@ -3,6 +3,8 @@ import { Outfit } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { DashboardLayout } from "@/components/dashboard";
+import { AuthProvider } from "@/context/AuthContext";
+
 
 const clashDisplay = localFont({
   src: [
@@ -107,7 +109,9 @@ export default function RootLayout({
       className={`${clashDisplay.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
+      <AuthProvider>
         {children}
+        </AuthProvider>
       </body>
     </html>
   );
