@@ -6,6 +6,7 @@ import {
   Search, X, Play, Star, Crown,
   ChevronDown, Grid3X3, LayoutList, Flame, Sparkles,
   TrendingUp, Filter, ChevronLeft, ChevronRight, Film,
+  Projector,
 } from "lucide-react";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
@@ -27,7 +28,7 @@ type SortVal = "trending" | "rating" | "newest" | "popular";
 const SORT_OPTIONS: { val: SortVal; label: string; Icon: React.ElementType }[] = [
   { val: "trending", label: "Trending",     Icon: TrendingUp },
   { val: "rating",   label: "Top Rated",    Icon: Star },
-  { val: "newest",   label: "Newest",       Icon: Sparkles },
+  { val: "newest",   label: "Newest",       Icon: Projector },
   { val: "popular",  label: "Most Watched", Icon: Flame },
 ];
 

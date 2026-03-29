@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Search, X, Bell, Film, Star, Flame, Sparkles,
   TrendingUp, Sun, Sunset, Moon, Hand,
+  Projector,
 } from "lucide-react";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -232,7 +233,7 @@ function StatsWidget({ isMobile, movieCount }: { isMobile: boolean; movieCount: 
     { Icon: Film,       val: movieCount > 0 ? `${movieCount}+` : "…", label: "Movies",   sub: "available" },
     { Icon: Star,       val: "Top",                                     label: "Rated",    sub: "picks"    },
     { Icon: Flame,      val: "Hot",                                     label: "Trending", sub: "now"      },
-    { Icon: Sparkles,   val: "New",                                     label: "Arrivals", sub: "weekly"   },
+    { Icon: Projector,   val: "New",                                     label: "Arrivals", sub: "weekly"   },
   ];
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 2, background: "rgba(255,255,255,0.035)", borderRadius: 4, overflow: "hidden", marginBottom: 44 }}>
