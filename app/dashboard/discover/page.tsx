@@ -289,7 +289,7 @@ function SkeletonRow({ isSmall }: { isSmall: boolean }) {
 
 // ── Movie of the Day ──────────────────────────────────────────────────────────
 
-function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void }) {
+function MovieOfTheDay({ movie, onPlay, isSmall }: { movie: CardMovie; onPlay: () => void; isSmall: boolean }) {
   const { paidMovieIds } = usePremiumGate();
   const isPaid   = paidMovieIds.includes(movie.id);
   const isLocked = movie.premium && !isPaid;
@@ -310,9 +310,12 @@ function MovieOfTheDay({ movie, onPlay }: { movie: CardMovie; onPlay: () => void
         </div>
 
         <div style={{ display: "flex", gap: "clamp(14px,3vw,32px)", alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div style={{ position: "relative", width: "clamp(70px,10vw,115px)", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", flexShrink: 0, boxShadow: "0 20px 52px rgba(0,0,0,0.72)" }}>
-            <img src={movie.img} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          </div>
+          {/* Poster thumbnail — hidden on mobile/small */}
+          {!isSmall && (
+            <div style={{ position: "relative", width: "clamp(70px,10vw,115px)", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", flexShrink: 0, boxShadow: "0 20px 52px rgba(0,0,0,0.72)" }}>
+              <img src={movie.img} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
               {movie.premium && !isPaid && (
@@ -624,54 +627,120 @@ export default function DiscoverPage() {
         )}
 
         <div id="discover-col" style={{ flex: 1, minWidth: 0, height: "100svh", overflowY: "auto", overflowX: "hidden" }}>
-          {/* Top bar */}
-          <header style={{
-            position: "sticky", top: 0, zIndex: 800,
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "0 clamp(16px,3vw,28px)", height: 64,
-            background: scrolled ? "rgba(var(--dj-bg-base-rgb, 8,8,8), 0.97)" : "rgba(var(--dj-bg-base-rgb, 8,8,8), 0.82)",
-            backdropFilter: "blur(22px)",
-            borderBottom: "1px solid var(--dj-border-subtle)",
-            flexShrink: 0, transition: "background 0.3s",
-          }}>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.15rem,2.5vw,1.75rem)", color: "var(--dj-text-primary)", letterSpacing: "0.1em", margin: 0, flexShrink: 0 }}>
-              Discover
-            </h1>
 
-            <div style={{ flex: 1, maxWidth: 480 }}>
+          {/* ── TOP BAR — desktop only, hidden on mobile/small ── */}
+          {!isSmall && (
+            <header style={{
+              position: "sticky", top: 0, zIndex: 800,
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "0 clamp(16px,3vw,28px)", height: 64,
+              background: scrolled ? "rgba(var(--dj-bg-base-rgb, 8,8,8), 0.97)" : "rgba(var(--dj-bg-base-rgb, 8,8,8), 0.82)",
+              backdropFilter: "blur(22px)",
+              borderBottom: "1px solid var(--dj-border-subtle)",
+              flexShrink: 0, transition: "background 0.3s",
+            }}>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.15rem,2.5vw,1.75rem)", color: "var(--dj-text-primary)", letterSpacing: "0.1em", margin: 0, flexShrink: 0 }}>
+                Discover
+              </h1>
+
+              <div style={{ flex: 1, maxWidth: 480 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
+                  background: searchFocused ? "var(--dj-nav-hover-bg)" : "var(--dj-bg-surface)",
+                  border: `1px solid ${searchFocused ? "var(--dj-border-accent)" : "var(--dj-border-subtle)"}`,
+                  borderRadius: 10, transition: "all 0.2s",
+                }}>
+                  <Search size={13} color={searchFocused ? "var(--dj-accent)" : "var(--dj-icon-inactive)"} strokeWidth={1.8} />
+                  <input
+                    value={searchVal}
+                    onChange={e => { setSearchVal(e.target.value); setCollectionView(null); setActiveMood(null); }}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                    placeholder="Search movies, genres…"
+                    style={{ flex: 1, background: "transparent", border: "none", color: "var(--dj-text-primary)", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+                  />
+                  {searchVal && (
+                    <button onClick={() => setSearchVal("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--dj-icon-inactive)", display: "flex" }}>
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={handleShuffle}
+                className="dj-shuffle-btn"
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--dj-nav-active-bg)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--dj-bg-surface)"; }}
+              >
+                <Shuffle size={14} />
+                Surprise Me
+              </button>
+            </header>
+          )}
+
+          {/* ── MOBILE FLOATING HEADER — overlays the banner ── */}
+          {isSmall && (
+            <div style={{
+              position: "sticky", top: 0, zIndex: 800,
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 16px",
+              // Transparent so the banner shows through; blurs slightly on scroll
+              background: scrolled ? "rgba(8,8,8,0.82)" : "transparent",
+              backdropFilter: scrolled ? "blur(18px)" : "none",
+              transition: "background 0.3s, backdrop-filter 0.3s",
+              flexShrink: 0,
+            }}>
+
+              {/* Search pill */}
               <div style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
-                background: searchFocused ? "var(--dj-nav-hover-bg)" : "var(--dj-bg-surface)",
-                border: `1px solid ${searchFocused ? "var(--dj-border-accent)" : "var(--dj-border-subtle)"}`,
-                borderRadius: 10, transition: "all 0.2s",
+                flex: 1,
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 12px",
+                background: searchFocused ? "rgba(20,20,24,0.95)" : "rgba(14,14,18,0.72)",
+                border: `1px solid ${searchFocused ? "var(--dj-border-accent)" : "rgba(255,255,255,0.10)"}`,
+                borderRadius: 22,
+                backdropFilter: "blur(16px)",
+                transition: "all 0.2s",
               }}>
-                <Search size={13} color={searchFocused ? "var(--dj-accent)" : "var(--dj-icon-inactive)"} strokeWidth={1.8} />
+                <Search size={13} color={searchFocused ? "var(--dj-accent)" : "rgba(255,255,255,0.35)"} strokeWidth={1.8} />
                 <input
                   value={searchVal}
                   onChange={e => { setSearchVal(e.target.value); setCollectionView(null); setActiveMood(null); }}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                   placeholder="Search movies, genres…"
-                  style={{ flex: 1, background: "transparent", border: "none", color: "var(--dj-text-primary)", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+                  style={{
+                    flex: 1, background: "transparent", border: "none",
+                    color: "var(--dj-text-primary)", fontSize: 13,
+                    fontFamily: "'DM Sans', sans-serif", outline: "none",
+                  }}
                 />
                 {searchVal && (
-                  <button onClick={() => setSearchVal("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--dj-icon-inactive)", display: "flex" }}>
+                  <button onClick={() => setSearchVal("")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.35)", display: "flex" }}>
                     <X size={12} />
                   </button>
                 )}
               </div>
-            </div>
 
-            <button
-              onClick={handleShuffle}
-              className="dj-shuffle-btn"
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--dj-nav-active-bg)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--dj-bg-surface)"; }}
-            >
-              <Shuffle size={14} />
-              {!isSmall && "Surprise Me"}
-            </button>
-          </header>
+              {/* Shuffle icon only on mobile */}
+              <button
+                onClick={handleShuffle}
+                style={{
+                  width: 36, height: 36, flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(14,14,18,0.72)",
+                  border: "1px solid var(--dj-border-accent)",
+                  borderRadius: "50%",
+                  color: "var(--dj-accent)",
+                  cursor: "pointer",
+                  backdropFilter: "blur(16px)",
+                }}
+              >
+                <Shuffle size={15} />
+              </button>
+            </div>
+          )}
 
           {initialLoading ? (
             <div style={{ padding: "32px clamp(16px,3vw,28px)" }}>
@@ -680,7 +749,7 @@ export default function DiscoverPage() {
               <SkeletonRow isSmall={isSmall} />
             </div>
           ) : (
-            <div style={{ padding: `clamp(20px,3vw,36px) clamp(16px,3vw,28px) ${isSmall ? "120px" : "80px"}` }}>
+            <div style={{ padding: `${isSmall ? "0" : "clamp(20px,3vw,36px)"} clamp(16px,3vw,28px) ${isSmall ? "120px" : "80px"}` }}>
 
               {isSearching ? (
                 <SearchResults query={searchVal} results={searchResults} onPlay={handlePlay} onClose={() => setSearchVal("")} isSmall={isSmall} />
@@ -690,31 +759,36 @@ export default function DiscoverPage() {
 
               ) : (
                 <>
-                  {motd && <MovieOfTheDay movie={motd} onPlay={() => handlePlay(motd)} />}
-                  <MoodPicker active={activeMood} onChange={mood => { setActiveMood(mood); setCollectionView(null); }} />
-                  {activeMood && (
-                    moodMovies.loading ? <SkeletonRow isSmall={isSmall} /> : (
-                      <MovieRow eyebrow={`${activeMoodData?.label} picks`} title={activeMoodData?.desc ?? ""} movies={moodMovies.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                    )
-                  )}
-                  {!activeMood && <Collections allMovies={allMovies.movies} onCollectionClick={handleCollectionClick} />}
-                  {randomMovie && !activeMood && <SurpriseHighlight movie={randomMovie} onPlay={() => handlePlay(randomMovie)} />}
-                  {trending.loading ? <SkeletonRow isSmall={isSmall} /> : (
-                    <MovieRow eyebrow="Most Watched This Week" title="Trending Now" movies={trending.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                  )}
-                  {allMovies.movies.filter(m => !m.premium_only).length > 0 && (
-                    <MovieRow eyebrow="No Subscription Needed" title="Free to Watch" movies={allMovies.movies.filter(m => !m.premium_only).map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                  )}
-                  {latest.loading ? <SkeletonRow isSmall={isSmall} /> : (
-                    <MovieRow eyebrow="Just Added" title="New Arrivals" movies={latest.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                  )}
-                  <div className="dj-divider" />
-                  {topRated.loading ? <SkeletonRow isSmall={isSmall} /> : (
-                    <MovieRow eyebrow="Highest Rated" title="Top Rated" movies={topRated.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                  )}
-                  {!mostViewed.loading && mostViewed.movies.length > 0 && (
-                    <MovieRow eyebrow="All-Time Most Popular" title="Most Viewed" movies={mostViewed.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
-                  )}
+                  {/* On mobile the banner sits flush under the floating header (no top padding) */}
+                  {motd && <MovieOfTheDay movie={motd} onPlay={() => handlePlay(motd)} isSmall={isSmall} />}
+
+                  {/* Add top padding to the rest of the content on mobile */}
+                  <div style={{ paddingTop: isSmall ? 20 : 0 }}>
+                    <MoodPicker active={activeMood} onChange={mood => { setActiveMood(mood); setCollectionView(null); }} />
+                    {activeMood && (
+                      moodMovies.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                        <MovieRow eyebrow={`${activeMoodData?.label} picks`} title={activeMoodData?.desc ?? ""} movies={moodMovies.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                      )
+                    )}
+                    {!activeMood && <Collections allMovies={allMovies.movies} onCollectionClick={handleCollectionClick} />}
+                    {randomMovie && !activeMood && <SurpriseHighlight movie={randomMovie} onPlay={() => handlePlay(randomMovie)} />}
+                    {trending.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                      <MovieRow eyebrow="Most Watched This Week" title="Trending Now" movies={trending.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                    )}
+                    {allMovies.movies.filter(m => !m.premium_only).length > 0 && (
+                      <MovieRow eyebrow="No Subscription Needed" title="Free to Watch" movies={allMovies.movies.filter(m => !m.premium_only).map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                    )}
+                    {latest.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                      <MovieRow eyebrow="Just Added" title="New Arrivals" movies={latest.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                    )}
+                    <div className="dj-divider" />
+                    {topRated.loading ? <SkeletonRow isSmall={isSmall} /> : (
+                      <MovieRow eyebrow="Highest Rated" title="Top Rated" movies={topRated.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                    )}
+                    {!mostViewed.loading && mostViewed.movies.length > 0 && (
+                      <MovieRow eyebrow="All-Time Most Popular" title="Most Viewed" movies={mostViewed.movies.map(toCard)} onPlay={handlePlay} viewAll="/dashboard/movies" isSmall={isSmall} />
+                    )}
+                  </div>
                 </>
               )}
             </div>
