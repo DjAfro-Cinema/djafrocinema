@@ -45,6 +45,9 @@ export const metadata: Metadata = {
   creator: "DjAfro Cinema",
   publisher: "DjAfro Cinema",
   metadataBase: new URL("https://djafrocinema.com"),
+  verification: {
+    google: "YT2tzj41CyddB69bK2o18e3XWacqY8GY2Vj8EIfqZM4",
+  },
   openGraph: {
     type: "website",
     locale: "en_KE",
