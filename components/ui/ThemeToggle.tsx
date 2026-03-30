@@ -140,7 +140,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
     openDrawer: () => setOpen(true),
   }));
 
-  // Outside click
+  // Outside click — only close, never intercept other page clicks
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -148,9 +148,12 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
         drawerRef.current && !drawerRef.current.contains(e.target as Node) &&
         btnRef.current    && !btnRef.current.contains(e.target as Node)
       ) setOpen(false);
+      // We do NOT call e.stopPropagation() or e.preventDefault() here —
+      // clicks on page content still fire normally, drawer just closes.
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    // Use capture:false so page handlers fire first, then we close
+    document.addEventListener("mousedown", handler, false);
+    return () => document.removeEventListener("mousedown", handler, false);
   }, [open]);
 
   useEffect(() => {
@@ -187,6 +190,14 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           70%  { box-shadow: 0 0 0 8px ${acc}00; }
           100% { box-shadow: 0 0 0 0 ${acc}00; }
         }
+        @keyframes dj-fab-out {
+          from { opacity: 1; transform: translateX(0) translateY(-50%); }
+          to   { opacity: 0; transform: translateX(110%) translateY(-50%); }
+        }
+        @keyframes dj-fab-show {
+          from { opacity: 0; transform: translateX(110%) translateY(-50%); }
+          to   { opacity: 1; transform: translateX(0) translateY(-50%); }
+        }
 
         .dj-fab {
           position: fixed;
@@ -207,6 +218,20 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           cursor: pointer;
           color: rgba(255,255,255,0.45);
           transition: background 0.18s, border-color 0.18s, color 0.18s, padding 0.18s;
+          /* pointer-events always auto — FAB never blocks page clicks */
+          pointer-events: auto;
+        }
+        /* Visible state: slides in */
+        .dj-fab--visible {
+          animation: dj-fab-show 0.35s cubic-bezier(0.25,1,0.5,1) both;
+        }
+        /* Hidden state (drawer open): slides out, pointer-events off */
+        .dj-fab--hidden {
+          animation: dj-fab-out 0.25s cubic-bezier(0.55,0,1,0.45) both;
+          pointer-events: none;
+        }
+        /* Initial entrance (only on first mount) */
+        .dj-fab--init {
           animation: dj-fab-in 0.5s cubic-bezier(0.25,1,0.5,1) both,
                      dj-pulse-ring 3.5s ease-out 1.5s 2;
         }
@@ -215,12 +240,6 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           border-color: ${acc}55;
           color: ${acc};
           padding-right: 20px;
-        }
-        .dj-fab--open {
-          background: ${acc}14 !important;
-          border-color: ${acc}77 !important;
-          color: ${acc} !important;
-          padding-right: 20px !important;
         }
         .dj-fab-cog {
           display: flex; align-items: center; justify-content: center;
@@ -237,17 +256,27 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           line-height: 1;
         }
 
+        /*
+         * BACKDROP — pointer-events: none always.
+         * We use a purely visual overlay; closing on outside-click is
+         * handled by the mousedown listener above, which does NOT
+         * preventDefault/stopPropagation, so page buttons still fire.
+         */
         .dj-backdrop {
           position: fixed; inset: 0; z-index: 958;
           background: rgba(0,0,0,0);
+          /* CRITICAL: never capture pointer events — page stays fully interactive */
           pointer-events: none;
-          transition: background 0.28s ease;
+          transition: background 0.28s ease, backdrop-filter 0.28s ease;
+          backdrop-filter: blur(0px);
+          -webkit-backdrop-filter: blur(0px);
         }
         .dj-backdrop--vis {
-          background: rgba(0,0,0,0.60);
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-          pointer-events: all;
+          background: rgba(0,0,0,0.45);
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
+          /* Still no pointer-events — clicks pass straight through to the page */
+          pointer-events: none;
         }
 
         .dj-drawer {
@@ -264,8 +293,13 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           transform: translateX(105%);
           transition: transform 0.30s cubic-bezier(0.25,1,0.5,1);
           will-change: transform;
+          /* Drawer itself captures clicks so they don't fall through */
+          pointer-events: none;
         }
-        .dj-drawer--open { transform: translateX(0); }
+        .dj-drawer--open {
+          transform: translateX(0);
+          pointer-events: auto;
+        }
 
         .dj-drawer-topline {
           position: absolute; top: 0; left: 0; right: 0; height: 1px;
@@ -321,9 +355,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
         }
 
         /* ── Settings row — mobile only ── */
-        .dj-settings-row {
-          display: none;
-        }
+        .dj-settings-row { display: none; }
         .dj-settings-btn {
           display: flex; align-items: center; gap: 12px;
           width: 100%; padding: 11px 12px; border-radius: 14px;
@@ -345,9 +377,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           color: rgba(255,255,255,0.30);
           transition: color 0.15s;
         }
-        .dj-settings-btn:hover .dj-settings-icon {
-          color: rgba(255,255,255,0.60);
-        }
+        .dj-settings-btn:hover .dj-settings-icon { color: rgba(255,255,255,0.60); }
         .dj-settings-label {
           font-family: 'DM Sans', sans-serif;
           font-size: 12.5px; font-weight: 500;
@@ -362,8 +392,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           display: inline-flex; align-items: center; gap: 8px;
           background: rgba(255,255,255,0.03);
           border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 20px;
-          padding: 5px 12px 5px 7px;
+          border-radius: 20px; padding: 5px 12px 5px 7px;
         }
         .dj-footer-dot {
           width: 8px; height: 8px; border-radius: 50%;
@@ -373,9 +402,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           font-family: 'DM Sans', sans-serif;
           font-size: 10.5px; color: rgba(255,255,255,0.28);
         }
-        .dj-footer-name {
-          font-weight: 600; color: ${acc};
-        }
+        .dj-footer-name { font-weight: 600; color: ${acc}; }
 
         @media (max-width: 767px) {
           .dj-fab { gap: 6px; padding: 9px 14px 9px 12px; }
@@ -384,8 +411,8 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
         }
       `}</style>
 
-      {/* Backdrop */}
-      <div className={`dj-backdrop${open ? " dj-backdrop--vis" : ""}`} onClick={() => setOpen(false)} />
+      {/* Visual-only backdrop — pointer-events: none, never blocks clicks */}
+      <div className={`dj-backdrop${open ? " dj-backdrop--vis" : ""}`} aria-hidden="true" />
 
       {/* Drawer */}
       <div
@@ -415,7 +442,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
             <ThemeCard key={id} id={id} active={theme.id === id} onSelect={handleSelect} />
           ))}
 
-          {/* Settings — mobile only, sits right after the last theme card */}
+          {/* Settings — mobile only */}
           <div className="dj-settings-row">
             <div className="dj-section-lbl" style={{ paddingTop: 14 }}>Navigation</div>
             <button className="dj-settings-btn" onClick={handleGoToSettings}>
@@ -442,12 +469,12 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
         </div>
       </div>
 
-      {/* FAB */}
+      {/* FAB — slides out when drawer opens, slides back in when it closes */}
       <button
         ref={btnRef}
-        className={`dj-fab${open ? " dj-fab--open" : ""}`}
-        onClick={() => setOpen(prev => !prev)}
-        aria-label={open ? "Close theme switcher" : "Open theme switcher"}
+        className={`dj-fab${open ? " dj-fab--hidden" : " dj-fab--visible"}`}
+        onClick={() => setOpen(true)}
+        aria-label="Open theme switcher"
         title="Appearance"
       >
         <span className="dj-fab-cog"><CogIcon size={17} /></span>
