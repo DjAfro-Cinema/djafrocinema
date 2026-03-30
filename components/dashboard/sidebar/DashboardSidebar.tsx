@@ -17,6 +17,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/context/ThemeContext";
 
 // ── NAV CONFIG ────────────────────────────────────────────────────────────────
 
@@ -40,16 +41,13 @@ export interface DashboardSidebarProps {
 
 const W_EXPANDED  = 178;
 const W_COLLAPSED = 52;
-
 const BORDER_RADIUS = "0 32px 32px 0";
-
-// ── DICEBEAR AVATAR HELPER ────────────────────────────────────────────────────
 
 function dicebearUrl(style: string, seed: string) {
   return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=0a0a0f`;
 }
 
-// ── PORTAL TOOLTIP ────────────────────────────────────────────────────────────
+// ── PORTAL TOOLTIP ─────────────────────────────────────────────────────────────
 
 function PortalTooltip({
   label,
@@ -58,6 +56,7 @@ function PortalTooltip({
   label: string;
   anchorRef: React.RefObject<HTMLElement | null>;
 }) {
+  const { t } = useTheme();
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
 
@@ -78,18 +77,18 @@ function PortalTooltip({
         top: pos.top,
         left: pos.left,
         transform: "translateY(-50%)",
-        background: "rgba(12,12,14,0.97)",
-        border: "1px solid rgba(229,9,20,0.2)",
+        background: t.bgElevated,
+        border: `1px solid ${t.borderAccent}`,
         borderRadius: 8,
         padding: "6px 14px",
         whiteSpace: "nowrap",
         fontSize: 11.5,
         fontFamily: "'DM Sans', sans-serif",
         fontWeight: 500,
-        color: "rgba(255,255,255,0.85)",
+        color: t.textPrimary,
         pointerEvents: "none",
         zIndex: 99999,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(229,9,20,0.06)",
+        boxShadow: `0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px ${t.borderSubtle}`,
         letterSpacing: "0.02em",
         backdropFilter: "blur(12px)",
         animation: "tooltipIn 0.15s cubic-bezier(0.34,1.56,0.64,1) forwards",
@@ -107,7 +106,7 @@ function PortalTooltip({
         width: 0, height: 0,
         borderTop: "5px solid transparent",
         borderBottom: "5px solid transparent",
-        borderRight: "6px solid rgba(229,9,20,0.22)",
+        borderRight: `6px solid ${t.borderAccent}`,
       }} />
       <span style={{
         position: "absolute", right: "calc(100% - 1px)", top: "50%",
@@ -115,7 +114,7 @@ function PortalTooltip({
         width: 0, height: 0,
         borderTop: "4px solid transparent",
         borderBottom: "4px solid transparent",
-        borderRight: "5px solid rgba(12,12,14,0.97)",
+        borderRight: `5px solid ${t.bgElevated}`,
       }} />
       {label}
     </div>,
@@ -131,6 +130,7 @@ function NavItem({
   href: string; label: string; Icon: React.ElementType;
   active: boolean; collapsed: boolean; badge?: number;
 }) {
+  const { t } = useTheme();
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLAnchorElement>(null);
 
@@ -151,9 +151,9 @@ function NavItem({
           borderRadius: 10,
           textDecoration: "none",
           background: active
-            ? "rgba(229,9,20,0.10)"
+            ? t.navActiveBg
             : hovered
-            ? "rgba(255,255,255,0.045)"
+            ? t.navHoverBg
             : "transparent",
           transition: "background 0.18s ease, transform 0.15s ease",
           marginBottom: 1,
@@ -164,7 +164,7 @@ function NavItem({
         {active && (
           <span style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(90deg, rgba(229,9,20,0.14) 0%, transparent 70%)",
+            background: `linear-gradient(90deg, ${t.navActiveBg} 0%, transparent 70%)`,
             borderRadius: 10, pointerEvents: "none",
           }} />
         )}
@@ -173,8 +173,8 @@ function NavItem({
           <span style={{
             position: "absolute", left: 0, top: "18%", bottom: "18%",
             width: 3, borderRadius: "0 4px 4px 0",
-            background: "linear-gradient(180deg, #ff5555, #e50914)",
-            boxShadow: "0 0 10px rgba(229,9,20,0.8), 0 0 20px rgba(229,9,20,0.4)",
+            background: t.navActiveBar,
+            boxShadow: `0 0 10px ${t.accentGlow}, 0 0 20px ${t.accentGlow}`,
           }} />
         )}
 
@@ -182,10 +182,10 @@ function NavItem({
           <Icon
             size={16}
             strokeWidth={active ? 2.2 : 1.6}
-            color={active ? "#ff5555" : hovered ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.28)"}
+            color={active ? t.iconActive : hovered ? t.iconHovered : t.iconInactive}
             style={{
               transition: "color 0.18s ease, filter 0.18s ease",
-              filter: active ? "drop-shadow(0 0 6px rgba(229,9,20,0.7))" : "none",
+              filter: active ? `drop-shadow(0 0 6px ${t.accentGlow})` : "none",
               display: "block",
             }}
           />
@@ -193,11 +193,11 @@ function NavItem({
             <span style={{
               position: "absolute", top: -5, right: -6,
               minWidth: 15, height: 15, borderRadius: 99,
-              background: "linear-gradient(135deg, #ff5555, #e50914)",
-              color: "#fff", fontSize: 8, fontWeight: 700,
+              background: t.navActiveBar,
+              color: t.textOnAccent, fontSize: 8, fontWeight: 700,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontFamily: "'DM Sans', sans-serif", padding: "0 3px",
-              boxShadow: "0 0 8px rgba(229,9,20,0.6)",
+              boxShadow: `0 0 8px ${t.accentGlow}`,
               animation: "badgePulse 2s ease-in-out infinite",
             }}>{badge}</span>
           )}
@@ -207,7 +207,7 @@ function NavItem({
           <span style={{
             flex: 1, fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
             fontWeight: active ? 600 : 400,
-            color: active ? "#f5f5f5" : hovered ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.34)",
+            color: active ? t.textPrimary : hovered ? t.textSecondary : t.iconInactive,
             whiteSpace: "nowrap", letterSpacing: "0.015em",
             transition: "color 0.18s ease",
           }}>{label}</span>
@@ -216,8 +216,8 @@ function NavItem({
         {active && !collapsed && (
           <span style={{
             width: 5, height: 5, borderRadius: "50%",
-            background: "#e50914",
-            boxShadow: "0 0 8px rgba(229,9,20,1), 0 0 16px rgba(229,9,20,0.5)",
+            background: t.accent,
+            boxShadow: `0 0 8px ${t.accentGlow}, 0 0 16px ${t.accentGlow}`,
             flexShrink: 0,
             animation: "dotPulse 2s ease-in-out infinite",
           }} />
@@ -254,11 +254,12 @@ function FooterNavItem({
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
+  const { t } = useTheme();
   return (
     <div style={{
       fontSize: 8, fontFamily: "'DM Sans', sans-serif",
       fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase",
-      color: "rgba(255,255,255,0.12)", padding: "10px 13px 5px", userSelect: "none",
+      color: t.textMuted, padding: "10px 13px 5px", userSelect: "none",
     }}>
       {children}
     </div>
@@ -275,6 +276,7 @@ export default function DashboardSidebar({
   const pathname   = usePathname() ?? "";
   const router     = useRouter();
   const { logout, user: authUser } = useAuth();
+  const { t } = useTheme();
 
   const [logoutHovered, setLogoutHovered]   = useState(false);
   const [profileHovered, setProfileHovered] = useState(false);
@@ -290,7 +292,6 @@ export default function DashboardSidebar({
   const W      = collapsed ? W_COLLAPSED : W_EXPANDED;
   const SPACER = W + 8;
 
-  // ── Resolve avatar from prefs (same source as ProfilePage) ──────────────
   const avStyle = (authUser?.prefs?.avStyle as string) ?? userProp.avStyle ?? "bottts";
   const avSeed  = (authUser?.prefs?.avSeed  as string) ?? userProp.avSeed  ?? (authUser?.$id ?? "djafro");
   const avatarUrl = dicebearUrl(avStyle, avSeed);
@@ -308,8 +309,8 @@ export default function DashboardSidebar({
           50% { opacity: 0.55; transform: scale(0.8); }
         }
         @keyframes badgePulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(229,9,20,0.6); }
-          50% { box-shadow: 0 0 14px rgba(229,9,20,0.9); }
+          0%, 100% { box-shadow: 0 0 8px var(--dj-accent-glow); }
+          50% { box-shadow: 0 0 14px var(--dj-accent-glow); }
         }
         @keyframes slideInLeft {
           from { opacity: 0; transform: translateX(-100%); }
@@ -326,9 +327,9 @@ export default function DashboardSidebar({
         .sidebar-avatar {
           border-radius: 50%;
           overflow: hidden;
-          background: #101015;
-          border: 2px solid rgba(229,9,20,0.22);
-          box-shadow: 0 0 12px rgba(229,9,20,0.25);
+          background: var(--dj-bg-elevated);
+          border: 2px solid var(--dj-border-accent);
+          box-shadow: 0 0 12px var(--dj-accent-glow);
           flex-shrink: 0;
           display: block;
         }
@@ -355,7 +356,7 @@ export default function DashboardSidebar({
         }}>
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(160deg, #111115 0%, #0b0b0e 55%, #0e0b0b 100%)",
+            background: t.bgSidebarGradient,
             animation: "filmFlicker 9s ease-in-out infinite",
           }} />
 
@@ -367,27 +368,28 @@ export default function DashboardSidebar({
             <rect width="100%" height="100%" filter="url(#sg)"/>
           </svg>
 
+          {/* Accent glow blobs — use CSS vars */}
           <div style={{
             position:"absolute", top:-40, left:-20,
             width:180, height:180, borderRadius:"50%",
-            background:"radial-gradient(circle, rgba(229,9,20,0.09) 0%, transparent 70%)",
+            background:`radial-gradient(circle, ${t.sidebarGlowTop} 0%, transparent 70%)`,
           }} />
           <div style={{
             position:"absolute", bottom:60, right:-30,
             width:140, height:140, borderRadius:"50%",
-            background:"radial-gradient(circle, rgba(229,9,20,0.05) 0%, transparent 70%)",
+            background:`radial-gradient(circle, ${t.sidebarGlowBottom} 0%, transparent 70%)`,
           }} />
 
           <div style={{
             position:"absolute", inset:0,
             borderRadius: BORDER_RADIUS,
-            border:"1px solid rgba(255,255,255,0.055)",
+            border:`1px solid ${t.borderSubtle}`,
             borderLeft:"none", pointerEvents:"none",
           }} />
           <div style={{
             position:"absolute", inset:0,
             borderRadius: BORDER_RADIUS,
-            boxShadow:"6px 0 40px rgba(0,0,0,0.6), inset -1px 0 0 rgba(255,255,255,0.02)",
+            boxShadow:`6px 0 40px rgba(0,0,0,0.6), inset -1px 0 0 ${t.borderSubtle}`,
             pointerEvents:"none",
           }} />
         </div>
@@ -404,13 +406,13 @@ export default function DashboardSidebar({
             display:"flex", alignItems:"center",
             padding: collapsed ? "0" : "0 16px",
             justifyContent: collapsed ? "center" : "flex-start",
-            borderBottom:"1px solid rgba(255,255,255,0.045)",
+            borderBottom:`1px solid ${t.borderSubtle}`,
             flexShrink: 0,
           }}>
             {collapsed ? (
               <div style={{
                 width: 36, height: 36, position:"relative",
-                filter: "drop-shadow(0 0 10px rgba(229,9,20,0.55))",
+                filter: `drop-shadow(0 0 10px ${t.accentGlow})`,
                 transition: "transform 0.2s ease",
                 flexShrink: 0,
               }}>
@@ -421,7 +423,7 @@ export default function DashboardSidebar({
                 position:"relative", height:42,
                 width:"auto", minWidth:110, maxWidth:185,
                 flex:"1 1 auto",
-                filter:"drop-shadow(0 0 12px rgba(229,9,20,0.55)) drop-shadow(0 0 24px rgba(229,9,20,0.25))",
+                filter:`drop-shadow(0 0 12px ${t.accentGlow}) drop-shadow(0 0 24px ${t.sidebarGlowTop})`,
                 transition:"opacity 0.2s ease",
               }}>
                 <Image src="/logo.png" alt="DjAfro Cinema" fill className="object-contain object-left" priority />
@@ -443,7 +445,7 @@ export default function DashboardSidebar({
 
             <div style={{
               height:1,
-              background:"linear-gradient(90deg, transparent, rgba(229,9,20,0.15), rgba(255,255,255,0.05), transparent)",
+              background:`linear-gradient(90deg, transparent, ${t.borderAccent}, ${t.borderSubtle}, transparent)`,
               margin:"8px 8px",
             }} />
 
@@ -455,7 +457,7 @@ export default function DashboardSidebar({
 
           {/* ── FOOTER ── */}
           <div style={{
-            borderTop:"1px solid rgba(255,255,255,0.045)",
+            borderTop:`1px solid ${t.borderSubtle}`,
             padding: collapsed ? "8px 6px" : "8px 8px",
             flexShrink:0,
           }}>
@@ -473,10 +475,9 @@ export default function DashboardSidebar({
                 padding: collapsed ? "10px 0" : "8px 10px",
                 justifyContent: collapsed ? "center" : "flex-start",
                 borderRadius:10, textDecoration:"none",
-                background: profileHovered ? "rgba(255,255,255,0.045)" : "transparent",
+                background: profileHovered ? t.navHoverBg : "transparent",
                 transition:"background 0.18s", marginBottom:2,
               }}>
-                {/* DiceBear avatar — same as ProfilePage */}
                 <img
                   src={avatarUrl}
                   alt={userProp.name}
@@ -489,19 +490,19 @@ export default function DashboardSidebar({
                   <div style={{ overflow:"hidden", flex:1, minWidth:0 }}>
                     <div style={{
                       fontSize:12, fontWeight:600,
-                      color:"rgba(255,255,255,0.82)",
+                      color: t.textPrimary,
                       fontFamily:"'DM Sans', sans-serif",
                       whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                     }}>{userProp.name}</div>
                     <div style={{
-                      fontSize:9.5, color:"rgba(255,255,255,0.22)",
+                      fontSize:9.5, color: t.textMuted,
                       fontFamily:"'DM Sans', sans-serif",
                       whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginTop:1,
                     }}>{userProp.email}</div>
                   </div>
                 )}
                 {!collapsed && (
-                  <Star size={11} color="rgba(229,9,20,0.4)" strokeWidth={2} style={{ flexShrink:0 }} />
+                  <Star size={11} color={t.borderAccent} strokeWidth={2} style={{ flexShrink:0 }} />
                 )}
               </Link>
             </FooterNavItem>
@@ -522,14 +523,14 @@ export default function DashboardSidebar({
                   padding: collapsed ? "10px 0" : "8px 10px",
                   justifyContent: collapsed ? "center" : "flex-start",
                   borderRadius:10,
-                  background: logoutHovered ? "rgba(229,9,20,0.07)" : "transparent",
+                  background: logoutHovered ? `${t.danger}12` : "transparent",
                   border:"none", cursor:"pointer", width:"100%",
                   transition:"background 0.18s",
                 }}
               >
                 <LogOut
                   size={15}
-                  color={logoutHovered ? "rgba(229,9,20,0.75)" : "rgba(255,255,255,0.18)"}
+                  color={logoutHovered ? t.danger : t.iconInactive}
                   strokeWidth={1.8}
                   style={{
                     transition:"color 0.18s, transform 0.18s", flexShrink:0,
@@ -539,7 +540,7 @@ export default function DashboardSidebar({
                 {!collapsed && (
                   <span style={{
                     fontSize:12, fontFamily:"'DM Sans', sans-serif",
-                    color: logoutHovered ? "rgba(229,9,20,0.75)" : "rgba(255,255,255,0.24)",
+                    color: logoutHovered ? t.danger : t.iconInactive,
                     transition:"color 0.18s",
                   }}>Sign out</span>
                 )}
@@ -565,14 +566,14 @@ export default function DashboardSidebar({
           width:20, height:44,
           borderRadius:10,
           background: toggleHovered
-            ? "linear-gradient(180deg, #252528, #1c1c1f)"
-            : "linear-gradient(180deg, #1a1a1d, #141416)",
-          border:"1px solid rgba(255,255,255,0.09)",
+            ? t.bgElevated
+            : t.bgSurface,
+          border:`1px solid ${toggleHovered ? t.borderAccent : t.borderSubtle}`,
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer",
-          color: toggleHovered ? "rgba(229,9,20,0.85)" : "rgba(255,255,255,0.28)",
+          color: toggleHovered ? t.accent : t.iconInactive,
           boxShadow: toggleHovered
-            ? "3px 0 16px rgba(229,9,20,0.22), 0 0 0 1px rgba(229,9,20,0.14)"
+            ? `3px 0 16px ${t.accentGlow}, 0 0 0 1px ${t.borderAccent}`
             : "3px 0 16px rgba(0,0,0,0.5)",
           transition:"left 0.3s cubic-bezier(0.25,1,0.5,1), background 0.18s, color 0.18s, box-shadow 0.18s",
           padding:0,

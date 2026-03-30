@@ -11,6 +11,7 @@ import {
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { usePremiumGate } from "@/context/PremiumGateContext";
+import { useTheme } from "@/context/ThemeContext";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MovieBanner from "@/components/dashboard/movie-banner/MovieBanner";
@@ -64,23 +65,25 @@ function toBannerMovie(m: Movie): BannerMovie {
 // ── Skeletons ─────────────────────────────────────────────────────────────────
 
 function SkeletonBanner() {
+  const { t } = useTheme();
   return (
-    <div style={{ position: "relative", width: "100%", height: "min(80vh, 680px)", background: "#0c0c0e", overflow: "hidden" }}>
+    <div style={{ position: "relative", width: "100%", height: "min(80vh, 680px)", background: t.bgSurface, overflow: "hidden" }}>
       <div className="dj-shimmer" />
     </div>
   );
 }
 
 function SkeletonRow() {
+  const { t } = useTheme();
   return (
     <div style={{ marginBottom: 44 }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 18, alignItems: "center" }}>
-        <div className="dj-sk" style={{ width: 3, height: 18 }} />
-        <div className="dj-sk" style={{ width: 180, height: 22 }} />
+        <div className="dj-sk" style={{ width: 3, height: 18, background: t.bgElevated }} />
+        <div className="dj-sk" style={{ width: 180, height: 22, background: t.bgElevated }} />
       </div>
       <div style={{ display: "flex", gap: 12 }}>
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} style={{ position: "relative", width: 180, minWidth: 180, height: 260, background: "#0e0e10", overflow: "hidden", flexShrink: 0 }}>
+          <div key={i} style={{ position: "relative", width: 180, minWidth: 180, height: 260, background: t.bgSurface, overflow: "hidden", flexShrink: 0 }}>
             <div className="dj-shimmer" />
           </div>
         ))}
@@ -90,20 +93,21 @@ function SkeletonRow() {
 }
 
 function EmptyRow({ label }: { label: string }) {
+  const { t } = useTheme();
   return (
-    <div style={{ padding: "32px 0", textAlign: "center", color: "rgba(255,255,255,0.18)", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+    <div style={{ padding: "32px 0", textAlign: "center", color: t.textMuted, fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
       No {label} yet.
     </div>
   );
 }
 
 // ── Floating Desktop Search ───────────────────────────────────────────────────
-// Floats absolutely over the banner — no header bar at all
 
 function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, onSearchChange }: {
   searchOpen: boolean; searchVal: string;
   onSearchOpen: () => void; onSearchClose: () => void; onSearchChange: (v: string) => void;
 }) {
+  const { t } = useTheme();
   return (
     <div style={{
       position: "absolute",
@@ -117,14 +121,14 @@ function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, on
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
           padding: "10px 14px",
-          background: "rgba(8,8,10,0.85)",
+          background: `${t.bgBase}d9`,
           backdropFilter: "blur(24px)",
           WebkitBackdropFilter: "blur(24px)",
-          border: "1px solid rgba(229,9,20,0.3)",
+          border: `1px solid ${t.borderAccent}`,
           borderRadius: 12,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(229,9,20,0.08)",
+          boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${t.borderSubtle}`,
         }}>
-          <Search size={13} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
+          <Search size={13} color={t.textMuted} strokeWidth={1.8} />
           <input
             autoFocus
             value={searchVal}
@@ -132,11 +136,11 @@ function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, on
             placeholder="Search movies…"
             style={{
               flex: 1, background: "transparent", border: "none",
-              color: "#fff", fontSize: 13,
+              color: t.textPrimary, fontSize: 13,
               fontFamily: "'DM Sans', sans-serif", outline: "none",
             }}
           />
-          <button onClick={onSearchClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", display: "flex", padding: 0 }}>
+          <button onClick={onSearchClose} style={{ background: "none", border: "none", cursor: "pointer", color: t.textMuted, display: "flex", padding: 0 }}>
             <X size={12} />
           </button>
         </div>
@@ -144,12 +148,12 @@ function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, on
         <button onClick={onSearchOpen} style={{
           display: "flex", alignItems: "center", gap: 9,
           padding: "9px 14px", width: "100%",
-          background: "rgba(8,8,10,0.6)",
+          background: `${t.bgBase}99`,
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          border: "1px solid rgba(255,255,255,0.1)",
+          border: `1px solid ${t.borderSubtle}`,
           borderRadius: 12, cursor: "pointer",
-          color: "rgba(255,255,255,0.38)",
+          color: t.textMuted,
           fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
           boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
           transition: "border-color 0.18s, background 0.18s",
@@ -158,8 +162,8 @@ function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, on
           <span style={{ flex: 1, textAlign: "left" }}>Search movies…</span>
           <kbd style={{
             fontSize: 9, padding: "2px 6px",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 5, color: "rgba(255,255,255,0.2)",
+            border: `1px solid ${t.borderSubtle}`,
+            borderRadius: 5, color: t.textMuted,
             fontFamily: "monospace", background: "transparent",
           }}>⌘K</kbd>
         </button>
@@ -171,20 +175,21 @@ function FloatingSearch({ searchOpen, searchVal, onSearchOpen, onSearchClose, on
 // ── Mobile Search Overlay ─────────────────────────────────────────────────────
 
 function MobileSearchOverlay({ open, val, onChange, onClose }: { open: boolean; val: string; onChange: (v: string) => void; onClose: () => void }) {
+  const { t } = useTheme();
   if (!open) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(8,8,10,0.97)", backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", padding: "20px 16px" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: `${t.bgBase}f7`, backdropFilter: "blur(20px)", display: "flex", flexDirection: "column", padding: "20px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(229,9,20,0.22)", borderRadius: 12 }}>
-          <Search size={15} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
-          <input autoFocus value={val} onChange={e => onChange(e.target.value)} placeholder="Search movies, genres…" style={{ flex: 1, background: "transparent", border: "none", color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", outline: "none" }} />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: t.navHoverBg, border: `1px solid ${t.borderAccent}`, borderRadius: 12 }}>
+          <Search size={15} color={t.textMuted} strokeWidth={1.8} />
+          <input autoFocus value={val} onChange={e => onChange(e.target.value)} placeholder="Search movies, genres…" style={{ flex: 1, background: "transparent", border: "none", color: t.textPrimary, fontSize: 15, fontFamily: "'DM Sans', sans-serif", outline: "none" }} />
         </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: t.textSecondary, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
       </div>
-      <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "rgba(255,255,255,0.18)", marginBottom: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>Popular</p>
+      <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, marginBottom: 12, fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>Popular</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {["Action", "Drama", "Thriller", "Romance", "Crime", "Sci-Fi"].map(t => (
-          <button key={t} onClick={() => onChange(t)} style={{ padding: "8px 14px", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 99, background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>{t}</button>
+        {["Action", "Drama", "Thriller", "Romance", "Crime", "Sci-Fi"].map(genre => (
+          <button key={genre} onClick={() => onChange(genre)} style={{ padding: "8px 14px", border: `1px solid ${t.borderSubtle}`, borderRadius: 99, background: t.navHoverBg, color: t.textSecondary, fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>{genre}</button>
         ))}
       </div>
     </div>
@@ -194,22 +199,23 @@ function MobileSearchOverlay({ open, val, onChange, onClose }: { open: boolean; 
 // ── Greeting ──────────────────────────────────────────────────────────────────
 
 function Greeting({ name, movieCount }: { name: string; movieCount: number }) {
+  const { t } = useTheme();
   const h = new Date().getHours();
   const greet = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   const GreetIcon = h < 12 ? Sun : h < 17 ? Sunset : Moon;
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 32 }}>
       <div>
-        <p style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)", margin: "0 0 5px", fontFamily: "'DM Sans', sans-serif" }}>{greet},</p>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 4vw, 2.8rem)", color: "#fff", letterSpacing: "0.04em", lineHeight: 1, margin: 0, display: "flex", alignItems: "center", gap: 12 }}>
+        <p style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, margin: "0 0 5px", fontFamily: "'DM Sans', sans-serif" }}>{greet},</p>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 4vw, 2.8rem)", color: t.textPrimary, letterSpacing: "0.04em", lineHeight: 1, margin: 0, display: "flex", alignItems: "center", gap: 12 }}>
           {name}
-          <GreetIcon size={28} color="#e50914" strokeWidth={1.5} style={{ opacity: 0.7 }} />
+          <GreetIcon size={28} color={t.accent} strokeWidth={1.5} style={{ opacity: 0.7 }} />
         </h1>
       </div>
       {movieCount > 0 && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(229,9,20,0.07)", border: "1px solid rgba(229,9,20,0.18)", padding: "8px 15px", borderRadius: 8 }}>
-          <span style={{ width: 6, height: 6, background: "#e50914", borderRadius: "50%", boxShadow: "0 0 7px rgba(229,9,20,0.7)", animation: "djPulse 2s ease-in-out infinite", display: "inline-block" }} />
-          <span style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>{movieCount}+ Movies Available</span>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: t.navActiveBg, border: `1px solid ${t.borderAccent}`, padding: "8px 15px", borderRadius: 8 }}>
+          <span style={{ width: 6, height: 6, background: t.accent, borderRadius: "50%", boxShadow: `0 0 7px ${t.accentGlow}`, animation: "djPulse 2s ease-in-out infinite", display: "inline-block" }} />
+          <span style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: t.textSecondary, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>{movieCount}+ Movies Available</span>
         </div>
       )}
     </div>
@@ -219,20 +225,21 @@ function Greeting({ name, movieCount }: { name: string; movieCount: number }) {
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
 function StatsWidget({ isMobile, movieCount }: { isMobile: boolean; movieCount: number }) {
+  const { t } = useTheme();
   const items = [
-    { Icon: Film,     val: movieCount > 0 ? `${movieCount}+` : "…", label: "Movies",   sub: "available" },
-    { Icon: Star,     val: "Top",                                     label: "Rated",    sub: "picks"     },
-    { Icon: Flame,    val: "Hot",                                     label: "Trending", sub: "now"       },
-    { Icon: Projector,val: "New",                                     label: "Arrivals", sub: "weekly"    },
+    { Icon: Film,      val: movieCount > 0 ? `${movieCount}+` : "…", label: "Movies",   sub: "available" },
+    { Icon: Star,      val: "Top",                                     label: "Rated",    sub: "picks"     },
+    { Icon: Flame,     val: "Hot",                                     label: "Trending", sub: "now"       },
+    { Icon: Projector, val: "New",                                     label: "Arrivals", sub: "weekly"    },
   ];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 2, background: "rgba(255,255,255,0.035)", borderRadius: 4, overflow: "hidden", marginBottom: 44 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 2, background: t.borderSubtle, borderRadius: 4, overflow: "hidden", marginBottom: 44 }}>
       {items.map(s => (
-        <div key={s.label} style={{ background: "#0c0c0e", padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-          <s.Icon size={20} color="#e50914" strokeWidth={1.5} style={{ marginBottom: 3, opacity: 0.8 }} />
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "1.85rem", color: "#fff", letterSpacing: "0.05em", lineHeight: 1 }}>{s.val}</span>
-          <span style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)", fontFamily: "'DM Sans', sans-serif" }}>{s.label}</span>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.14)", fontFamily: "'DM Sans', sans-serif" }}>{s.sub}</span>
+        <div key={s.label} style={{ background: t.bgSurface, padding: "20px 16px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <s.Icon size={20} color={t.accent} strokeWidth={1.5} style={{ marginBottom: 3, opacity: 0.8 }} />
+          <span style={{ fontFamily: "var(--font-display)", fontSize: "1.85rem", color: t.textPrimary, letterSpacing: "0.05em", lineHeight: 1 }}>{s.val}</span>
+          <span style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>{s.label}</span>
+          <span style={{ fontSize: 10, color: t.textMuted, fontFamily: "'DM Sans', sans-serif", opacity: 0.6 }}>{s.sub}</span>
         </div>
       ))}
     </div>
@@ -242,17 +249,18 @@ function StatsWidget({ isMobile, movieCount }: { isMobile: boolean; movieCount: 
 // ── Section Head ──────────────────────────────────────────────────────────────
 
 function SectionHead({ eyebrow, title, viewAll }: { eyebrow?: string; title: string; viewAll?: string }) {
+  const { t } = useTheme();
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
       <div>
-        {eyebrow && <span style={{ fontSize: 9, letterSpacing: "0.45em", textTransform: "uppercase", color: "#e50914", fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "block", marginBottom: 4 }}>{eyebrow}</span>}
+        {eyebrow && <span style={{ fontSize: 9, letterSpacing: "0.45em", textTransform: "uppercase", color: t.accent, fontWeight: 700, fontFamily: "'DM Sans', sans-serif", display: "block", marginBottom: 4 }}>{eyebrow}</span>}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 3, height: 18, background: "#e50914", boxShadow: "0 0 8px rgba(229,9,20,0.5)" }} />
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.2rem, 2.5vw, 1.7rem)", letterSpacing: "0.07em", color: "#fff", margin: 0 }}>{title}</h2>
+          <div style={{ width: 3, height: 18, background: t.accent, boxShadow: `0 0 8px ${t.accentGlow}` }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.2rem, 2.5vw, 1.7rem)", letterSpacing: "0.07em", color: t.textPrimary, margin: 0 }}>{title}</h2>
         </div>
       </div>
       {viewAll && (
-        <Link href={viewAll} style={{ fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(255,255,255,0.28)", textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>View All →</Link>
+        <Link href={viewAll} style={{ fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", color: t.textMuted, textDecoration: "none", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>View All →</Link>
       )}
     </div>
   );
@@ -261,10 +269,18 @@ function SectionHead({ eyebrow, title, viewAll }: { eyebrow?: string; title: str
 // ── Genre Filter ──────────────────────────────────────────────────────────────
 
 function GenreFilter({ genres, active, onChange }: { genres: string[]; active: string; onChange: (g: string) => void }) {
+  const { t } = useTheme();
   return (
     <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 24, scrollbarWidth: "none" }}>
       {["All", ...genres].map(g => (
-        <button key={g} onClick={() => onChange(g)} style={{ flexShrink: 0, fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase", padding: "7px 18px", cursor: "pointer", fontWeight: 600, border: `1px solid ${active === g ? "#e50914" : "rgba(255,255,255,0.09)"}`, background: active === g ? "#e50914" : "transparent", color: active === g ? "#fff" : "rgba(255,255,255,0.32)", fontFamily: "'DM Sans', sans-serif", transition: "all 0.18s", borderRadius: 4 }}>{g}</button>
+        <button key={g} onClick={() => onChange(g)} style={{
+          flexShrink: 0, fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase",
+          padding: "7px 18px", cursor: "pointer", fontWeight: 600,
+          border: `1px solid ${active === g ? t.accent : t.borderSubtle}`,
+          background: active === g ? t.accent : "transparent",
+          color: active === g ? t.textOnAccent : t.textMuted,
+          fontFamily: "'DM Sans', sans-serif", transition: "all 0.18s", borderRadius: 4,
+        }}>{g}</button>
       ))}
     </div>
   );
@@ -276,6 +292,7 @@ export default function DashboardPage() {
   const layout   = useDashboardLayout();
   const { user } = useAuth();
   const { requestPlay } = usePremiumGate();
+  const { t } = useTheme();
 
   const userName = user?.name || user?.email?.split("@")[0] || "Guest";
   const userObj  = { name: userName, email: user?.email ?? "" };
@@ -330,7 +347,6 @@ export default function DashboardPage() {
         <VideoPlayer src={playerState.src} title={playerState.title} subtitle={playerState.subtitle} poster={playerState.poster} onClose={closePlayer} autoPlay />
       )}
 
-      {/* Mobile search overlay */}
       {isSmall && (
         <MobileSearchOverlay
           open={searchOpen}
@@ -340,7 +356,7 @@ export default function DashboardPage() {
         />
       )}
 
-      <div style={{ display: "flex", height: "100svh", background: "#080808", overflow: "hidden" }}>
+      <div style={{ display: "flex", height: "100svh", background: t.bgBase, overflow: "hidden" }}>
         {!isSmall && (
           <DashboardSidebar user={userObj} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
         )}
@@ -358,13 +374,10 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              {/* Banner section — wraps relative so floating search can sit on top */}
               <div style={{ position: "relative", flexShrink: 0 }}>
                 {bannerMovies.length > 0 && (
-                 <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} userId={user?.$id ?? ""} />
+                  <MovieBanner movies={bannerMovies} onPlay={handlePlayBanner} userId={user?.$id ?? ""} />
                 )}
-
-                {/* Desktop floating search — over the banner, top-right */}
                 {!isSmall && (
                   <FloatingSearch
                     searchOpen={searchOpen}
@@ -394,7 +407,8 @@ export default function DashboardPage() {
                     : <EmptyRow label="new movies" />}
                 </section>
 
-                <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(229,9,20,0.22), transparent)", margin: "0 0 44px" }} />
+                {/* Section divider */}
+                <div style={{ width: "100%", height: 1, background: `linear-gradient(90deg, transparent, ${t.borderAccent}, transparent)`, margin: "0 0 44px" }} />
 
                 <section style={{ marginBottom: 48 }}>
                   <SectionHead eyebrow="Highest Rated" title="Top Rated" viewAll="/dashboard/movies" />
@@ -420,12 +434,12 @@ export default function DashboardPage() {
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
-        html, body { background: #080808; color: #fff; margin: 0; padding: 0; overflow: hidden; }
+        html, body { background: var(--dj-bg-base); color: var(--dj-text-primary); margin: 0; padding: 0; overflow: hidden; }
         #dj-content-col::-webkit-scrollbar { display: none; }
         #dj-content-col { scrollbar-width: none; }
         @keyframes djShimmer { 0%{background-position:-700px 0} 100%{background-position:700px 0} }
         .dj-shimmer { position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.04) 50%,rgba(255,255,255,0) 100%);background-size:700px 100%;animation:djShimmer 1.6s ease-in-out infinite; }
-        .dj-sk { background:rgba(255,255,255,0.05);position:relative;overflow:hidden;display:block; }
+        .dj-sk { background:var(--dj-bg-elevated);position:relative;overflow:hidden;display:block; }
         .dj-sk::after { content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.04) 50%,rgba(255,255,255,0) 100%);background-size:700px 100%;animation:djShimmer 1.6s ease-in-out infinite; }
         @keyframes djPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       `}</style>

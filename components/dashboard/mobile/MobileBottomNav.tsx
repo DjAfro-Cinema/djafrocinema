@@ -3,28 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
-// ── Custom SVG icons — no generic lucide shapes ───────────────────────────────
+// ── Custom SVG icons ──────────────────────────────────────────────────────────
 
-function IconHome({ active }: { active: boolean }) {
-  const c = active ? "#ff3d3d" : "rgba(255,255,255,0.32)";
+function IconHome({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
+  const c = active ? t.iconActive : t.iconInactive;
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <path d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H15v-5h-6v5H4a1 1 0 01-1-1V10.5z"
         stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinejoin="round"
-        fill={active ? "rgba(229,9,20,0.12)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <path d="M9 22V16h6v6" stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
     </svg>
   );
 }
 
-function IconFilm({ active }: { active: boolean }) {
-  const c = active ? "#ff3d3d" : "rgba(255,255,255,0.32)";
+function IconFilm({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
+  const c = active ? t.iconActive : t.iconInactive;
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="4" width="20" height="16" rx="2"
         stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? "rgba(229,9,20,0.10)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <path d="M7 4v16M17 4v16" stroke={c} strokeWidth={active ? 1.8 : 1.4} />
       <path d="M2 8.5h3M2 15.5h3M19 8.5h3M19 15.5h3" stroke={c} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" />
       <path d="M10.5 9.5l4 2.5-4 2.5V9.5z" fill={c} />
@@ -32,42 +33,42 @@ function IconFilm({ active }: { active: boolean }) {
   );
 }
 
-function IconCompass({ active }: { active: boolean }) {
-  const c = active ? "#ff3d3d" : "rgba(255,255,255,0.32)";
+function IconCompass({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
+  const c = active ? t.iconActive : t.iconInactive;
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? "rgba(229,9,20,0.08)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <path d="M16.5 7.5l-2.8 5.6-5.2 1.4 2.8-5.6 5.2-1.4z"
         stroke={c} strokeWidth={active ? 1.6 : 1.3} strokeLinejoin="round"
-        fill={active ? "rgba(229,9,20,0.25)" : "none"} />
+        fill={active ? `${t.accent}40` : "none"} />
       <circle cx="12" cy="12" r="1.2" fill={c} />
     </svg>
   );
 }
 
-function IconLibrary({ active }: { active: boolean }) {
-  const c = active ? "#ff3d3d" : "rgba(255,255,255,0.32)";
+function IconLibrary({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
+  const c = active ? t.iconActive : t.iconInactive;
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="4" width="5" height="16" rx="1"
         stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? "rgba(229,9,20,0.12)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <rect x="10" y="4" width="4" height="16" rx="1"
         stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? "rgba(229,9,20,0.08)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <path d="M16.5 4.5l3.8 15.2" stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
       <path d="M17 7.5l3 1M17.5 10.5l3 1" stroke={c} strokeWidth={1.2} strokeLinecap="round" />
     </svg>
   );
 }
 
-function IconProfile({ active }: { active: boolean }) {
-  const c = active ? "#ff3d3d" : "rgba(255,255,255,0.32)";
+function IconProfile({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
+  const c = active ? t.iconActive : t.iconInactive;
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="8" r="3.5" stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? "rgba(229,9,20,0.12)" : "none"} />
+        fill={active ? t.navActiveBg : "none"} />
       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
         stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
     </svg>
@@ -77,11 +78,11 @@ function IconProfile({ active }: { active: boolean }) {
 // ── Tab config ────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { label: "Home",     href: "/dashboard",          Icon: IconHome    },
-  { label: "Movies",   href: "/dashboard/movies",   Icon: IconFilm    },
-  { label: "Discover", href: "/dashboard/discover", Icon: IconCompass },
-  { label: "Library",  href: "/dashboard/library",  Icon: IconLibrary },
-  { label: "Profile",  href: "/dashboard/profile",  Icon: IconProfile },
+  { label: "Home",     href: "/dashboard",          IconComp: IconHome    },
+  { label: "Movies",   href: "/dashboard/movies",   IconComp: IconFilm    },
+  { label: "Discover", href: "/dashboard/discover", IconComp: IconCompass },
+  { label: "Library",  href: "/dashboard/library",  IconComp: IconLibrary },
+  { label: "Profile",  href: "/dashboard/profile",  IconComp: IconProfile },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ const TABS = [
 export default function MobileBottomNav() {
   const pathname = usePathname() ?? "";
   const [pressed, setPressed] = useState<string | null>(null);
+  const { t } = useTheme();
 
   const isActive = (href: string) =>
     href === "/dashboard"
@@ -150,13 +152,13 @@ export default function MobileBottomNav() {
           borderRadius: 28,
           overflow: "hidden",
           position: "relative",
-          boxShadow: "0 -2px 40px rgba(0,0,0,0.7), 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)",
+          boxShadow: `0 -2px 40px rgba(0,0,0,0.7), 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${t.borderSubtle}`,
         }}>
 
           {/* Glass base */}
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(160deg, rgba(18,16,16,0.97) 0%, rgba(10,10,13,0.98) 60%, rgba(14,10,10,0.97) 100%)",
+            background: t.bgSidebarGradient,
             backdropFilter: "blur(40px)",
             WebkitBackdropFilter: "blur(40px)",
           }} />
@@ -170,20 +172,20 @@ export default function MobileBottomNav() {
             pointerEvents: "none",
           }} />
 
-          {/* Red ambient glow center */}
+          {/* Accent ambient glow center */}
           <div style={{
             position: "absolute",
             bottom: -20, left: "50%", transform: "translateX(-50%)",
             width: 200, height: 80, borderRadius: "50%",
-            background: "radial-gradient(ellipse, rgba(229,9,20,0.12) 0%, transparent 70%)",
+            background: `radial-gradient(ellipse, ${t.sidebarGlowBottom} 0%, transparent 70%)`,
             pointerEvents: "none",
             animation: "glowBreathe 3s ease-in-out infinite",
           }} />
 
-          {/* Top edge shimmer */}
+          {/* Top edge shimmer — uses accent color */}
           <div style={{
             position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
-            background: "linear-gradient(90deg, transparent, rgba(229,9,20,0.6) 30%, rgba(255,100,100,0.9) 50%, rgba(229,9,20,0.6) 70%, transparent)",
+            background: `linear-gradient(90deg, transparent, ${t.accentDark} 30%, ${t.accentLight} 50%, ${t.accentDark} 70%, transparent)`,
             pointerEvents: "none",
           }} />
 
@@ -194,7 +196,7 @@ export default function MobileBottomNav() {
             alignItems: "stretch",
             height: 64,
           }}>
-            {TABS.map(({ label, href, Icon }) => {
+            {TABS.map(({ label, href, IconComp }) => {
               const active = isActive(href);
               const isPressed = pressed === href;
 
@@ -229,8 +231,8 @@ export default function MobileBottomNav() {
                       width: 36,
                       height: 3,
                       borderRadius: "0 0 6px 6px",
-                      background: "linear-gradient(90deg, rgba(229,9,20,0.4), #ff3d3d, rgba(229,9,20,0.4))",
-                      boxShadow: "0 0 10px rgba(229,9,20,0.9), 0 0 24px rgba(229,9,20,0.5)",
+                      background: `linear-gradient(90deg, ${t.accentDark}, ${t.accentLight}, ${t.accentDark})`,
+                      boxShadow: `0 0 10px ${t.accentGlow}, 0 0 24px ${t.accentGlow}`,
                       animation: "arcPulse 2.5s ease-in-out infinite",
                     }} />
                   )}
@@ -243,7 +245,7 @@ export default function MobileBottomNav() {
                       transform: "translate(-50%, -55%)",
                       width: 48, height: 48,
                       borderRadius: "50%",
-                      background: "radial-gradient(circle, rgba(229,9,20,0.18) 0%, transparent 70%)",
+                      background: `radial-gradient(circle, ${t.sidebarGlowTop} 0%, transparent 70%)`,
                       animation: "glowBreathe 2s ease-in-out infinite",
                       pointerEvents: "none",
                     }} />
@@ -255,7 +257,7 @@ export default function MobileBottomNav() {
                     transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1)",
                     transform: active ? "translateY(-1px) scale(1.08)" : "scale(1)",
                   }}>
-                    <Icon active={active} />
+                    <IconComp active={active} t={t} />
                   </div>
 
                   {/* Label */}
@@ -265,7 +267,7 @@ export default function MobileBottomNav() {
                     fontWeight: active ? 700 : 400,
                     letterSpacing: active ? "0.08em" : "0.04em",
                     textTransform: "uppercase",
-                    color: active ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.22)",
+                    color: active ? t.textPrimary : t.iconInactive,
                     transition: "color 0.18s, letter-spacing 0.18s",
                     position: "relative", zIndex: 1,
                     lineHeight: 1,
@@ -279,8 +281,8 @@ export default function MobileBottomNav() {
                       position: "absolute",
                       bottom: 6, left: "50%",
                       width: 3, height: 3, borderRadius: "50%",
-                      background: "#e50914",
-                      boxShadow: "0 0 6px rgba(229,9,20,1)",
+                      background: t.accent,
+                      boxShadow: `0 0 6px ${t.accentGlow}`,
                       animation: "dotPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
                     }} />
                   )}
