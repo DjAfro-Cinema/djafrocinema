@@ -44,10 +44,10 @@ function remaining(duration: string | null | undefined, pct: number) {
 }
 
 function statusColor(s: string): string {
-  if (s === "completed") return "#10b981";
-  if (s === "pending") return "#f59e0b";
-  if (s === "failed") return "#e50914";
-  return "rgba(255,255,255,0.3)";
+  if (s === "completed") return "var(--dj-success)";
+  if (s === "pending")   return "var(--dj-warning)";
+  if (s === "failed")    return "var(--dj-danger)";
+  return "var(--dj-text-muted)";
 }
 
 // ── TABS ───────────────────────────────────────────────────────────────────
@@ -61,75 +61,71 @@ type Tab = (typeof TABS)[number]["id"];
 
 // ── STATS BAR ─────────────────────────────────────────────────────────────
 
-function StatsBar({ owned, watching, wishlistCount, spent }: {
-  owned: number; watching: number; wishlistCount: number; spent: number;
-}) {
+function StatsBar({ owned, watching, wishlistCount, spent }: { owned: number; watching: number; wishlistCount: number; spent: number }) {
   const cells = [
-    { Icon: Film,      val: owned,           label: "Owned",    accent: "#e50914" },
-    { Icon: Clock,     val: watching,        label: "Watching", accent: "#e50914" },
-    { Icon: Heart,     val: wishlistCount,   label: "Wishlist", accent: "#e50914" },
-    { Icon: Wallet,    val: `${spent}`,      label: "Streak",   accent: "#e50914" },
+    { Icon: Film,   val: owned,         label: "Owned"    },
+    { Icon: Clock,  val: watching,      label: "Watching" },
+    { Icon: Heart,  val: wishlistCount, label: "Wishlist" },
+    { Icon: Wallet, val: `${spent}`,    label: "Streak"   },
   ];
 
   return (
-    <div className="stats-row">
+    <div className="lib-stats-row">
       {cells.map((c) => (
-        <div key={c.label} className="stat-cell">
-          <c.Icon size={18} color={c.accent} strokeWidth={1.6} />
-          <span className="stat-val">{c.val}</span>
-          <span className="stat-lbl">{c.label}</span>
+        <div key={c.label} className="lib-stat-cell">
+          <c.Icon size={18} color="var(--dj-accent)" strokeWidth={1.6} />
+          <span className="lib-stat-val">{c.val}</span>
+          <span className="lib-stat-lbl">{c.label}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ── CONTINUE WATCHING ROW (matches mobile app style) ──────────────────────
+// ── CONTINUE WATCHING ROW ─────────────────────────────────────────────────
 
 function ContinueRow({ item }: { item: WatchProgress }) {
-  const pct = item.progressPercent;
+  const pct   = item.progressPercent;
   const movie = item.movie;
 
   return (
-    <Link href={`/dashboard/movies/${movie.$id}`} className="cw-row">
-      <div className="cw-thumb">
+    <Link href={`/dashboard/movies/${movie.$id}`} className="lib-cw-row">
+      <div className="lib-cw-thumb">
         <img
-          src={movie.poster_url}
-          alt={movie.title}
-          className="cw-img"
+          src={movie.poster_url} alt={movie.title}
+          className="lib-cw-img"
           onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
         />
-        <div className="cw-thumb-overlay">
-          <div className="cw-play-sm">
+        <div className="lib-cw-thumb-overlay">
+          <div className="lib-cw-play-sm">
             <Play size={10} fill="#fff" color="#fff" style={{ marginLeft: 1 }} />
           </div>
         </div>
-        {/* Progress bar at bottom of thumb */}
-        <div className="cw-prog-bar">
-          <div className="cw-prog-fill" style={{ width: `${pct}%` }} />
+        <div className="lib-cw-prog-bar">
+          <div className="lib-cw-prog-fill" style={{ width: `${pct}%` }} />
         </div>
       </div>
 
-      <div className="cw-info">
-        <p className="cw-title">{movie.title}</p>
-        <p className="cw-sub">Last watched {ago(item.lastWatchedAt)}</p>
-        <div className="cw-progress-row">
-          <div className="cw-track">
-            <div className="cw-fill" style={{ width: `${pct}%` }} />
+      <div className="lib-cw-info">
+        <p className="lib-cw-title">{movie.title}</p>
+        <p className="lib-cw-sub">Last watched {ago(item.lastWatchedAt)}</p>
+        <div className="lib-cw-progress-row">
+          <div className="lib-cw-track">
+            <div className="lib-cw-fill" style={{ width: `${pct}%` }} />
           </div>
-          <span className="cw-pct">{pct}%</span>
+          <span className="lib-cw-pct">{pct}%</span>
         </div>
-        <p className="cw-remain">{remaining(movie.duration, pct)}</p>
+        <p className="lib-cw-remain">{remaining(movie.duration, pct)}</p>
       </div>
 
-      <div className="cw-play-btn">
+      <div className="lib-cw-play-btn">
         <Play size={11} fill="#fff" color="#fff" style={{ marginLeft: 1 }} />
       </div>
     </Link>
   );
 }
 
-// ── WISHLIST CARD (2-col grid, matches mobile Wishlist tab) ───────────────
+// ── WISHLIST CARD ─────────────────────────────────────────────────────────
 
 function WishlistCard({ entry }: { entry: UserLibraryEntry & { movie?: import("@/services/userLibrary.service").Movie } }) {
   const [hov, setHov] = useState(false);
@@ -139,68 +135,60 @@ function WishlistCard({ entry }: { entry: UserLibraryEntry & { movie?: import("@
   return (
     <Link
       href={`/dashboard/movies/${movie.$id}`}
-      className="wl-card"
+      className="lib-wl-card"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <div className="wl-poster">
+      <div className="lib-wl-poster">
         <img
-          src={movie.poster_url}
-          alt={movie.title}
-          className={`wl-img${hov ? " wl-img--zoom" : ""}`}
+          src={movie.poster_url} alt={movie.title}
+          className={`lib-wl-img${hov ? " lib-wl-img--zoom" : ""}`}
           onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }}
         />
-        {/* Rating badge top-left */}
-        <div className="wl-badge-rat">
+        <div className="lib-wl-badge-rat">
           <Star size={9} color="#f59e0b" fill="#f59e0b" />
           <span>{movie.rating?.toFixed(1) ?? "—"}</span>
         </div>
-        {/* Bookmark icon top-right */}
-        <div className="wl-badge-bm">
+        <div className="lib-wl-badge-bm">
           <Bookmark size={11} color="#fff" fill="rgba(255,255,255,0.9)" />
         </div>
-        {/* Play button center on hover */}
-        <div className={`wl-play${hov ? " wl-play--on" : ""}`}>
-          <div className="wl-play-circle">
+        <div className={`lib-wl-play${hov ? " lib-wl-play--on" : ""}`}>
+          <div className="lib-wl-play-circle">
             <Play size={13} fill="#fff" color="#fff" style={{ marginLeft: 2 }} />
           </div>
         </div>
-        {/* Premium lock */}
         {movie.premium_only && (
-          <div className="wl-lock">
+          <div className="lib-wl-lock">
             <Lock size={9} color="#f59e0b" />
           </div>
         )}
       </div>
-      <div className="wl-info">
-        <p className="wl-title">{movie.title}</p>
-        <p className="wl-sub">{movie.genre?.[0] ?? "—"} · {movie.release_year}</p>
+      <div className="lib-wl-info">
+        <p className="lib-wl-title">{movie.title}</p>
+        <p className="lib-wl-sub">{movie.genre?.[0] ?? "—"} · {movie.release_year}</p>
       </div>
     </Link>
   );
 }
 
-// ── PAYMENT ROW (matches Payments tab in mobile app) ──────────────────────
+// ── PAYMENT ROW ───────────────────────────────────────────────────────────
 
 function PaymentRow({ payment, movieTitle }: { payment: Payment; movieTitle?: string }) {
   const color = statusColor(payment.status);
-
   return (
-    <div className="pay-row">
-      <div className="pay-thumb">
-        <CreditCard size={16} color="rgba(255,255,255,0.2)" />
+    <div className="lib-pay-row">
+      <div className="lib-pay-thumb">
+        <CreditCard size={16} color="var(--dj-icon-inactive)" />
       </div>
-
-      <div className="pay-info">
-        <p className="pay-title">{movieTitle ?? payment.movieId}</p>
-        <p className="pay-date">{ago(payment.$createdAt)}</p>
+      <div className="lib-pay-info">
+        <p className="lib-pay-title">{movieTitle ?? payment.movieId}</p>
+        <p className="lib-pay-date">{ago(payment.$createdAt)}</p>
       </div>
-
-      <div className="pay-right">
-        <span className="pay-status" style={{ color, borderColor: `${color}33`, background: `${color}12` }}>
+      <div className="lib-pay-right">
+        <span className="lib-pay-status" style={{ color, borderColor: `${color}33`, background: `${color}12` }}>
           {payment.status.toUpperCase()}
         </span>
-        <span className="pay-amount">KES {payment.amount.toLocaleString()}</span>
+        <span className="lib-pay-amount">KES {payment.amount.toLocaleString()}</span>
       </div>
     </div>
   );
@@ -210,13 +198,13 @@ function PaymentRow({ payment, movieTitle }: { payment: Payment; movieTitle?: st
 
 function SkeletonRows() {
   return (
-    <div className="sk-list">
+    <div className="lib-sk-list">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="sk-row">
-          <div className="sk-thumb shimmer" />
-          <div className="sk-lines">
-            <div className="sk-line sk-line--lg shimmer" />
-            <div className="sk-line sk-line--sm shimmer" />
+        <div key={i} className="lib-sk-row">
+          <div className="lib-sk-thumb lib-shimmer" />
+          <div className="lib-sk-lines">
+            <div className="lib-sk-line lib-sk-line--lg lib-shimmer" />
+            <div className="lib-sk-line lib-sk-line--sm lib-shimmer" />
           </div>
         </div>
       ))}
@@ -234,22 +222,22 @@ function EmptyState({ tab }: { tab: Tab }) {
   };
   const { Icon, title, sub } = map[tab];
   return (
-    <div className="empty">
-      <div className="empty-icon"><Icon size={26} color="rgba(255,255,255,0.1)" /></div>
-      <p className="empty-title">{title}</p>
-      <p className="empty-sub">{sub}</p>
-      <Link href="/dashboard/movies" className="empty-cta">Browse Movies</Link>
+    <div className="lib-empty">
+      <div className="lib-empty-icon"><Icon size={26} color="var(--dj-icon-inactive)" /></div>
+      <p className="lib-empty-title">{title}</p>
+      <p className="lib-empty-sub">{sub}</p>
+      <Link href="/dashboard/movies" className="lib-empty-cta">Browse Movies</Link>
     </div>
   );
 }
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="empty">
-      <div className="empty-icon"><AlertCircle size={26} color="rgba(229,9,20,0.5)" /></div>
-      <p className="empty-title">Failed to load</p>
-      <p className="empty-sub">{message}</p>
-      <button className="empty-cta" onClick={onRetry}>
+    <div className="lib-empty">
+      <div className="lib-empty-icon"><AlertCircle size={26} color="var(--dj-danger)" /></div>
+      <p className="lib-empty-title">Failed to load</p>
+      <p className="lib-empty-sub">{message}</p>
+      <button className="lib-empty-cta" onClick={onRetry}>
         <RefreshCw size={11} style={{ marginRight: 5 }} /> Retry
       </button>
     </div>
@@ -270,7 +258,7 @@ export default function LibraryPage() {
     payments, loading: payLoading, error: payError, refetch: refetchPay,
   } = usePayments(user?.$id);
 
-  const [tab, setTab] = useState<Tab>("continue");
+  const [tab, setTab]       = useState<Tab>("continue");
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -283,30 +271,20 @@ export default function LibraryPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Wishlist entries — entries with isWishlisted === true
-  // We'll derive these from watchHistory + continueWatching entries — 
-  // actually we need all entries. For now use purchased to avoid extra fetch.
-  // In a full impl you'd add getAllEntries to the hook. We filter from available data.
   const wishlistEntries = [
     ...continueWatching.map((w) => ({ ...w.entry, movie: w.movie })),
     ...watchHistory.map((w) => ({ ...w.entry, movie: w.movie })),
   ].filter((e) => e.isWishlisted);
 
-  const tabCounts = {
-    continue: continueWatching.length,
-    wishlist: wishlistEntries.length,
-    payments: payments.length,
-  };
-
   const loading = libLoading || payLoading;
-  const error = libError || payError;
+  const error   = libError  || payError;
   const refetch = async () => { await Promise.all([refetchLib(), refetchPay()]); };
 
   return (
     <>
       <style>{CSS}</style>
 
-      <div className="shell">
+      <div className="lib-shell">
         {!isSmall && (
           <DashboardSidebar
             user={user ? { name: user.name, email: user.email } : { name: "", email: "" }}
@@ -315,7 +293,7 @@ export default function LibraryPage() {
           />
         )}
 
-        <div id="dj-content-col" className="content-col">
+        <div id="lib-content-col" className="lib-content-col">
           {isSmall ? (
             <MobileTopBar onSearchOpen={() => setSearchOpen(true)} notifCount={2} userName={user?.name ?? ""} />
           ) : (
@@ -329,48 +307,40 @@ export default function LibraryPage() {
             />
           )}
 
-          <div className="page-body" style={{ padding: isSmall ? "20px 16px 100px" : "28px 24px 72px" }}>
+          <div className="lib-page-body" style={{ padding: isSmall ? "20px 16px 100px" : "28px 24px 72px" }}>
 
             {/* Header */}
-            <div className="page-hd">
+            <div className="lib-page-hd">
               <div>
-                <h1 className="page-title">My List</h1>
-                <p className="page-sub">Your personal collection</p>
+                <h1 className="lib-page-title">My List</h1>
+                <p className="lib-page-sub">Your personal collection</p>
               </div>
-              <button className="refetch-btn" onClick={refetch} title="Refresh">
+              <button className="lib-refetch-btn" onClick={refetch} title="Refresh">
                 <RefreshCw size={14} />
               </button>
             </div>
 
-            {/* Tabs — pill style matching mobile app */}
-            <div className="tabs-bar">
-              {TABS.map((t) => {
-                const active = tab === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    className={`tab-btn${active ? " tab-btn--active" : ""}`}
-                    onClick={() => setTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
+            {/* Tabs */}
+            <div className="lib-tabs-bar">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  className={`lib-tab-btn${tab === t.id ? " lib-tab-btn--active" : ""}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
             {/* Stats */}
             {!loading && !error && (
-              <StatsBar
-                owned={stats.owned}
-                watching={stats.inProgress}
-                wishlistCount={wishlistEntries.length}
-                spent={0}
-              />
+              <StatsBar owned={stats.owned} watching={stats.inProgress} wishlistCount={wishlistEntries.length} spent={0} />
             )}
 
             {/* Section label */}
             {!loading && !error && tab === "continue" && continueWatching.length > 0 && (
-              <p className="section-label">Continue Watching</p>
+              <p className="lib-section-label">Continue Watching</p>
             )}
 
             {/* Content */}
@@ -379,45 +349,28 @@ export default function LibraryPage() {
             ) : error ? (
               <ErrorState message={error} onRetry={refetch} />
             ) : (
-              <div className={`tab-body${mounted ? " tab-body--in" : ""}`}>
+              <div className={`lib-tab-body${mounted ? " lib-tab-body--in" : ""}`}>
 
-                {/* ── CONTINUE WATCHING ── */}
                 {tab === "continue" && (
                   continueWatching.length === 0
                     ? <EmptyState tab="continue" />
-                    : (
-                      <div className="cw-list">
-                        {continueWatching.map((item) => (
-                          <ContinueRow key={item.entry.$id} item={item} />
-                        ))}
-                      </div>
-                    )
+                    : <div className="lib-cw-list">{continueWatching.map((item) => <ContinueRow key={item.entry.$id} item={item} />)}</div>
                 )}
 
-                {/* ── WISHLIST ── */}
                 {tab === "wishlist" && (
                   wishlistEntries.length === 0
                     ? <EmptyState tab="wishlist" />
                     : (
-                      <div className="wl-grid" style={{ gridTemplateColumns: `repeat(${isMobile ? 2 : isSmall ? 2 : 3}, 1fr)` }}>
-                        {wishlistEntries.map((entry) => (
-                          <WishlistCard key={entry.$id} entry={entry} />
-                        ))}
+                      <div className="lib-wl-grid" style={{ gridTemplateColumns: `repeat(${isMobile ? 2 : isSmall ? 2 : 3}, 1fr)` }}>
+                        {wishlistEntries.map((entry) => <WishlistCard key={entry.$id} entry={entry} />)}
                       </div>
                     )
                 )}
 
-                {/* ── PAYMENTS ── */}
                 {tab === "payments" && (
                   payments.length === 0
                     ? <EmptyState tab="payments" />
-                    : (
-                      <div className="pay-list">
-                        {payments.map((p) => (
-                          <PaymentRow key={p.$id} payment={p} />
-                        ))}
-                      </div>
-                    )
+                    : <div className="lib-pay-list">{payments.map((p) => <PaymentRow key={p.$id} payment={p} />)}</div>
                 )}
               </div>
             )}
@@ -436,368 +389,362 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; }
-  html, body { background: #070709; color: #fff; margin: 0; padding: 0; overflow: hidden; }
+  html, body {
+    background: var(--dj-bg-base);
+    color: var(--dj-text-primary);
+    margin: 0; padding: 0; overflow: hidden;
+  }
 
   /* ── Layout ── */
-  .shell { display: flex; height: 100svh; background: #070709; overflow: hidden; }
-  .content-col {
+  .lib-shell { display: flex; height: 100svh; background: var(--dj-bg-base); overflow: hidden; }
+  .lib-content-col {
     flex: 1; min-width: 0; height: 100svh;
     overflow-y: auto; overflow-x: hidden;
     display: flex; flex-direction: column;
     scrollbar-width: none;
   }
-  .content-col::-webkit-scrollbar { display: none; }
-  .page-body { flex: 1; }
+  .lib-content-col::-webkit-scrollbar { display: none; }
+  .lib-page-body { flex: 1; }
 
   /* ── Page header ── */
-  .page-hd {
+  .lib-page-hd {
     display: flex; align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 18px; gap: 12px;
   }
-  .page-title {
+  .lib-page-title {
     font-family: 'Syne', sans-serif;
     font-size: clamp(1.6rem, 4vw, 2.2rem);
     font-weight: 800; letter-spacing: -0.025em;
-    color: #fff; margin: 0 0 2px; line-height: 1;
+    color: var(--dj-text-primary); margin: 0 0 2px; line-height: 1;
   }
-  .page-sub {
+  .lib-page-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 12px; color: rgba(255,255,255,0.25); margin: 0;
+    font-size: 12px; color: var(--dj-text-muted); margin: 0;
   }
-  .refetch-btn {
+  .lib-refetch-btn {
     background: transparent; border: none;
-    cursor: pointer; color: rgba(255,255,255,0.3);
+    cursor: pointer; color: var(--dj-icon-inactive);
     padding: 4px; margin-top: 2px;
     transition: color 0.15s;
     display: flex; align-items: center;
   }
-  .refetch-btn:hover { color: rgba(255,255,255,0.6); }
+  .lib-refetch-btn:hover { color: var(--dj-icon-hovered); }
 
-  /* ── Tabs — pill style matching mobile ── */
-  .tabs-bar {
+  /* ── Tabs ── */
+  .lib-tabs-bar {
     display: flex; gap: 4px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: var(--dj-bg-surface);
+    border: 1px solid var(--dj-border-subtle);
     border-radius: 999px;
     padding: 4px;
     margin-bottom: 20px;
   }
-  .tab-btn {
-    flex: 1;
-    padding: 9px 8px;
+  .lib-tab-btn {
+    flex: 1; padding: 9px 8px;
     border-radius: 999px; border: none; cursor: pointer;
     background: transparent;
     font-family: 'Outfit', sans-serif;
     font-size: 13px; font-weight: 500;
-    color: rgba(255,255,255,0.35);
+    color: var(--dj-text-secondary);
     transition: background 0.16s, color 0.16s;
     white-space: nowrap;
   }
-  .tab-btn:hover { color: rgba(255,255,255,0.6); }
-  .tab-btn--active {
-    background: #e50914; color: #fff; font-weight: 600;
-    box-shadow: 0 2px 12px rgba(229,9,20,0.35);
+  .lib-tab-btn:hover { color: var(--dj-text-primary); }
+  .lib-tab-btn--active {
+    background: var(--dj-accent);
+    color: var(--dj-text-on-accent);
+    font-weight: 600;
+    box-shadow: 0 2px 12px var(--dj-accent-glow);
   }
-  .tab-btn--active:hover { background: #e50914; color: #fff; }
+  .lib-tab-btn--active:hover { background: var(--dj-accent); color: var(--dj-text-on-accent); }
 
   /* ── Stats ── */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 20px;
+  .lib-stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin-bottom: 20px;
   }
-  .stat-cell {
-    background: rgba(229,9,20,0.07);
-    border: 1px solid rgba(229,9,20,0.12);
+  .lib-stat-cell {
+    background: var(--dj-nav-active-bg);
+    border: 1px solid var(--dj-border-accent);
     border-radius: 12px;
     padding: 14px 8px 12px;
     display: flex; flex-direction: column;
     align-items: center; gap: 5px;
   }
-  .stat-val {
+  .lib-stat-val {
     font-family: 'Syne', sans-serif;
     font-size: 1.4rem; font-weight: 700;
-    color: #fff; line-height: 1;
+    color: var(--dj-text-primary); line-height: 1;
   }
-  .stat-lbl {
+  .lib-stat-lbl {
     font-family: 'Outfit', sans-serif;
     font-size: 9px; font-weight: 500;
     letter-spacing: 0.05em; text-transform: uppercase;
-    color: rgba(255,255,255,0.25);
+    color: var(--dj-text-muted);
   }
 
   /* ── Section label ── */
-  .section-label {
+  .lib-section-label {
     font-family: 'Syne', sans-serif;
     font-size: 14px; font-weight: 700;
-    color: #fff; margin: 0 0 12px;
+    color: var(--dj-text-primary); margin: 0 0 12px;
     letter-spacing: -0.01em;
   }
 
   /* ── Tab body ── */
-  .tab-body { opacity: 0; transform: translateY(5px); transition: opacity 0.18s ease, transform 0.18s ease; }
-  .tab-body--in { opacity: 1; transform: none; }
+  .lib-tab-body { opacity: 0; transform: translateY(5px); transition: opacity 0.18s ease, transform 0.18s ease; }
+  .lib-tab-body--in { opacity: 1; transform: none; }
 
-  /* ── Continue Watching rows ── */
-  .cw-list { display: flex; flex-direction: column; gap: 10px; }
-  .cw-row {
+  /* ── Continue Watching ── */
+  .lib-cw-list { display: flex; flex-direction: column; gap: 10px; }
+  .lib-cw-row {
     display: flex; align-items: center; gap: 13px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--dj-bg-surface);
+    border: 1px solid var(--dj-border-subtle);
     border-radius: 14px;
     padding: 10px 12px 10px 10px;
     text-decoration: none;
     transition: background 0.14s, border-color 0.14s;
     cursor: pointer;
   }
-  .cw-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
-
-  .cw-thumb {
+  .lib-cw-row:hover {
+    background: var(--dj-bg-elevated);
+    border-color: var(--dj-border-medium);
+  }
+  .lib-cw-thumb {
     width: 56px; height: 78px; border-radius: 8px;
     overflow: hidden; flex-shrink: 0;
-    background: #161620; position: relative;
+    background: var(--dj-bg-elevated); position: relative;
   }
-  .cw-img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-  }
-  .cw-thumb-overlay {
+  .lib-cw-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lib-cw-thumb-overlay {
     position: absolute; inset: 0;
     background: rgba(0,0,0,0.3);
     display: flex; align-items: center; justify-content: center;
   }
-  .cw-play-sm {
+  .lib-cw-play-sm {
     width: 22px; height: 22px; border-radius: 50%;
-    background: rgba(229,9,20,0.9);
+    background: var(--dj-accent);
     display: flex; align-items: center; justify-content: center;
   }
-  .cw-prog-bar {
+  .lib-cw-prog-bar {
     position: absolute; bottom: 0; left: 0; right: 0;
-    height: 3px; background: rgba(255,255,255,0.1);
+    height: 3px; background: var(--dj-border-subtle);
   }
-  .cw-prog-fill {
-    height: 100%; background: #e50914;
+  .lib-cw-prog-fill {
+    height: 100%; background: var(--dj-accent);
     border-radius: 0 2px 2px 0;
     transition: width 0.4s ease;
   }
-
-  .cw-info { flex: 1; min-width: 0; }
-  .cw-title {
+  .lib-cw-info { flex: 1; min-width: 0; }
+  .lib-cw-title {
     font-family: 'Outfit', sans-serif;
     font-size: 13px; font-weight: 600;
-    color: rgba(255,255,255,0.9);
+    color: var(--dj-text-primary);
     margin: 0 0 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .cw-sub {
+  .lib-cw-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 10.5px; color: rgba(255,255,255,0.25);
+    font-size: 10.5px; color: var(--dj-text-muted);
     margin: 0 0 8px;
   }
-  .cw-progress-row {
-    display: flex; align-items: center; gap: 7px;
-    margin-bottom: 4px;
+  .lib-cw-progress-row {
+    display: flex; align-items: center; gap: 7px; margin-bottom: 4px;
   }
-  .cw-track {
+  .lib-cw-track {
     flex: 1; height: 3px; border-radius: 99px;
-    background: rgba(255,255,255,0.08);
-    overflow: hidden;
+    background: var(--dj-border-subtle); overflow: hidden;
   }
-  .cw-fill {
-    height: 100%; background: linear-gradient(90deg, #e50914, #ff3a46);
-    border-radius: 99px;
-    transition: width 0.4s ease;
+  .lib-cw-fill {
+    height: 100%; background: var(--dj-accent-light);
+    border-radius: 99px; transition: width 0.4s ease;
   }
-  .cw-pct {
+  .lib-cw-pct {
     font-family: 'Outfit', sans-serif;
     font-size: 10px; font-weight: 700;
-    color: rgba(255,255,255,0.3); flex-shrink: 0;
+    color: var(--dj-text-muted); flex-shrink: 0;
   }
-  .cw-remain {
+  .lib-cw-remain {
     font-family: 'Outfit', sans-serif;
-    font-size: 10px; color: rgba(255,255,255,0.2); margin: 0;
+    font-size: 10px; color: var(--dj-text-muted); margin: 0;
   }
-  .cw-play-btn {
+  .lib-cw-play-btn {
     width: 32px; height: 32px; border-radius: 50%;
-    background: #e50914; flex-shrink: 0;
+    background: var(--dj-accent); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 16px rgba(229,9,20,0.4);
+    box-shadow: 0 0 16px var(--dj-accent-glow);
     transition: transform 0.13s;
   }
-  .cw-row:hover .cw-play-btn { transform: scale(1.07); }
+  .lib-cw-row:hover .lib-cw-play-btn { transform: scale(1.07); }
 
   /* ── Wishlist grid ── */
-  .wl-grid {
-    display: grid; gap: 10px;
-  }
-  .wl-card {
+  .lib-wl-grid { display: grid; gap: 10px; }
+  .lib-wl-card {
     border-radius: 10px; overflow: hidden;
-    background: #0c0c10;
-    border: 1px solid rgba(255,255,255,0.05);
-    text-decoration: none;
-    cursor: pointer;
-    display: block;
+    background: var(--dj-bg-elevated);
+    border: 1px solid var(--dj-border-subtle);
+    text-decoration: none; cursor: pointer; display: block;
     transition: transform 0.18s ease, border-color 0.18s ease;
   }
-  .wl-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.1); }
-  .wl-poster {
+  .lib-wl-card:hover { transform: translateY(-2px); border-color: var(--dj-border-medium); }
+  .lib-wl-poster {
     position: relative; aspect-ratio: 2/3;
-    background: #161620; overflow: hidden;
+    background: var(--dj-bg-elevated); overflow: hidden;
   }
-  .wl-img {
+  .lib-wl-img {
     width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform 0.35s ease;
   }
-  .wl-img--zoom { transform: scale(1.05); }
-  .wl-badge-rat {
+  .lib-wl-img--zoom { transform: scale(1.05); }
+  .lib-wl-badge-rat {
     position: absolute; top: 6px; left: 6px;
     display: flex; align-items: center; gap: 3px;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
     border-radius: 6px; padding: 3px 7px;
     font-family: 'Outfit', sans-serif;
-    font-size: 10px; font-weight: 700; color: #fff;
-    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 10px; font-weight: 700; color: var(--dj-text-primary);
+    border: 1px solid var(--dj-border-subtle);
   }
-  .wl-badge-bm {
+  .lib-wl-badge-bm {
     position: absolute; top: 6px; right: 6px;
     width: 26px; height: 26px; border-radius: 6px;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--dj-border-medium);
     display: flex; align-items: center; justify-content: center;
   }
-  .wl-play {
+  .lib-wl-play {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     opacity: 0; transition: opacity 0.15s;
     background: rgba(0,0,0,0.35);
   }
-  .wl-play--on { opacity: 1; }
-  .wl-play-circle {
+  .lib-wl-play--on { opacity: 1; }
+  .lib-wl-play-circle {
     width: 42px; height: 42px; border-radius: 50%;
-    background: #e50914;
+    background: var(--dj-accent);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 24px rgba(229,9,20,0.5);
+    box-shadow: 0 0 24px var(--dj-accent-glow);
   }
-  .wl-lock {
+  .lib-wl-lock {
     position: absolute; bottom: 8px; right: 8px;
-    background: rgba(0,0,0,0.6); border-radius: 5px;
-    padding: 3px 5px;
+    background: rgba(0,0,0,0.6); border-radius: 5px; padding: 3px 5px;
   }
-  .wl-info { padding: 8px 9px 10px; }
-  .wl-title {
+  .lib-wl-info { padding: 8px 9px 10px; }
+  .lib-wl-title {
     font-family: 'Outfit', sans-serif;
     font-size: 12px; font-weight: 600;
-    color: rgba(255,255,255,0.85);
+    color: var(--dj-text-primary);
     margin: 0 0 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .wl-sub {
+  .lib-wl-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 10px; color: rgba(255,255,255,0.2); margin: 0;
+    font-size: 10px; color: var(--dj-text-muted); margin: 0;
   }
 
   /* ── Payment rows ── */
-  .pay-list { display: flex; flex-direction: column; gap: 8px; }
-  .pay-row {
+  .lib-pay-list { display: flex; flex-direction: column; gap: 8px; }
+  .lib-pay-row {
     display: flex; align-items: center; gap: 12px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 12px 14px;
+    background: var(--dj-bg-surface);
+    border: 1px solid var(--dj-border-subtle);
+    border-radius: 12px; padding: 12px 14px;
   }
-  .pay-thumb {
+  .lib-pay-thumb {
     width: 40px; height: 40px; border-radius: 9px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--dj-bg-elevated);
+    border: 1px solid var(--dj-border-subtle);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .pay-info { flex: 1; min-width: 0; }
-  .pay-title {
+  .lib-pay-info { flex: 1; min-width: 0; }
+  .lib-pay-title {
     font-family: 'Outfit', sans-serif;
     font-size: 12.5px; font-weight: 600;
-    color: rgba(255,255,255,0.8);
+    color: var(--dj-text-primary);
     margin: 0 0 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .pay-date {
+  .lib-pay-date {
     font-family: 'Outfit', sans-serif;
-    font-size: 10px; color: rgba(255,255,255,0.22); margin: 0;
+    font-size: 10px; color: var(--dj-text-muted); margin: 0;
   }
-  .pay-right {
+  .lib-pay-right {
     display: flex; flex-direction: column; align-items: flex-end;
     gap: 4px; flex-shrink: 0;
   }
-  .pay-status {
+  .lib-pay-status {
     font-family: 'Outfit', sans-serif;
     font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em;
     padding: 2px 8px; border-radius: 99px;
     border: 1px solid transparent;
   }
-  .pay-amount {
+  .lib-pay-amount {
     font-family: 'Syne', sans-serif;
-    font-size: 12px; font-weight: 700; color: #fff;
+    font-size: 12px; font-weight: 700; color: var(--dj-text-primary);
   }
 
   /* ── Skeleton ── */
-  @keyframes shimmer {
+  @keyframes libShimmer {
     0%   { background-position: -600px 0; }
     100% { background-position:  600px 0; }
   }
-  .shimmer {
+  .lib-shimmer {
     background: linear-gradient(90deg,
       rgba(255,255,255,0) 0%,
       rgba(255,255,255,0.04) 50%,
       rgba(255,255,255,0) 100%
     );
     background-size: 600px 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    animation: libShimmer 1.5s ease-in-out infinite;
   }
-  .sk-list { display: flex; flex-direction: column; gap: 10px; }
-  .sk-row {
+  .lib-sk-list { display: flex; flex-direction: column; gap: 10px; }
+  .lib-sk-row {
     display: flex; gap: 13px; align-items: center;
     padding: 10px; border-radius: 14px;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.04);
+    background: var(--dj-bg-surface);
+    border: 1px solid var(--dj-border-subtle);
   }
-  .sk-thumb { width: 56px; height: 78px; border-radius: 8px; flex-shrink: 0; }
-  .sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-  .sk-line { height: 10px; border-radius: 6px; }
-  .sk-line--lg { width: 70%; }
-  .sk-line--sm { width: 45%; }
+  .lib-sk-thumb { width: 56px; height: 78px; border-radius: 8px; flex-shrink: 0; background: var(--dj-bg-elevated); }
+  .lib-sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .lib-sk-line { height: 10px; border-radius: 6px; background: var(--dj-bg-elevated); }
+  .lib-sk-line--lg { width: 70%; }
+  .lib-sk-line--sm { width: 45%; }
 
   /* ── Empty / Error ── */
-  .empty {
+  .lib-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 50px 24px; text-align: center;
   }
-  .empty-icon {
+  .lib-empty-icon {
     width: 56px; height: 56px; border-radius: 14px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: var(--dj-bg-surface);
+    border: 1px solid var(--dj-border-subtle);
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 14px;
   }
-  .empty-title {
+  .lib-empty-title {
     font-family: 'Syne', sans-serif;
     font-size: 1rem; font-weight: 700;
-    color: rgba(255,255,255,0.6);
-    margin: 0 0 7px;
+    color: var(--dj-text-secondary); margin: 0 0 7px;
   }
-  .empty-sub {
+  .lib-empty-sub {
     font-family: 'Outfit', sans-serif;
-    font-size: 12px; color: rgba(255,255,255,0.2);
+    font-size: 12px; color: var(--dj-text-muted);
     margin: 0 0 20px; max-width: 230px; line-height: 1.6;
   }
-  .empty-cta {
+  .lib-empty-cta {
     display: inline-flex; align-items: center;
     padding: 9px 22px;
-    background: #e50914; border-radius: 999px;
+    background: var(--dj-accent); border-radius: 999px;
     font-family: 'Outfit', sans-serif;
     font-size: 12px; font-weight: 600;
-    color: #fff; text-decoration: none; border: none; cursor: pointer;
-    transition: background 0.14s, transform 0.14s;
+    color: var(--dj-text-on-accent);
+    text-decoration: none; border: none; cursor: pointer;
+    transition: opacity 0.14s, transform 0.14s;
+    box-shadow: 0 2px 12px var(--dj-accent-glow);
   }
-  .empty-cta:hover { background: #ff1f2b; transform: translateY(-1px); }
+  .lib-empty-cta:hover { opacity: 0.88; transform: translateY(-1px); }
 `;
