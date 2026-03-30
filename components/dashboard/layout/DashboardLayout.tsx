@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext, useCallback } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { Menu, X, Bell, Search, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -31,7 +31,7 @@ interface DashboardLayoutProps {
 }
 
 function getScreenSize(w: number): "mobile" | "tablet" | "desktop" | "tv" {
-  if (w < 768) return "mobile";
+  if (w < 768)  return "mobile";
   if (w < 1024) return "tablet";
   if (w < 1920) return "desktop";
   return "tv";
@@ -46,13 +46,13 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const { t } = useTheme();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [screenSize, setScreenSize]   = useState<"mobile" | "tablet" | "desktop" | "tv">("desktop");
+  const [sidebarOpen, setSidebarOpen]           = useState(false);
+  const [screenSize, setScreenSize]             = useState<"mobile" | "tablet" | "desktop" | "tv">("desktop");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchOpen, setSearchOpen]   = useState(false);
-  const [searchVal, setSearchVal]     = useState("");
-  const [scrolled, setScrolled]       = useState(false);
-  const [mounted, setMounted]         = useState(false);
+  const [searchOpen, setSearchOpen]             = useState(false);
+  const [searchVal, setSearchVal]               = useState("");
+  const [scrolled, setScrolled]                 = useState(false);
+  const [mounted, setMounted]                   = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -68,14 +68,17 @@ export default function DashboardLayout({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close drawer if user resizes up to desktop
   useEffect(() => {
-    if (screenSize === "mobile") setSidebarOpen(false);
+    if (screenSize !== "mobile" && screenSize !== "tablet") {
+      setSidebarOpen(false);
+    }
   }, [screenSize]);
 
   useEffect(() => {
-    document.body.style.overflow = sidebarOpen && screenSize === "mobile" ? "hidden" : "";
+    document.body.style.overflow = sidebarOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [sidebarOpen, screenSize]);
+  }, [sidebarOpen]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -86,10 +89,14 @@ export default function DashboardLayout({
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const isMobile = screenSize === "mobile";
-  const isTablet = screenSize === "tablet";
-  const isTV     = screenSize === "tv";
+  // ── These are the ONLY conditions that control sidebar visibility ──
+  const isMobile         = screenSize === "mobile";
+  const isTablet         = screenSize === "tablet";
+  const isTV             = screenSize === "tv";
+  // Sidebar ONLY on desktop and TV — never on mobile or tablet
   const showInlineSidebar = !isMobile && !isTablet;
+  // Bottom nav ONLY on mobile — never on tablet, desktop, or TV
+  const showBottomNav     = isMobile;
 
   return (
     <LayoutContext.Provider value={{ sidebarOpen, setSidebarOpen, screenSize, sidebarCollapsed }}>
@@ -100,45 +107,19 @@ export default function DashboardLayout({
         fontFamily: "'DM Sans', sans-serif",
       }}>
 
-        {/* ── INLINE SIDEBAR (desktop / TV) ── */}
+        {/* ── SIDEBAR — desktop/TV ONLY, never rendered on mobile or tablet ── */}
         {showInlineSidebar && (
-          <DashboardSidebar user={user} />
-        )}
-
-        {/* ── MOBILE/TABLET DRAWER BACKDROP ── */}
-        {(isMobile || isTablet) && (
-          <div
-            aria-hidden
-            onClick={() => setSidebarOpen(false)}
-            style={{
-              position: "fixed", inset: 0, zIndex: 1100,
-              background: t.overlay,
-              backdropFilter: "blur(6px)",
-              opacity: sidebarOpen ? 1 : 0,
-              pointerEvents: sidebarOpen ? "auto" : "none",
-              transition: "opacity 0.3s ease",
-            }}
+          <DashboardSidebar
+            user={user}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
           />
-        )}
-
-        {/* ── MOBILE/TABLET DRAWER ── */}
-        {(isMobile || isTablet) && (
-          <div style={{
-            position: "fixed", top: 0, left: 0, bottom: 0,
-            zIndex: 1200,
-            width: isMobile ? "80vw" : 280,
-            maxWidth: 320,
-            transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
-            transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1)",
-          }}>
-            <DashboardSidebar user={user} />
-          </div>
         )}
 
         {/* ── MAIN CONTENT COLUMN ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
-          {/* ── TOP BAR (mobile/tablet) ── */}
+          {/* ── TOP BAR — mobile/tablet only ── */}
           {(isMobile || isTablet) && (
             <header style={{
               position: "sticky", top: 0, zIndex: 800,
@@ -150,20 +131,22 @@ export default function DashboardLayout({
               borderBottom: `1px solid ${t.borderSubtle}`,
               transition: "background 0.3s",
             }}>
-              {/* Hamburger */}
-              <button
-                onClick={() => setSidebarOpen(v => !v)}
-                style={{
-                  width: 38, height: 38,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  borderRadius: 10, border: `1px solid ${t.borderSubtle}`,
-                  background: "transparent", cursor: "pointer",
-                  color: t.textSecondary,
-                  transition: "background 0.2s, color 0.2s",
-                }}
-              >
-                {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
+              {/* Hamburger — tablet only (mobile uses bottom nav, no drawer needed) */}
+              {isTablet && (
+                <button
+                  onClick={() => setSidebarOpen(v => !v)}
+                  style={{
+                    width: 38, height: 38,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 10, border: `1px solid ${t.borderSubtle}`,
+                    background: "transparent", cursor: "pointer",
+                    color: t.textSecondary,
+                    transition: "background 0.2s, color 0.2s",
+                  }}
+                >
+                  {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
+              )}
 
               {/* Logo */}
               <div style={{ position: "relative", height: 30, width: 110 }}>
@@ -382,22 +365,21 @@ export default function DashboardLayout({
             flex: 1,
             padding: isTV ? "40px 48px" : isMobile ? "20px 16px" : "24px 28px",
             maxWidth: isTV ? 2000 : undefined,
+            // Extra bottom padding on mobile so content clears the bottom nav
             paddingBottom: isMobile ? 90 : undefined,
           }}>
             {children}
           </main>
         </div>
 
-        {/* ── MOBILE BOTTOM NAV ── */}
-        {isMobile && (
-          <MobileBottomNav />
-        )}
+        {/* ── BOTTOM NAV — mobile ONLY, never on tablet/desktop/TV ── */}
+        {showBottomNav && <MobileBottomNav />}
       </div>
     </LayoutContext.Provider>
   );
 }
 
-// ── MOBILE BOTTOM NAV (inline version inside layout) ─────────────────────────
+// ── MOBILE BOTTOM NAV ─────────────────────────────────────────────────────────
 import { Home, Film, Compass, Library, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -422,7 +404,6 @@ function MobileBottomNav() {
       backdropFilter: "blur(24px)",
       display: "flex", alignItems: "center",
     }}>
-      {/* Accent ambient line */}
       <div style={{
         position: "absolute", top: 0, left: "15%", right: "15%", height: 1,
         background: `linear-gradient(90deg, transparent, ${t.accent} 50%, transparent)`,
@@ -430,13 +411,16 @@ function MobileBottomNav() {
       }} />
 
       {BOTTOM_NAV.map(({ label, href, icon: Icon }) => {
-        const active = href === "/dashboard" ? pathname === "/dashboard" : pathname?.startsWith(href);
+        const active = href === "/dashboard"
+          ? pathname === "/dashboard"
+          : pathname?.startsWith(href);
         return (
           <Link key={href} href={href} style={{
             flex: 1, display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center", gap: 4,
             padding: "8px 4px", textDecoration: "none",
             position: "relative",
+            WebkitTapHighlightColor: "transparent",
           }}>
             {active && (
               <span style={{
@@ -460,4 +444,4 @@ function MobileBottomNav() {
       })}
     </nav>
   );
-}
+} 

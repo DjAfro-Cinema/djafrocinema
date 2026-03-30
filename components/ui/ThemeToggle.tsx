@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
-import { X, Check, Palette } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, Check, Palette, Settings } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import type { ThemeId } from "@/types/theme.types";
 
@@ -23,7 +24,6 @@ const THEME_META: Record<ThemeId, {
 const THEME_ORDER: ThemeId[] = ["netflix", "hulu", "prime", "amber", "hbo", "rosegold", "cyber"];
 
 // ── PUBLIC HANDLE ────────────────────────────────────────────────────────────
-// Exposes .openDrawer() so any parent (e.g. sidebar) can trigger it externally.
 
 export interface ThemeToggleHandle {
   openDrawer: () => void;
@@ -62,7 +62,7 @@ function ThemeCard({ id, active, onSelect }: { id: ThemeId; active: boolean; onS
         cursor: "pointer", transition: "all 0.15s ease", textAlign: "left",
       }}
     >
-      {/* Swatch — mini dark UI preview */}
+      {/* Swatch */}
       <div style={{
         width: 46, height: 32, borderRadius: 8, flexShrink: 0,
         background: meta.bg, border: "1px solid rgba(255,255,255,0.06)",
@@ -131,11 +131,11 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const btnRef    = useRef<HTMLButtonElement>(null);
+  const router    = useRouter();
 
   const acc = theme.tokens.accent;
   const activeMeta = THEME_META[theme.id as ThemeId];
 
-  // Expose openDrawer() to parent via ref
   useImperativeHandle(ref, () => ({
     openDrawer: () => setOpen(true),
   }));
@@ -162,6 +162,11 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
   function handleSelect(id: ThemeId) {
     setThemeId(id);
     setTimeout(() => setOpen(false), 250);
+  }
+
+  function handleGoToSettings() {
+    setOpen(false);
+    router.push("/dashboard/settings");
   }
 
   return (
@@ -315,6 +320,40 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
           padding: 8px 4px 4px; user-select: none;
         }
 
+        /* ── Settings row — mobile only ── */
+        .dj-settings-row {
+          display: none;
+        }
+        .dj-settings-btn {
+          display: flex; align-items: center; gap: 12px;
+          width: 100%; padding: 11px 12px; border-radius: 14px;
+          border: 1.5px solid rgba(255,255,255,0.06);
+          background: transparent;
+          cursor: pointer; transition: all 0.15s ease; text-align: left;
+          color: rgba(255,255,255,0.50);
+        }
+        .dj-settings-btn:hover {
+          border-color: rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.04);
+          color: rgba(255,255,255,0.80);
+        }
+        .dj-settings-icon {
+          width: 46px; height: 32px; border-radius: 8px; flex-shrink: 0;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          display: flex; align-items: center; justify-content: center;
+          color: rgba(255,255,255,0.30);
+          transition: color 0.15s;
+        }
+        .dj-settings-btn:hover .dj-settings-icon {
+          color: rgba(255,255,255,0.60);
+        }
+        .dj-settings-label {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12.5px; font-weight: 500;
+          letter-spacing: -0.01em;
+        }
+
         .dj-footer {
           border-top: 1px solid rgba(255,255,255,0.042);
           padding: 12px 16px 16px; flex-shrink: 0;
@@ -341,6 +380,7 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
         @media (max-width: 767px) {
           .dj-fab { gap: 6px; padding: 9px 14px 9px 12px; }
           .dj-drawer { width: min(280px, 86vw); }
+          .dj-settings-row { display: flex; flex-direction: column; gap: 3px; }
         }
       `}</style>
 
@@ -370,9 +410,26 @@ const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, r
 
         <div className="dj-body">
           <div className="dj-section-lbl">Themes — {THEME_ORDER.length} available</div>
+
           {THEME_ORDER.map(id => (
             <ThemeCard key={id} id={id} active={theme.id === id} onSelect={handleSelect} />
           ))}
+
+          {/* Settings — mobile only, sits right after the last theme card */}
+          <div className="dj-settings-row">
+            <div className="dj-section-lbl" style={{ paddingTop: 14 }}>Navigation</div>
+            <button className="dj-settings-btn" onClick={handleGoToSettings}>
+              <div className="dj-settings-icon">
+                <Settings size={14} strokeWidth={1.8} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="dj-settings-label">Settings</div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.18)", fontFamily: "'DM Sans', sans-serif", marginTop: 2 }}>
+                  Account, preferences & more
+                </div>
+              </div>
+            </button>
+          </div>
         </div>
 
         <div className="dj-footer">

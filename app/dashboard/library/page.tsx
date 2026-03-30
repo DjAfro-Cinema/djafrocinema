@@ -17,8 +17,6 @@ import { WatchProgress, UserLibraryEntry } from "@/services/userLibrary.service"
 import { Payment } from "@/services/payment.service";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
-import MobileTopBar from "@/components/dashboard/topbar/MobileTopBar";
-import DesktopTopBar from "@/components/dashboard/topbar/DesktopTopBar";
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -294,19 +292,6 @@ export default function LibraryPage() {
         )}
 
         <div id="lib-content-col" className="lib-content-col">
-          {isSmall ? (
-            <MobileTopBar onSearchOpen={() => setSearchOpen(true)} notifCount={2} userName={user?.name ?? ""} />
-          ) : (
-            <DesktopTopBar
-              scrolled={scrolled}
-              searchOpen={searchOpen} searchVal={searchVal}
-              onSearchOpen={() => setSearchOpen(true)}
-              onSearchClose={() => { setSearchOpen(false); setSearchVal(""); }}
-              onSearchChange={setSearchVal}
-              notifCount={2} userName={user?.name ?? ""}
-            />
-          )}
-
           <div className="lib-page-body" style={{ padding: isSmall ? "20px 16px 100px" : "28px 24px 72px" }}>
 
             {/* Header */}
