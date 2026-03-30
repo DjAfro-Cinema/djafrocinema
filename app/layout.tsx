@@ -4,7 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { DashboardLayout } from "@/components/dashboard";
 import { AuthProvider } from "@/context/AuthContext";
-
+import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
 
 const clashDisplay = localFont({
   src: [
@@ -69,7 +69,8 @@ export const metadata: Metadata = {
       "Stream and download DJ Afro dubbed movies, Bollywood, and African cinema. Kenya's #1 movie streaming platform.",
     images: ["/logos/android-chrome-512x512.png"],
   },
-  manifest: "/logos/site.webmanifest",
+  // ✅ Updated: points to app/manifest.ts (Next.js auto-routes this)
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: "/logos/favicon.ico" },
@@ -109,8 +110,10 @@ export default function RootLayout({
       className={`${clashDisplay.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
-      <AuthProvider>
-        {children}
+        <AuthProvider>
+          {children}
+          {/* PWA install prompt — shows after 4s, respects 3-day dismissal */}
+          <PWAInstallPrompt />
         </AuthProvider>
       </body>
     </html>
