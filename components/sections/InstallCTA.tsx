@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { usePWAInstall } from "@/hooks/Usepwainstall";
 
 const PLATFORMS = [
   {
@@ -14,6 +15,7 @@ const PLATFORMS = [
     ),
     color: "#3ddc84",
     popular: true,
+    platform: "android" as const,
   },
   {
     name: "iPhone",
@@ -26,6 +28,7 @@ const PLATFORMS = [
     ),
     color: "#b0b8c8",
     popular: false,
+    platform: "ios" as const,
   },
   {
     name: "Desktop",
@@ -39,6 +42,7 @@ const PLATFORMS = [
     ),
     color: "#4285f4",
     popular: false,
+    platform: "desktop" as const,
   },
   {
     name: "Smart TV",
@@ -53,13 +57,44 @@ const PLATFORMS = [
     ),
     color: "#e50914",
     popular: false,
+    platform: null, // Smart TV has no PWA prompt — manual steps only
   },
 ];
 
+// ── tiny toast ───────────────────────────────────────────────────────────────
+function Toast({ msg, color = "#e50914", onDone }: { msg: string; color?: string; onDone: () => void }) {
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const t1 = setTimeout(() => setVis(true), 30);
+    const t2 = setTimeout(() => { setVis(false); setTimeout(onDone, 400); }, 2800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [onDone]);
+  return (
+    <div
+      style={{
+        position: "fixed", bottom: 28, left: "50%", transform: `translateX(-50%) translateY(${vis ? 0 : 16}px)`,
+        opacity: vis ? 1 : 0, transition: "all .38s cubic-bezier(.22,1,.36,1)",
+        background: "#0d0d0d", border: "1px solid rgba(255,255,255,.1)",
+        boxShadow: `0 8px 32px rgba(0,0,0,.7), 0 0 0 1px ${color}22`,
+        color: "#fff", padding: "11px 22px", borderRadius: 4,
+        fontSize: 12, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase" as const,
+        zIndex: 99999, whiteSpace: "nowrap" as const,
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <span style={{ color, marginRight: 8 }}>✓</span>{msg}
+    </div>
+  );
+}
+
 export default function InstallCTA() {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible]     = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [busyIdx, setBusyIdx]     = useState<number | null>(null);
+  const [toast, setToast]         = useState<{ msg: string; color: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const { isInstalled, deferredPrompt, triggerInstall } = usePWAInstall();
 
   useEffect(() => {
     const ob = new IntersectionObserver(
@@ -70,15 +105,69 @@ export default function InstallCTA() {
     return () => ob.disconnect();
   }, []);
 
+  // Handle clicking any install button
+  const handleCardInstall = useCallback(async (
+    idx: number,
+    platform: typeof PLATFORMS[number]["platform"],
+    color: string
+  ) => {
+    // Smart TV — manual only, nothing to trigger
+    if (!platform) return;
+
+    // iOS — no deferred prompt, show the steps (they're already visible in the card)
+    if (platform === "ios") {
+      setToast({ msg: "Follow the steps above in Safari", color });
+      return;
+    }
+
+    // Already installed
+    if (isInstalled) {
+      setToast({ msg: "App already installed on this device", color: "#15803d" });
+      return;
+    }
+
+    // Android / Desktop with a deferred prompt
+    if (deferredPrompt) {
+      setBusyIdx(idx);
+      const outcome = await triggerInstall();
+      setBusyIdx(null);
+      if (outcome === "accepted") {
+        setToast({ msg: "App installed successfully!", color: "#15803d" });
+      }
+      return;
+    }
+
+    // Fallback — no prompt available yet
+    setToast({ msg: "Open this site in Chrome or Edge to install", color });
+  }, [isInstalled, deferredPrompt, triggerInstall]);
+
+  // Primary CTA button (left column)
+  const handlePrimaryCTA = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isInstalled) {
+      setToast({ msg: "App already installed on this device", color: "#15803d" });
+      return;
+    }
+    if (deferredPrompt) {
+      const outcome = await triggerInstall();
+      if (outcome === "accepted") {
+        setToast({ msg: "App installed successfully!", color: "#15803d" });
+      }
+      return;
+    }
+    // iOS or no prompt — scroll to cards for manual steps
+    const el = document.getElementById("install");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isInstalled, deferredPrompt, triggerInstall]);
+
   return (
     <section id="install" className="ic-section">
+      {toast && <Toast msg={toast.msg} color={toast.color} onDone={() => setToast(null)} />}
 
-      {/* Diagonal red slash — unique to this section */}
+      {/* Diagonal red slash */}
       <div className="ic-slash" aria-hidden />
-
       {/* Dot grid texture */}
       <div className="ic-dots" aria-hidden />
-
       {/* Ambient bottom glow */}
       <div className="ic-glow-bottom" aria-hidden />
 
@@ -125,14 +214,28 @@ export default function InstallCTA() {
           </div>
 
           {/* Primary CTA */}
-          <a href="#" className="ic-cta">
+          <a
+            href="#"
+            onClick={handlePrimaryCTA}
+            className="ic-cta"
+            style={isInstalled ? {
+              background: "linear-gradient(135deg, #15803d 0%, #166534 100%)",
+              boxShadow: "0 0 30px rgba(21,128,61,.32), 0 4px 18px rgba(0,0,0,.5)",
+            } : undefined}
+          >
             <span className="ic-cta-circle">
-              <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
-                <path d="M8 1a1 1 0 011 1v7.586l1.793-1.793a1 1 0 111.414 1.414l-3.5 3.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 111.414-1.414L7 9.586V2a1 1 0 011-1z"/>
-              </svg>
+              {isInstalled ? (
+                <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
+                  <path d="M13.854 3.646a.5.5 0 010 .708l-7 7a.5.5 0 01-.708 0l-3.5-3.5a.5.5 0 11.708-.708L6.5 10.293l6.646-6.647a.5.5 0 01.708 0z"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13">
+                  <path d="M8 1a1 1 0 011 1v7.586l1.793-1.793a1 1 0 111.414 1.414l-3.5 3.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 111.414-1.414L7 9.586V2a1 1 0 011-1z"/>
+                </svg>
+              )}
             </span>
-            Install DjAfro Cinema
-            <span className="ic-cta-shimmer" aria-hidden />
+            {isInstalled ? "App Already Installed ✓" : "Install DjAfro Cinema"}
+            {!isInstalled && <span className="ic-cta-shimmer" aria-hidden />}
           </a>
 
           {/* Trust row */}
@@ -153,6 +256,9 @@ export default function InstallCTA() {
           <div className="ic-cards">
             {PLATFORMS.map((p, i) => {
               const isHovered = hoveredIdx === i;
+              const isBusy    = busyIdx === i;
+              // Show green state only for non-iOS non-TV cards when installed
+              const cardInstalled = isInstalled && p.platform !== "ios" && p.platform !== null;
               return (
                 <div
                   key={p.name}
@@ -192,14 +298,40 @@ export default function InstallCTA() {
                   {/* Install button */}
                   <button
                     className="ic-install-btn"
+                    disabled={isBusy}
+                    onClick={() => handleCardInstall(i, p.platform, p.color)}
                     style={{
-                      color: isHovered ? "#fff" : p.color,
-                      background: isHovered ? p.color : "transparent",
-                      borderColor: `${p.color}40`,
-                      boxShadow: isHovered ? `0 0 22px ${p.color}44` : "none",
+                      color: cardInstalled
+                        ? "#fff"
+                        : isHovered ? "#fff" : p.color,
+                      background: cardInstalled
+                        ? "linear-gradient(135deg, #15803d 0%, #166534 100%)"
+                        : isHovered ? p.color : "transparent",
+                      borderColor: cardInstalled
+                        ? "#15803d"
+                        : `${p.color}40`,
+                      boxShadow: cardInstalled
+                        ? "0 0 22px rgba(21,128,61,.44)"
+                        : isHovered ? `0 0 22px ${p.color}44` : "none",
+                      opacity: isBusy ? 0.75 : 1,
                     }}
                   >
-                    Install on {p.name}
+                    {isBusy
+                      ? "Installing…"
+                      : cardInstalled
+                      ? `Installed ✓`
+                      : `Install on ${p.name}`}
+                    {/* shimmer ribbon on installable cards */}
+                    {!cardInstalled && !isBusy && isHovered && p.platform !== "ios" && p.platform !== null && (
+                      <span
+                        aria-hidden
+                        style={{
+                          position: "absolute", inset: 0,
+                          background: "linear-gradient(108deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                    )}
                   </button>
                 </div>
               );
@@ -227,7 +359,6 @@ export default function InstallCTA() {
           font-family: 'DM Sans', sans-serif;
         }
 
-        /* Diagonal slash unique to this section */
         .ic-slash {
           position: absolute;
           top: -30%; left: -8%;
@@ -237,7 +368,6 @@ export default function InstallCTA() {
           pointer-events: none;
         }
 
-        /* Dot grid */
         .ic-dots {
           position: absolute; inset: 0;
           background-image: radial-gradient(circle, rgba(255,255,255,.022) 1px, transparent 1px);
@@ -245,7 +375,6 @@ export default function InstallCTA() {
           pointer-events: none;
         }
 
-        /* Bottom glow */
         .ic-glow-bottom {
           position: absolute;
           bottom: -60px; left: 50%; transform: translateX(-50%);
@@ -257,7 +386,6 @@ export default function InstallCTA() {
           pointer-events: none;
         }
 
-        /* Layout */
         .ic-wrap {
           position: relative; z-index: 2;
           max-width: 1280px; margin: 0 auto; padding: 0 48px;
@@ -304,7 +432,6 @@ export default function InstallCTA() {
         }
         .ic-em { font-style:normal; color:rgba(255,255,255,.7); font-weight:500; }
 
-        /* Stats */
         .ic-stats {
           display:flex; margin-bottom:36px;
           border:1px solid rgba(255,255,255,.055); border-radius:5px; overflow:hidden;
@@ -321,7 +448,6 @@ export default function InstallCTA() {
           color:rgba(255,255,255,.26);
         }
 
-        /* CTA */
         .ic-cta {
           position:relative; overflow:hidden;
           display:inline-flex; align-items:center; gap:14px;
@@ -347,7 +473,6 @@ export default function InstallCTA() {
         }
         .ic-cta:hover .ic-cta-shimmer { transform:translateX(120%); }
 
-        /* Trust */
         .ic-trust { display:flex; flex-wrap:wrap; gap:14px; }
         .ic-trust-item {
           display:flex; align-items:center; gap:7px;
@@ -365,7 +490,6 @@ export default function InstallCTA() {
           color:rgba(255,255,255,.2); margin-bottom:14px; font-weight:500;
         }
 
-        /* Cards — 2×2 grid */
         .ic-cards {
           display:grid;
           grid-template-columns:1fr 1fr;
@@ -387,7 +511,6 @@ export default function InstallCTA() {
         }
         .ic-card-hov { background:#111; }
 
-        /* Left accent bar — slides in on hover */
         .ic-card-bar {
           position:absolute; top:0; left:0; bottom:0;
           width:2px;
@@ -398,7 +521,6 @@ export default function InstallCTA() {
         }
         .ic-card-hov .ic-card-bar { transform:scaleY(1); }
 
-        /* Head row */
         .ic-card-head {
           display:flex; align-items:center; gap:12px; margin-bottom:18px;
         }
@@ -427,7 +549,6 @@ export default function InstallCTA() {
           background:#e50914; padding:3px 7px; border-radius:2px;
         }
 
-        /* Steps */
         .ic-steps { list-style:none; margin:0 0 20px; padding:0; display:flex; flex-direction:column; gap:9px; }
         .ic-step  { display:flex; align-items:center; gap:10px; }
         .ic-step-n {
@@ -438,18 +559,19 @@ export default function InstallCTA() {
         .ic-step-t { font-size:12.5px; color:rgba(255,255,255,.48); line-height:1.4; }
         .ic-card-hov .ic-step-t { color:rgba(255,255,255,.65); }
 
-        /* Install button */
         .ic-install-btn {
+          position: relative;
           width:100%; padding:11px 0; border-radius:3px;
           font-family:'DM Sans',sans-serif;
           font-size:9.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase;
           border:1px solid; cursor:pointer;
           transition:background .2s, color .2s, box-shadow .2s, transform .14s;
+          overflow: hidden;
         }
         .ic-install-btn:hover { filter:brightness(1.08); }
         .ic-install-btn:active { transform:scale(.97); }
+        .ic-install-btn:disabled { cursor: not-allowed; }
 
-        /* Compat */
         .ic-compat { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
         .ic-compat-label {
           font-size:9px; letter-spacing:.3em; text-transform:uppercase;

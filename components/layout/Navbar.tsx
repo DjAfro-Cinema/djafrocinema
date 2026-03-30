@@ -13,6 +13,7 @@ import {
   Menu,
   LogIn,
 } from "lucide-react";
+import { usePWAInstall } from "@/hooks/Usepwainstall";
 
 const NAV_LINKS = [
   { label: "Movies",       id: "featured",     icon: <Film       size={14} /> },
@@ -29,18 +30,49 @@ function scrollToSection(id: string) {
   window.scrollTo({ top, behavior: "smooth" });
 }
 
+// ── tiny toast ──────────────────────────────────────────────────────────────
+function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const t1 = setTimeout(() => setVis(true), 30);
+    const t2 = setTimeout(() => { setVis(false); setTimeout(onDone, 400); }, 2800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [onDone]);
+  return (
+    <div
+      style={{
+        position: "fixed", bottom: 28, left: "50%", transform: `translateX(-50%) translateY(${vis ? 0 : 16}px)`,
+        opacity: vis ? 1 : 0, transition: "all .38s cubic-bezier(.22,1,.36,1)",
+        background: "#0d0d0d", border: "1px solid rgba(255,255,255,.1)",
+        boxShadow: "0 8px 32px rgba(0,0,0,.7), 0 0 0 1px rgba(229,9,20,.12)",
+        color: "#fff", padding: "11px 22px", borderRadius: 4,
+        fontSize: 12, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase",
+        zIndex: 99999, whiteSpace: "nowrap",
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <span style={{ color: "#e50914", marginRight: 8 }}>✓</span>{msg}
+    </div>
+  );
+}
+
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [scrolled, setScrolled]         = useState(false);
+  const [progress, setProgress]         = useState(0);
   const [activeSection, setActiveSection] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [mobileOpen, setMobileOpen]     = useState(false);
+  const [searchOpen, setSearchOpen]     = useState(false);
+  const [searchValue, setSearchValue]   = useState("");
+  const [hoveredLink, setHoveredLink]   = useState<string | null>(null);
+  const [toast, setToast]               = useState<string | null>(null);
+  const [btnBusy, setBtnBusy]           = useState(false);
+  const drawerRef       = useRef<HTMLDivElement>(null);
+  const searchInputRef  = useRef<HTMLInputElement>(null);
   const desktopSearchRef = useRef<HTMLInputElement>(null);
 
+  const { isInstalled, deferredPrompt, triggerInstall } = usePWAInstall();
+
+  // ── scroll + progress ────────────────────────────────────────────────────
   useEffect(() => {
     const onScroll = () => {
       const scrollY = window.scrollY;
@@ -52,26 +84,25 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // ── active section ───────────────────────────────────────────────────────
   useEffect(() => {
     const sections = NAV_LINKS.map((l) => document.getElementById(l.id)).filter(Boolean) as HTMLElement[];
     if (!sections.length) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) setActiveSection(e.target.id);
-        });
-      },
+      (entries) => { entries.forEach((e) => { if (e.isIntersecting) setActiveSection(e.target.id); }); },
       { threshold: 0.3, rootMargin: "-80px 0px 0px 0px" }
     );
     sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, []);
 
+  // ── body scroll lock ─────────────────────────────────────────────────────
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
+  // ── outside click closes drawer ──────────────────────────────────────────
   useEffect(() => {
     if (!mobileOpen) return;
     const handler = (e: MouseEvent) => {
@@ -83,6 +114,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, [mobileOpen]);
 
+  // ── keyboard search ──────────────────────────────────────────────────────
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -91,20 +123,40 @@ export default function Navbar() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.key === "/" || (e.ctrlKey && e.key === "k")) && !searchOpen) {
-        e.preventDefault();
-        openSearch();
+        e.preventDefault(); openSearch();
       }
-      if (e.key === "Escape" && searchOpen) {
-        setSearchOpen(false);
-        setSearchValue("");
-      }
+      if (e.key === "Escape" && searchOpen) { setSearchOpen(false); setSearchValue(""); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [searchOpen, openSearch]);
 
+  // ── install handler ──────────────────────────────────────────────────────
+  const handleInstallClick = useCallback(async () => {
+    if (isInstalled) {
+      setToast("Already installed on your device");
+      return;
+    }
+    if (!deferredPrompt) {
+      // No native prompt (iOS or already showing) — scroll to install section
+      scrollToSection("install");
+      return;
+    }
+    setBtnBusy(true);
+    const outcome = await triggerInstall();
+    setBtnBusy(false);
+    if (outcome === "accepted") {
+      setToast("App installed successfully!");
+    }
+  }, [isInstalled, deferredPrompt, triggerInstall]);
+
+  // ── shimmer: show on Install App button when PWA is installable ──────────
+  const showShimmer = !isInstalled && !!deferredPrompt;
+
   return (
     <>
+      {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
+
       {/* ── SCROLL PROGRESS ── */}
       <div
         aria-hidden
@@ -164,7 +216,7 @@ export default function Navbar() {
           {/* ── DESKTOP NAV ── */}
           <ul className="hidden lg:flex items-center gap-0 ml-2">
             {NAV_LINKS.map((link) => {
-              const isActive = activeSection === link.id;
+              const isActive  = activeSection === link.id;
               const isHovered = hoveredLink === link.id;
               return (
                 <li key={link.id}>
@@ -174,17 +226,10 @@ export default function Navbar() {
                     onMouseLeave={() => setHoveredLink(null)}
                     className="relative px-5 py-2.5 text-[11px] uppercase tracking-[0.2em] font-semibold focus:outline-none transition-colors duration-300 flex items-center gap-2"
                     style={{
-                      color: isActive
-                        ? "#fff"
-                        : isHovered
-                        ? "rgba(255,255,255,0.85)"
-                        : "rgba(255,255,255,0.42)",
+                      color: isActive ? "#fff" : isHovered ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.42)",
                     }}
                   >
-                    <span
-                      className="transition-colors duration-300"
-                      style={{ color: isActive ? "#e50914" : "inherit" }}
-                    >
+                    <span className="transition-colors duration-300" style={{ color: isActive ? "#e50914" : "inherit" }}>
                       {link.icon}
                     </span>
                     <span className="relative z-10">{link.label}</span>
@@ -192,9 +237,7 @@ export default function Navbar() {
                       className="absolute left-2 right-2 bottom-1 rounded-full transition-all duration-300 ease-out"
                       style={{
                         height: 2,
-                        background: isActive
-                          ? "linear-gradient(90deg, transparent, #e50914, transparent)"
-                          : "transparent",
+                        background: isActive ? "linear-gradient(90deg, transparent, #e50914, transparent)" : "transparent",
                         transform: isActive ? "scaleX(1)" : "scaleX(0)",
                         opacity: isActive ? 1 : 0,
                         boxShadow: isActive ? "0 0 8px #e50914" : "none",
@@ -203,12 +246,7 @@ export default function Navbar() {
                     <span
                       className="absolute inset-0 rounded transition-all duration-200"
                       style={{
-                        background:
-                          isHovered && !isActive
-                            ? "rgba(255,255,255,0.05)"
-                            : isActive
-                            ? "rgba(229,9,20,0.06)"
-                            : "transparent",
+                        background: isHovered && !isActive ? "rgba(255,255,255,0.05)" : isActive ? "rgba(229,9,20,0.06)" : "transparent",
                       }}
                     />
                     {isActive && (
@@ -242,10 +280,7 @@ export default function Navbar() {
                     autoFocus
                   />
                   {searchValue && (
-                    <button
-                      onClick={() => { setSearchValue(""); setSearchOpen(false); }}
-                      className="text-white/30 hover:text-white/70 transition-colors"
-                    >
+                    <button onClick={() => { setSearchValue(""); setSearchOpen(false); }} className="text-white/30 hover:text-white/70 transition-colors">
                       <X size={12} />
                     </button>
                   )}
@@ -262,7 +297,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Sign In — desktop → navigates to /auth */}
+            {/* Sign In */}
             <Link
               href="/auth"
               className="hidden lg:flex items-center gap-1.5 text-white/40 hover:text-white text-[11px] uppercase tracking-[0.15em] font-semibold transition-colors duration-200 px-3 py-2 focus:outline-none hover:bg-white/5 rounded"
@@ -271,27 +306,37 @@ export default function Navbar() {
               Sign In
             </Link>
 
-            {/* Install CTA */}
+            {/* ── Install App CTA (desktop) ── */}
             <button
-              onClick={() => scrollToSection("install")}
+              onClick={handleInstallClick}
+              disabled={btnBusy}
               className="hidden md:flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] px-5 py-2.5 rounded focus:outline-none transition-all duration-200 active:scale-95 group overflow-hidden relative"
               style={{
-                background: "linear-gradient(135deg, #e50914 0%, #c20710 100%)",
+                background: isInstalled
+                  ? "linear-gradient(135deg, #15803d 0%, #166534 100%)"
+                  : "linear-gradient(135deg, #e50914 0%, #c20710 100%)",
                 boxShadow: "0 0 0 0 rgba(229,9,20,0)",
+                opacity: btnBusy ? 0.75 : 1,
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px 4px rgba(229,9,20,0.4)";
+                if (!isInstalled)
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 0 20px 4px rgba(229,9,20,0.4)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 0 rgba(229,9,20,0)";
               }}
             >
               <Smartphone size={13} className="relative z-10 text-white" />
-              <span className="relative z-10 text-white">Install App</span>
-              <span
-                aria-hidden
-                className="absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/20 group-hover:translate-x-[200%] transition-transform duration-700"
-              />
+              <span className="relative z-10 text-white">
+                {btnBusy ? "Installing…" : isInstalled ? "App Installed ✓" : "Install App"}
+              </span>
+              {/* shimmer ribbon — only when installable */}
+              {showShimmer && (
+                <span
+                  aria-hidden
+                  className="absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/20 group-hover:translate-x-[200%] transition-transform duration-700"
+                />
+              )}
             </button>
 
             {/* Search icon — mobile */}
@@ -471,10 +516,7 @@ export default function Navbar() {
                       boxShadow: isActive ? "0 0 8px #e50914" : "none",
                     }}
                   />
-                  <span
-                    className="transition-colors duration-200"
-                    style={{ color: isActive ? "#e50914" : "rgba(255,255,255,0.2)" }}
-                  >
+                  <span className="transition-colors duration-200" style={{ color: isActive ? "#e50914" : "rgba(255,255,255,0.2)" }}>
                     {link.icon}
                   </span>
                   <span
@@ -496,7 +538,7 @@ export default function Navbar() {
               <span className="text-white/20 text-[10px] uppercase tracking-widest">Kenya · Streaming</span>
             </div>
 
-            {/* Sign In in drawer → /auth */}
+            {/* Sign In in drawer */}
             <Link
               href="/auth"
               onClick={() => setMobileOpen(false)}
@@ -506,16 +548,28 @@ export default function Navbar() {
               Sign In
             </Link>
 
+            {/* ── Install App (drawer) ── */}
             <button
-              onClick={() => { scrollToSection("install"); setMobileOpen(false); }}
+              onClick={() => { handleInstallClick(); setMobileOpen(false); }}
+              disabled={btnBusy}
               className="w-full py-3 text-[11px] text-white font-bold uppercase tracking-[0.15em] rounded-lg transition-all duration-200 active:scale-[0.98] focus:outline-none relative overflow-hidden flex items-center justify-center gap-2"
               style={{
-                background: "linear-gradient(135deg, #e50914 0%, #c20710 100%)",
-                boxShadow: "0 4px 20px rgba(229,9,20,0.35)",
+                background: isInstalled
+                  ? "linear-gradient(135deg, #15803d 0%, #166534 100%)"
+                  : "linear-gradient(135deg, #e50914 0%, #c20710 100%)",
+                boxShadow: isInstalled ? "0 4px 20px rgba(21,128,61,0.35)" : "0 4px 20px rgba(229,9,20,0.35)",
+                opacity: btnBusy ? 0.75 : 1,
               }}
             >
               <Smartphone size={13} />
-              Install App
+              {btnBusy ? "Installing…" : isInstalled ? "App Installed ✓" : "Install App"}
+              {/* shimmer ribbon */}
+              {showShimmer && (
+                <span
+                  aria-hidden
+                  className="absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/20 group-hover:translate-x-[200%] transition-transform duration-700"
+                />
+              )}
             </button>
           </div>
         </div>

@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import { usePWAInstall, DISMISSED_KEY, INSTALLED_KEY } from "@/hooks/Usepwainstall";
 
 type Platform = "android" | "ios" | "desktop" | null;
 
@@ -17,8 +13,6 @@ function detectPlatform(): Platform {
   return "desktop";
 }
 
-const DISMISSED_KEY = "pwa-prompt-dismissed";
-const INSTALLED_KEY  = "pwa-installed";
 const DISMISS_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // ── SVG Icons ──────────────────────────────────────────────────────────────
@@ -64,16 +58,18 @@ const IconCheck = () => (
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [platform, setPlatform]   = useState<Platform>(null);
-  const [show, setShow]           = useState(false);
-  const [visible, setVisible]     = useState(false);
+  const [platform, setPlatform]     = useState<Platform>(null);
+  const [show, setShow]             = useState(false);
+  const [visible, setVisible]       = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installed, setInstalled]   = useState(false);
   const lottieRef      = useRef<HTMLDivElement>(null);
   const lottieInstance = useRef<any>(null);
 
-  // Load Lottie dynamically – zero SSR issues on Vercel
+  // Use the shared hook — this gives us the same deferred prompt and install state
+  const { deferredPrompt, isInstalled: alreadyInstalled, triggerInstall } = usePWAInstall();
+
+  // Load Lottie dynamically
   useEffect(() => {
     if (!show || !lottieRef.current) return;
     import("lottie-web").then((lottie) => {
@@ -90,7 +86,7 @@ export default function PWAInstallPrompt() {
     return () => { lottieInstance.current?.destroy(); lottieInstance.current = null; };
   }, [show]);
 
-  // Spring-in animation after show becomes true
+  // Spring-in animation
   useEffect(() => {
     if (show) {
       const t = setTimeout(() => setVisible(true), 60);
@@ -99,11 +95,13 @@ export default function PWAInstallPrompt() {
     setVisible(false);
   }, [show]);
 
-  // Gate logic: standalone check, installed flag, dismiss cooldown (1 min)
+  // Gate logic
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.matchMedia("(display-mode: standalone)").matches) return; // already PWA
-    if (localStorage.getItem(INSTALLED_KEY)) return;                     // user installed
+
+    // Already a PWA or already installed (via buttons or previously) → never show
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    if (localStorage.getItem(INSTALLED_KEY)) return;
 
     const detected = detectPlatform();
     setPlatform(detected);
@@ -113,36 +111,56 @@ export default function PWAInstallPrompt() {
 
     if (detected === "ios") {
       if (!inCooldown) {
-        setTimeout(() => setShow(true), 4000);
+        const t = setTimeout(() => {
+          // Re-check installed flag (user might have installed via buttons in the meantime)
+          if (!localStorage.getItem(INSTALLED_KEY)) setShow(true);
+        }, 4000);
+        return () => clearTimeout(t);
       } else {
         const remaining = DISMISS_COOLDOWN_MS - (Date.now() - Number(dismissed!));
-        const t = setTimeout(() => setShow(true), remaining + 4000);
+        const t = setTimeout(() => {
+          if (!localStorage.getItem(INSTALLED_KEY)) setShow(true);
+        }, remaining + 4000);
         return () => clearTimeout(t);
       }
-      return;
     }
 
-    // Android / Desktop: ALWAYS capture the event, show only when cooldown passed
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      if (!inCooldown) {
-        setTimeout(() => setShow(true), 4000);
-      } else {
-        const remaining = DISMISS_COOLDOWN_MS - (Date.now() - Number(dismissed!));
-        setTimeout(() => setShow(true), remaining + 4000);
-      }
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    // Android / Desktop — show only when the deferred prompt arrives
+    // (usePWAInstall captures it globally; we watch deferredPrompt reactively below)
   }, []);
+
+  // Watch for deferred prompt becoming available (Android/Desktop)
+  useEffect(() => {
+    if (!deferredPrompt) return;
+    if (alreadyInstalled) return; // installed via buttons before prompt fired
+    if (platform === "ios") return;
+    if (!platform) return;
+
+    const dismissed = localStorage.getItem(DISMISSED_KEY);
+    const inCooldown = dismissed && Date.now() - Number(dismissed) < DISMISS_COOLDOWN_MS;
+    const delay = inCooldown
+      ? DISMISS_COOLDOWN_MS - (Date.now() - Number(dismissed!)) + 4000
+      : 4000;
+
+    const t = setTimeout(() => {
+      if (!localStorage.getItem(INSTALLED_KEY)) setShow(true);
+    }, delay);
+    return () => clearTimeout(t);
+  }, [deferredPrompt, alreadyInstalled, platform]);
+
+  // If installed via buttons while prompt is showing → hide it
+  useEffect(() => {
+    if (alreadyInstalled && show) {
+      setVisible(false);
+      setTimeout(() => setShow(false), 480);
+    }
+  }, [alreadyInstalled, show]);
 
   const handleDismiss = () => {
     setVisible(false);
     setTimeout(() => {
       setShow(false);
       localStorage.setItem(DISMISSED_KEY, String(Date.now()));
-      // Re-show after cooldown in this session
       setTimeout(() => {
         if (!localStorage.getItem(INSTALLED_KEY) &&
             !window.matchMedia("(display-mode: standalone)").matches) {
@@ -155,14 +173,11 @@ export default function PWAInstallPrompt() {
   const handleInstall = async () => {
     if (!deferredPrompt) return;
     setInstalling(true);
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    const outcome = await triggerInstall();
+    setInstalling(false);
     if (outcome === "accepted") {
       setInstalled(true);
-      localStorage.setItem(INSTALLED_KEY, "1");
       setTimeout(() => { setVisible(false); setTimeout(() => setShow(false), 480); }, 2200);
-    } else {
-      setInstalling(false);
     }
   };
 
@@ -170,11 +185,9 @@ export default function PWAInstallPrompt() {
 
   return (
     <>
-      {/* ── Styles ─────────────────────────────────────────────────────── */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
-        /* Wrapper — mobile: bottom sheet; desktop: bottom-right card */
         .pci-wrap {
           position: fixed;
           z-index: 9200;
@@ -201,7 +214,6 @@ export default function PWAInstallPrompt() {
           pointer-events: auto;
         }
 
-        /* Card */
         .pci-card {
           background: #0b0b0b;
           border-radius: 5px;
@@ -215,7 +227,6 @@ export default function PWAInstallPrompt() {
           position: relative;
         }
 
-        /* Top ribbon stripe */
         .pci-ribbon-top {
           height: 3px;
           background: linear-gradient(90deg,
@@ -227,7 +238,6 @@ export default function PWAInstallPrompt() {
           );
         }
 
-        /* Corner ribbon */
         .pci-corner {
           position: absolute;
           top: 3px; right: 0;
@@ -249,7 +259,6 @@ export default function PWAInstallPrompt() {
           transform: rotate(45deg);
         }
 
-        /* ── Hero ── */
         .pci-hero {
           position: relative;
           height: 150px;
@@ -258,7 +267,6 @@ export default function PWAInstallPrompt() {
         }
         @media (min-width: 600px) { .pci-hero { height: 215px; } }
 
-        /* red glow */
         .pci-hero::before {
           content: '';
           position: absolute; inset: 0;
@@ -267,7 +275,6 @@ export default function PWAInstallPrompt() {
             radial-gradient(ellipse 45% 35% at 10% -5%,  rgba(160,0,40,0.08) 0%, transparent 55%);
           z-index: 1;
         }
-        /* scanline texture */
         .pci-hero::after {
           content: '';
           position: absolute; inset: 0;
@@ -279,13 +286,11 @@ export default function PWAInstallPrompt() {
           pointer-events: none;
         }
 
-        /* fade into body */
         .pci-vignette {
           position: absolute; inset: 0; z-index: 3;
           background: linear-gradient(180deg, transparent 35%, rgba(11,11,11,0.82) 100%);
         }
 
-        /* Lottie */
         .pci-lottie-wrap {
           position: absolute; inset: 0; z-index: 4;
           display: flex; align-items: center; justify-content: center;
@@ -298,7 +303,6 @@ export default function PWAInstallPrompt() {
         }
         @media (min-width: 600px) { .pci-lottie { width: 225px; height: 225px; } }
 
-        /* Close btn — top-left for visibility, larger tap target on mobile */
         .pci-close {
           position: absolute; top: 10px; left: 10px; z-index: 6;
           width: 34px; height: 34px;
@@ -317,11 +321,9 @@ export default function PWAInstallPrompt() {
           border-color: rgba(229,9,20,0.45);
         }
 
-        /* ── Body ── */
         .pci-body { padding: 12px 14px 14px; }
         @media (min-width: 600px) { .pci-body { padding: 16px 16px 18px; } }
 
-        /* Logo row */
         .pci-logorow {
           display: flex; align-items: center; gap: 12px;
           margin-bottom: 10px;
@@ -344,7 +346,6 @@ export default function PWAInstallPrompt() {
         }
         @media (min-width: 600px) { .pci-tagline { font-size: 11px; } }
 
-        /* Feature pills */
         .pci-pills {
           display: flex; gap: 6px; flex-wrap: wrap;
           margin-bottom: 11px;
@@ -371,7 +372,6 @@ export default function PWAInstallPrompt() {
         }
         .pci-pill svg { color: #e50914; }
 
-        /* Install button */
         .pci-btn {
           width: 100%; height: 44px;
           border-radius: 4px;
@@ -403,7 +403,6 @@ export default function PWAInstallPrompt() {
           pointer-events: none;
         }
 
-        /* sheen sweep */
         .pci-sheen {
           position: absolute; top: 0; left: -100%; width: 55%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.13), transparent);
@@ -420,7 +419,6 @@ export default function PWAInstallPrompt() {
         }
         @keyframes pci-spin { to { transform: rotate(360deg); } }
 
-        /* iOS steps */
         .pci-divider { display:flex; align-items:center; gap:9px; margin-bottom:9px; }
         @media (min-width: 600px) { .pci-divider { margin-bottom: 11px; } }
         .pci-divider-line { flex:1; height:1px; background:rgba(255,255,255,0.06); }
@@ -447,7 +445,6 @@ export default function PWAInstallPrompt() {
           color:rgba(255,255,255,0.52); margin:0 2px;
         }
 
-        /* Bottom ribbon */
         .pci-ribbon-bot {
           height: 2px;
           background: linear-gradient(90deg,
@@ -460,7 +457,6 @@ export default function PWAInstallPrompt() {
         }
       `}</style>
 
-      {/* ── Modal — no forced overlay, user can still interact with page ── */}
       <div
         className={`pci-wrap${visible ? " in" : ""}`}
         role="dialog"
@@ -468,28 +464,21 @@ export default function PWAInstallPrompt() {
       >
         <div className="pci-card">
 
-          {/* Top ribbon */}
           <div className="pci-ribbon-top" />
-
-          {/* Corner badge */}
           <div className="pci-corner"><span>Free</span></div>
 
-          {/* Hero with Lottie */}
           <div className="pci-hero">
             <div className="pci-vignette" />
             <div className="pci-lottie-wrap">
               <div ref={lottieRef} className="pci-lottie" />
             </div>
-            {/* Close button — top-left, clearly visible */}
             <button className="pci-close" onClick={handleDismiss} aria-label="Dismiss">
               <IconClose />
             </button>
           </div>
 
-          {/* Body */}
           <div className="pci-body">
 
-            {/* Logo + tagline */}
             <div className="pci-logorow">
               <div className="pci-logo-img">
                 <Image
@@ -498,8 +487,7 @@ export default function PWAInstallPrompt() {
                   fill
                   className="object-contain object-left"
                   style={{
-                    filter:
-                      "drop-shadow(0 0 10px rgba(229,9,20,0.55)) drop-shadow(0 0 22px rgba(229,9,20,0.22))",
+                    filter: "drop-shadow(0 0 10px rgba(229,9,20,0.55)) drop-shadow(0 0 22px rgba(229,9,20,0.22))",
                   }}
                 />
               </div>
@@ -508,26 +496,23 @@ export default function PWAInstallPrompt() {
               </p>
             </div>
 
-            {/* Pills */}
             <div className="pci-pills">
               <span className="pci-pill"><IconBolt />Instant Load</span>
               <span className="pci-pill"><IconStar />Works Offline</span>
             </div>
 
-            {/* Android / Desktop install button */}
             {(platform === "android" || platform === "desktop") && deferredPrompt && (
               <button
                 onClick={handleInstall}
                 className={`pci-btn${installing ? " busy" : ""}${installed ? " done" : ""}`}
               >
                 {!installing && !installed && <span className="pci-sheen" />}
-                {installed   ? <><IconCheck />  Installed — Enjoy!</>       :
+                {installed   ? <><IconCheck />  Installed — Enjoy!</>            :
                  installing  ? <><span className="pci-spinner" /> Installing…</> :
                                <><IconDownload /> Install App — It&apos;s Free</>}
               </button>
             )}
 
-            {/* iOS steps */}
             {platform === "ios" && (
               <>
                 <div className="pci-divider">
@@ -561,7 +546,6 @@ export default function PWAInstallPrompt() {
             )}
           </div>
 
-          {/* Bottom ribbon */}
           <div className="pci-ribbon-bot" />
         </div>
       </div>
