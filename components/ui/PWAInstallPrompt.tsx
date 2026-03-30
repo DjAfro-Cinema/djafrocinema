@@ -19,6 +19,7 @@ function detectPlatform(): Platform {
 
 const DISMISSED_KEY = "pwa-prompt-dismissed";
 const INSTALLED_KEY  = "pwa-installed";
+const DISMISS_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // ── SVG Icons ──────────────────────────────────────────────────────────────
 const IconBolt = () => (
@@ -98,26 +99,39 @@ export default function PWAInstallPrompt() {
     setVisible(false);
   }, [show]);
 
-  // Gate logic: standalone check, installed flag, dismiss cooldown
+  // Gate logic: standalone check, installed flag, dismiss cooldown (1 min)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(display-mode: standalone)").matches) return; // already PWA
     if (localStorage.getItem(INSTALLED_KEY)) return;                     // user installed
-    const dismissed = localStorage.getItem(DISMISSED_KEY);
-    if (dismissed && Date.now() - Number(dismissed) < 3 * 24 * 60 * 60 * 1000) return;
 
     const detected = detectPlatform();
     setPlatform(detected);
 
+    const dismissed = localStorage.getItem(DISMISSED_KEY);
+    const inCooldown = dismissed && Date.now() - Number(dismissed) < DISMISS_COOLDOWN_MS;
+
     if (detected === "ios") {
-      setTimeout(() => setShow(true), 4000);
+      if (!inCooldown) {
+        setTimeout(() => setShow(true), 4000);
+      } else {
+        const remaining = DISMISS_COOLDOWN_MS - (Date.now() - Number(dismissed!));
+        const t = setTimeout(() => setShow(true), remaining + 4000);
+        return () => clearTimeout(t);
+      }
       return;
     }
 
+    // Android / Desktop: ALWAYS capture the event, show only when cooldown passed
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setTimeout(() => setShow(true), 4000);
+      if (!inCooldown) {
+        setTimeout(() => setShow(true), 4000);
+      } else {
+        const remaining = DISMISS_COOLDOWN_MS - (Date.now() - Number(dismissed!));
+        setTimeout(() => setShow(true), remaining + 4000);
+      }
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
@@ -128,6 +142,13 @@ export default function PWAInstallPrompt() {
     setTimeout(() => {
       setShow(false);
       localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+      // Re-show after cooldown in this session
+      setTimeout(() => {
+        if (!localStorage.getItem(INSTALLED_KEY) &&
+            !window.matchMedia("(display-mode: standalone)").matches) {
+          setShow(true);
+        }
+      }, DISMISS_COOLDOWN_MS);
     }, 480);
   };
 
@@ -158,7 +179,7 @@ export default function PWAInstallPrompt() {
           position: fixed;
           z-index: 9200;
           bottom: 0; left: 0; right: 0;
-          padding: 0 10px 12px;
+          padding: 0 8px 10px;
           transform: translateY(calc(100% + 12px));
           opacity: 0;
           transition:
@@ -231,7 +252,7 @@ export default function PWAInstallPrompt() {
         /* ── Hero ── */
         .pci-hero {
           position: relative;
-          height: 190px;
+          height: 150px;
           background: #070707;
           overflow: hidden;
         }
@@ -270,70 +291,79 @@ export default function PWAInstallPrompt() {
           display: flex; align-items: center; justify-content: center;
         }
         .pci-lottie {
-          width: 200px; height: 200px;
+          width: 160px; height: 160px;
           filter:
             drop-shadow(0 0 32px rgba(229,9,20,0.5))
             drop-shadow(0 0 10px rgba(229,9,20,0.2));
         }
         @media (min-width: 600px) { .pci-lottie { width: 225px; height: 225px; } }
 
-        /* Close btn */
+        /* Close btn — top-left for visibility, larger tap target on mobile */
         .pci-close {
-          position: absolute; top: 10px; right: 10px; z-index: 6;
-          width: 30px; height: 30px;
+          position: absolute; top: 10px; left: 10px; z-index: 6;
+          width: 34px; height: 34px;
           border-radius: 4px;
-          background: rgba(0,0,0,0.6);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.45);
+          background: rgba(0,0,0,0.72);
+          border: 1px solid rgba(255,255,255,0.12);
+          color: rgba(255,255,255,0.6);
           display: flex; align-items: center; justify-content: center;
           cursor: pointer;
           transition: background 0.16s, color 0.16s, border-color 0.16s;
           backdrop-filter: blur(6px);
         }
         .pci-close:hover {
-          background: rgba(229,9,20,0.2);
+          background: rgba(229,9,20,0.25);
           color: #fff;
-          border-color: rgba(229,9,20,0.35);
+          border-color: rgba(229,9,20,0.45);
         }
 
         /* ── Body ── */
-        .pci-body { padding: 16px 16px 18px; }
+        .pci-body { padding: 12px 14px 14px; }
+        @media (min-width: 600px) { .pci-body { padding: 16px 16px 18px; } }
 
         /* Logo row */
         .pci-logorow {
           display: flex; align-items: center; gap: 12px;
-          margin-bottom: 13px;
+          margin-bottom: 10px;
         }
+        @media (min-width: 600px) { .pci-logorow { margin-bottom: 13px; } }
+
         .pci-logo-img {
           position: relative;
           flex-shrink: 0;
-          height: 36px; width: 124px;
+          height: 32px; width: 110px;
         }
+        @media (min-width: 600px) { .pci-logo-img { height: 36px; width: 124px; } }
+
         .pci-tagline {
-          font-size: 11px;
+          font-size: 10.5px;
           color: rgba(255,255,255,0.36);
           font-style: italic;
           line-height: 1.5;
           letter-spacing: 0.005em;
         }
+        @media (min-width: 600px) { .pci-tagline { font-size: 11px; } }
 
         /* Feature pills */
         .pci-pills {
           display: flex; gap: 6px; flex-wrap: wrap;
-          margin-bottom: 14px;
+          margin-bottom: 11px;
         }
+        @media (min-width: 600px) { .pci-pills { margin-bottom: 14px; } }
+
         .pci-pill {
           display: inline-flex; align-items: center; gap: 5px;
-          padding: 5px 10px;
+          padding: 4px 9px;
           border-radius: 3px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.07);
-          font-size: 10.5px; font-weight: 500;
+          font-size: 10px; font-weight: 500;
           color: rgba(255,255,255,0.55);
           letter-spacing: 0.01em;
           transition: background 0.15s, border-color 0.15s, color 0.15s;
           user-select: none;
         }
+        @media (min-width: 600px) { .pci-pill { font-size: 10.5px; padding: 5px 10px; } }
         .pci-pill:hover {
           background: rgba(229,9,20,0.08);
           border-color: rgba(229,9,20,0.25);
@@ -343,12 +373,12 @@ export default function PWAInstallPrompt() {
 
         /* Install button */
         .pci-btn {
-          width: 100%; height: 48px;
+          width: 100%; height: 44px;
           border-radius: 4px;
           background: linear-gradient(135deg, #e50914 0%, #c00811 100%);
           border: none; color: #fff;
           font-family: 'DM Sans', sans-serif;
-          font-weight: 700; font-size: 12.5px;
+          font-weight: 700; font-size: 12px;
           letter-spacing: 0.1em; text-transform: uppercase;
           cursor: pointer;
           display: flex; align-items: center; justify-content: center; gap: 9px;
@@ -356,6 +386,7 @@ export default function PWAInstallPrompt() {
           box-shadow: 0 4px 22px rgba(229,9,20,0.38), inset 0 1px 0 rgba(255,255,255,0.14);
           position: relative; overflow: hidden;
         }
+        @media (min-width: 600px) { .pci-btn { height: 48px; font-size: 12.5px; } }
         .pci-btn::after {
           content: '';
           position: absolute; inset: 0;
@@ -390,14 +421,16 @@ export default function PWAInstallPrompt() {
         @keyframes pci-spin { to { transform: rotate(360deg); } }
 
         /* iOS steps */
-        .pci-divider { display:flex; align-items:center; gap:9px; margin-bottom:11px; }
+        .pci-divider { display:flex; align-items:center; gap:9px; margin-bottom:9px; }
+        @media (min-width: 600px) { .pci-divider { margin-bottom: 11px; } }
         .pci-divider-line { flex:1; height:1px; background:rgba(255,255,255,0.06); }
         .pci-divider-label {
           font-size: 9px; color: rgba(255,255,255,0.2);
           letter-spacing: 0.1em; text-transform: uppercase;
         }
 
-        .pci-steps { display:flex; flex-direction:column; gap:9px; }
+        .pci-steps { display:flex; flex-direction:column; gap:8px; }
+        @media (min-width: 600px) { .pci-steps { gap: 9px; } }
         .pci-step  { display:flex; align-items:center; gap:10px; }
         .pci-step-num {
           width:22px; height:22px; border-radius:3px; flex-shrink:0;
@@ -406,7 +439,8 @@ export default function PWAInstallPrompt() {
           color: #e50914; font-size:10px; font-weight:700;
           display:flex; align-items:center; justify-content:center;
         }
-        .pci-step-text { font-size:11.5px; color:rgba(255,255,255,0.52); line-height:1.45; }
+        .pci-step-text { font-size:11px; color:rgba(255,255,255,0.52); line-height:1.45; }
+        @media (min-width: 600px) { .pci-step-text { font-size: 11.5px; } }
         .pci-step-text strong { color:rgba(255,255,255,0.86); font-weight:600; }
         .pci-step-icon {
           display:inline-flex; align-items:center; vertical-align:-2px;
@@ -446,6 +480,7 @@ export default function PWAInstallPrompt() {
             <div className="pci-lottie-wrap">
               <div ref={lottieRef} className="pci-lottie" />
             </div>
+            {/* Close button — top-left, clearly visible */}
             <button className="pci-close" onClick={handleDismiss} aria-label="Dismiss">
               <IconClose />
             </button>
@@ -454,7 +489,7 @@ export default function PWAInstallPrompt() {
           {/* Body */}
           <div className="pci-body">
 
-            {/* Logo + tagline — same logo as Navbar */}
+            {/* Logo + tagline */}
             <div className="pci-logorow">
               <div className="pci-logo-img">
                 <Image
@@ -476,7 +511,7 @@ export default function PWAInstallPrompt() {
             {/* Pills */}
             <div className="pci-pills">
               <span className="pci-pill"><IconBolt />Instant Load</span>
-              <span className="pci-pill"><IconStar />No Browser Chrome</span>
+              <span className="pci-pill"><IconStar />Works Offline</span>
             </div>
 
             {/* Android / Desktop install button */}
