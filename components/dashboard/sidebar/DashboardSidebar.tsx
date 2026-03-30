@@ -13,11 +13,13 @@ import {
   LogOut,
   ChevronRight,
   Star,
+  Palette,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/context/ThemeContext";
+import ThemeToggle, { type ThemeToggleHandle } from "@/components/ui/ThemeToggle";
 
 // ── NAV CONFIG ────────────────────────────────────────────────────────────────
 
@@ -168,7 +170,6 @@ function NavItem({
             borderRadius: 10, pointerEvents: "none",
           }} />
         )}
-
         {active && (
           <span style={{
             position: "absolute", left: 0, top: "18%", bottom: "18%",
@@ -229,6 +230,102 @@ function NavItem({
   );
 }
 
+// ── PALETTE BUTTON (triggers ThemeToggle drawer) ──────────────────────────────
+// This is a button (not a Link) that fires the theme drawer open.
+
+function PaletteNavItem({
+  collapsed, onOpen,
+}: {
+  collapsed: boolean;
+  onOpen: () => void;
+}) {
+  const { t, theme } = useTheme();
+  const [hovered, setHovered] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  return (
+    <>
+      <button
+        ref={ref}
+        onClick={onOpen}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        title="Change theme"
+        aria-label="Open theme switcher"
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: collapsed ? "11px 0" : "9px 13px",
+          justifyContent: collapsed ? "center" : "flex-start",
+          borderRadius: 10,
+          background: hovered ? t.navHoverBg : "transparent",
+          border: "none",
+          cursor: "pointer",
+          width: "100%",
+          transition: "background 0.18s ease, transform 0.15s ease",
+          marginBottom: 1,
+          transform: hovered ? "translateX(2px)" : "translateX(0)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Accent dot preview — shows current theme colour */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <Palette
+            size={16}
+            strokeWidth={1.6}
+            color={hovered ? t.iconHovered : t.iconInactive}
+            style={{
+              transition: "color 0.18s ease",
+              display: "block",
+            }}
+          />
+          {/* Small coloured dot on icon to hint current theme */}
+          <span style={{
+            position: "absolute", top: -3, right: -4,
+            width: 6, height: 6, borderRadius: "50%",
+            background: t.accent,
+            boxShadow: `0 0 6px ${t.accentGlow}`,
+            border: `1px solid ${t.bgSidebar}`,
+          }} />
+        </div>
+
+        {!collapsed && (
+          <span style={{
+            flex: 1, fontSize: 12.5, fontFamily: "'DM Sans', sans-serif",
+            fontWeight: 400,
+            color: hovered ? t.textSecondary : t.iconInactive,
+            whiteSpace: "nowrap", letterSpacing: "0.015em",
+            transition: "color 0.18s ease",
+          }}>Appearance</span>
+        )}
+
+        {/* Theme name pill — only shown expanded */}
+        {!collapsed && (
+          <span style={{
+            fontSize: 9, fontFamily: "'DM Sans', sans-serif",
+            fontWeight: 700, letterSpacing: "0.06em",
+            color: t.accent,
+            background: `${t.accent}18`,
+            border: `1px solid ${t.accent}30`,
+            borderRadius: 20,
+            padding: "2px 7px",
+            flexShrink: 0,
+            textTransform: "uppercase",
+            transition: "opacity 0.18s",
+            opacity: hovered ? 1 : 0.7,
+          }}>
+            {theme.id}
+          </span>
+        )}
+      </button>
+
+      {collapsed && hovered && <PortalTooltip label="Appearance" anchorRef={ref} />}
+    </>
+  );
+}
+
 // ── FOOTER WRAPPER ────────────────────────────────────────────────────────────
 
 function FooterNavItem({
@@ -278,6 +375,9 @@ export default function DashboardSidebar({
   const { logout, user: authUser } = useAuth();
   const { t } = useTheme();
 
+  // Ref to ThemeToggle so the Palette nav item can open it
+  const themeToggleRef = useRef<ThemeToggleHandle>(null);
+
   const [logoutHovered, setLogoutHovered]   = useState(false);
   const [profileHovered, setProfileHovered] = useState(false);
   const [toggleHovered, setToggleHovered]   = useState(false);
@@ -292,8 +392,8 @@ export default function DashboardSidebar({
   const W      = collapsed ? W_COLLAPSED : W_EXPANDED;
   const SPACER = W + 8;
 
-  const avStyle = (authUser?.prefs?.avStyle as string) ?? userProp.avStyle ?? "bottts";
-  const avSeed  = (authUser?.prefs?.avSeed  as string) ?? userProp.avSeed  ?? (authUser?.$id ?? "djafro");
+  const avStyle   = (authUser?.prefs?.avStyle as string) ?? userProp.avStyle ?? "bottts";
+  const avSeed    = (authUser?.prefs?.avSeed  as string) ?? userProp.avSeed  ?? (authUser?.$id ?? "djafro");
   const avatarUrl = dicebearUrl(avStyle, avSeed);
 
   const handleLogout = async () => {
@@ -335,6 +435,9 @@ export default function DashboardSidebar({
         }
       `}</style>
 
+      {/* ThemeToggle rendered here — ref gives us openDrawer() */}
+      <ThemeToggle ref={themeToggleRef} />
+
       <aside
         style={{
           position: "fixed",
@@ -368,7 +471,6 @@ export default function DashboardSidebar({
             <rect width="100%" height="100%" filter="url(#sg)"/>
           </svg>
 
-          {/* Accent glow blobs — use CSS vars */}
           <div style={{
             position:"absolute", top:-40, left:-20,
             width:180, height:180, borderRadius:"50%",
@@ -450,9 +552,16 @@ export default function DashboardSidebar({
             }} />
 
             {!collapsed && <SectionLabel>General</SectionLabel>}
+
             {NAV_GENERAL.map(item => (
               <NavItem key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
             ))}
+
+            {/* ── PALETTE / APPEARANCE ── */}
+            <PaletteNavItem
+              collapsed={collapsed}
+              onOpen={() => themeToggleRef.current?.openDrawer()}
+            />
           </nav>
 
           {/* ── FOOTER ── */}
@@ -565,9 +674,7 @@ export default function DashboardSidebar({
           zIndex:902,
           width:20, height:44,
           borderRadius:10,
-          background: toggleHovered
-            ? t.bgElevated
-            : t.bgSurface,
+          background: toggleHovered ? t.bgElevated : t.bgSurface,
           border:`1px solid ${toggleHovered ? t.borderAccent : t.borderSubtle}`,
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer",

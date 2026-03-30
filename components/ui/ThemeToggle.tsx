@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { X, Check, Palette } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import type { ThemeId } from "@/types/theme.types";
@@ -21,6 +21,13 @@ const THEME_META: Record<ThemeId, {
 };
 
 const THEME_ORDER: ThemeId[] = ["netflix", "hulu", "prime", "amber", "hbo", "rosegold", "cyber"];
+
+// ── PUBLIC HANDLE ────────────────────────────────────────────────────────────
+// Exposes .openDrawer() so any parent (e.g. sidebar) can trigger it externally.
+
+export interface ThemeToggleHandle {
+  openDrawer: () => void;
+}
 
 // ── COG SVG ─────────────────────────────────────────────────────────────────
 
@@ -61,26 +68,21 @@ function ThemeCard({ id, active, onSelect }: { id: ThemeId; active: boolean; onS
         background: meta.bg, border: "1px solid rgba(255,255,255,0.06)",
         position: "relative", overflow: "hidden",
       }}>
-        {/* Fake sidebar strip */}
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 10, background: meta.surface }} />
-        {/* Fake sidebar icon dots */}
         {[6, 14, 22].map(top => (
           <div key={top} style={{
             position: "absolute", left: 3, top, width: 4, height: 4,
             borderRadius: "50%", background: `${meta.accent}55`,
           }} />
         ))}
-        {/* Accent dot — active theme indicator */}
         <div style={{
           position: "absolute", left: 3, top: 6, width: 4, height: 4,
           borderRadius: "50%", background: meta.accent,
           boxShadow: `0 0 5px ${meta.accent}`,
         }} />
-        {/* Fake content lines */}
         <div style={{ position: "absolute", left: 14, top: 7, right: 3, height: 2, borderRadius: 2, background: "rgba(255,255,255,0.12)" }} />
         <div style={{ position: "absolute", left: 14, top: 13, right: 6, height: 2, borderRadius: 2, background: "rgba(255,255,255,0.07)" }} />
         <div style={{ position: "absolute", left: 14, top: 19, right: 9, height: 2, borderRadius: 2, background: "rgba(255,255,255,0.05)" }} />
-        {/* Accent pill */}
         <div style={{
           position: "absolute", bottom: 5, right: 4, height: 5, width: 14,
           borderRadius: 3, background: meta.accent, opacity: 0.85,
@@ -124,7 +126,7 @@ function ThemeCard({ id, active, onSelect }: { id: ThemeId; active: boolean; onS
 
 // ── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export default function ThemeToggle() {
+const ThemeToggle = forwardRef<ThemeToggleHandle>(function ThemeToggle(_props, ref) {
   const { theme, setThemeId } = useTheme();
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +134,11 @@ export default function ThemeToggle() {
 
   const acc = theme.tokens.accent;
   const activeMeta = THEME_META[theme.id as ThemeId];
+
+  // Expose openDrawer() to parent via ref
+  useImperativeHandle(ref, () => ({
+    openDrawer: () => setOpen(true),
+  }));
 
   // Outside click
   useEffect(() => {
@@ -176,7 +183,6 @@ export default function ThemeToggle() {
           100% { box-shadow: 0 0 0 0 ${acc}00; }
         }
 
-        /* ── FAB pill ──────────────────────────────── */
         .dj-fab {
           position: fixed;
           right: 0;
@@ -187,7 +193,6 @@ export default function ThemeToggle() {
           align-items: center;
           gap: 7px;
           padding: 10px 16px 10px 14px;
-          /* bulge: left side rounded, right flush to edge */
           border-radius: 24px 0 0 24px;
           border: 1px solid rgba(255,255,255,0.08);
           border-right: none;
@@ -227,7 +232,6 @@ export default function ThemeToggle() {
           line-height: 1;
         }
 
-        /* ── Backdrop ──────────────────────────────── */
         .dj-backdrop {
           position: fixed; inset: 0; z-index: 958;
           background: rgba(0,0,0,0);
@@ -241,7 +245,6 @@ export default function ThemeToggle() {
           pointer-events: all;
         }
 
-        /* ── Drawer ────────────────────────────────── */
         .dj-drawer {
           position: fixed;
           top: 10px; right: 0; bottom: 10px;
@@ -259,14 +262,12 @@ export default function ThemeToggle() {
         }
         .dj-drawer--open { transform: translateX(0); }
 
-        /* Subtle top accent line */
         .dj-drawer-topline {
           position: absolute; top: 0; left: 0; right: 0; height: 1px;
           background: linear-gradient(90deg, transparent 0%, ${acc}55 40%, transparent 100%);
           pointer-events: none; z-index: 1;
         }
 
-        /* ── Head ──────────────────────────────────── */
         .dj-head {
           display: flex; align-items: center; justify-content: space-between;
           padding: 20px 16px 14px;
@@ -300,7 +301,6 @@ export default function ThemeToggle() {
         }
         .dj-close-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.80); }
 
-        /* ── Body ──────────────────────────────────── */
         .dj-body {
           flex: 1; padding: 10px 10px;
           display: flex; flex-direction: column; gap: 3px;
@@ -315,7 +315,6 @@ export default function ThemeToggle() {
           padding: 8px 4px 4px; user-select: none;
         }
 
-        /* ── Footer ────────────────────────────────── */
         .dj-footer {
           border-top: 1px solid rgba(255,255,255,0.042);
           padding: 12px 16px 16px; flex-shrink: 0;
@@ -339,7 +338,6 @@ export default function ThemeToggle() {
           font-weight: 600; color: ${acc};
         }
 
-        /* ── Mobile ────────────────────────────────── */
         @media (max-width: 767px) {
           .dj-fab { gap: 6px; padding: 9px 14px 9px 12px; }
           .dj-drawer { width: min(280px, 86vw); }
@@ -357,7 +355,6 @@ export default function ThemeToggle() {
       >
         <div className="dj-drawer-topline" />
 
-        {/* Head */}
         <div className="dj-head">
           <div className="dj-head-left">
             <div className="dj-head-icon"><Palette size={15} strokeWidth={1.8} /></div>
@@ -371,7 +368,6 @@ export default function ThemeToggle() {
           </button>
         </div>
 
-        {/* Body */}
         <div className="dj-body">
           <div className="dj-section-lbl">Themes — {THEME_ORDER.length} available</div>
           {THEME_ORDER.map(id => (
@@ -379,7 +375,6 @@ export default function ThemeToggle() {
           ))}
         </div>
 
-        {/* Footer */}
         <div className="dj-footer">
           <div className="dj-footer-swatch">
             <div className="dj-footer-dot" style={{ background: acc }} />
@@ -390,7 +385,7 @@ export default function ThemeToggle() {
         </div>
       </div>
 
-      {/* FAB — centered on right edge, bulging pill */}
+      {/* FAB */}
       <button
         ref={btnRef}
         className={`dj-fab${open ? " dj-fab--open" : ""}`}
@@ -403,4 +398,6 @@ export default function ThemeToggle() {
       </button>
     </>
   );
-}
+});
+
+export default ThemeToggle;
