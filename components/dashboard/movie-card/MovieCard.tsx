@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Play, Plus, Star, Check, Lock, Info, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
@@ -30,6 +30,8 @@ interface MovieCardProps {
   size?: "sm" | "md" | "lg";
   userId: string;
   isPaid?: boolean;
+  // Index in row — cards near the start load eagerly, rest lazy
+  index?: number;
   onPlay?: (movie: MovieCardData) => void;
   onAddToLibrary?: (movie: MovieCardData) => void;
 }
@@ -40,11 +42,15 @@ const SIZES = {
   lg: { width: 220, height: 310 },
 };
 
+// How many cards per row load eagerly (visible without scrolling)
+const EAGER_THRESHOLD = 4;
+
 export default function MovieCard({
   movie,
   size = "md",
   userId,
   isPaid: seedIsPaid = false,
+  index = 0,
   onPlay,
   onAddToLibrary,
 }: MovieCardProps) {
@@ -52,6 +58,9 @@ export default function MovieCard({
   const { t } = useTheme();
   const [hovered, setHovered] = useState(false);
   const [inLib, setInLib]     = useState(movie.inLibrary ?? false);
+  // Track whether the card is in the viewport for intersection-observer lazy load
+  const [visible, setVisible] = useState(index < EAGER_THRESHOLD);
+  const cardRef               = useRef<HTMLDivElement>(null);
   const dim = SIZES[size];
 
   const { paidMovieIds: contextPaidIds } = usePremiumGate();
@@ -60,10 +69,42 @@ export default function MovieCard({
   const showPaidBadge = movie.premium && isPaid;
   const showLock      = movie.premium && !isPaid;
 
+  // Intersection Observer: reveal image only when card scrolls into view
+  useEffect(() => {
+    // Cards near the start are already marked visible — skip observer
+    if (index < EAGER_THRESHOLD) return;
+
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obs.disconnect(); // Once visible, never unload
+        }
+      },
+      {
+        // rootMargin: pre-load images 200px before they scroll into view
+        rootMargin: "0px 200px 0px 200px",
+        threshold: 0,
+      }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [index]);
+
   const handlePlay = (movieId: string) => {
     onPlay?.(movie);
     if (!onPlay) router.push(`/dashboard/watch/${movieId}`);
   };
+
+  // Eager for first few cards in a row, lazy for the rest
+  const imgPriority = index < EAGER_THRESHOLD;
+  const imgLoading  = imgPriority ? ("eager" as const) : ("lazy" as const);
 
   return (
     <>
@@ -84,6 +125,7 @@ export default function MovieCard({
       `}</style>
 
       <div
+        ref={cardRef}
         className={`movie-card-${movie.id}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -92,6 +134,8 @@ export default function MovieCard({
           cursor: "pointer",
           overflow: "hidden",
           borderRadius: 10,
+          // Solid placeholder background shown while image loads — prevents layout shift
+          backgroundColor: "rgba(255,255,255,0.04)",
           transform: hovered ? "scale(1.05) translateY(-8px)" : "scale(1) translateY(0)",
           transition: "transform 0.45s cubic-bezier(0.22,1,0.36,1), box-shadow 0.45s ease",
           boxShadow: hovered
@@ -100,18 +144,26 @@ export default function MovieCard({
           zIndex: hovered ? 20 : 1,
         }}
       >
-        <Image
-          src={movie.img}
-          alt={movie.title}
-          fill
-          sizes={`(max-width: 768px) 50vw, ${dim.width}px`}
-          className="object-cover"
-          style={{
-            transform: hovered ? "scale(1.08)" : "scale(1)",
-            transition: "transform 0.6s ease",
-          }}
-          draggable={false}
-        />
+        {/* Only mount <Image> once the card is visible in the viewport */}
+        {visible && (
+          <Image
+            src={movie.img}
+            alt={movie.title}
+            fill
+            // More specific sizes = browser fetches smaller srcset variant = faster
+            sizes={`(max-width: 768px) 50vw, ${dim.width}px`}
+            className="object-cover"
+            priority={imgPriority}
+            loading={imgLoading}
+            // Slightly compress non-hero card images; imperceptible at card size
+            quality={imgPriority ? 80 : 70}
+            style={{
+              transform: hovered ? "scale(1.08)" : "scale(1)",
+              transition: "transform 0.6s ease",
+            }}
+            draggable={false}
+          />
+        )}
 
         {/* Gradients */}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.05) 100%)" }} />
@@ -306,7 +358,7 @@ export function MovieRow({
   viewAllHref = "/dashboard/movies",
 }: MovieRowProps) {
   const router    = useRouter();
-  const { t } = useTheme();
+  const { t }     = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
   const SCROLL_AMT = (SIZES[size].width + 12) * 3;
 
@@ -363,13 +415,15 @@ export function MovieRow({
         </button>
 
         <div ref={scrollRef} style={{ display: "flex", gap: 12, overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none", paddingLeft: 2, paddingRight: 2 }}>
-          {movies.map((movie) => (
+          {movies.map((movie, i) => (
             <MovieCard
               key={movie.id}
               movie={movie}
               size={size}
               userId={userId}
               isPaid={mergedPaidIds.includes(movie.id)}
+              // Pass index so first N cards load eagerly, rest lazy
+              index={i}
               onPlay={onPlay}
               onAddToLibrary={onAddToLibrary}
             />
@@ -415,13 +469,15 @@ export function MovieGrid({ movies, size = "md", userId, paidMovieIds = [], onPl
         }
       `}</style>
       <div className="movie-grid">
-        {movies.map((movie) => (
+        {movies.map((movie, i) => (
           <MovieCard
             key={movie.id}
             movie={movie}
             size={size}
             userId={userId}
             isPaid={mergedPaidIds.includes(movie.id)}
+            // First 8 in grid load eagerly (above fold), rest lazy
+            index={i}
             onPlay={onPlay}
           />
         ))}

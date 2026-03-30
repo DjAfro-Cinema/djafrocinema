@@ -33,6 +33,19 @@ interface MovieBannerProps {
   compact?: boolean;
 }
 
+// Preload an image URL into the browser cache immediately
+function preloadImage(src: string) {
+  if (typeof window === "undefined" || !src) return;
+  const link = document.createElement("link");
+  link.rel = "preload";
+  link.as = "image";
+  link.href = src;
+  // Only add if not already preloading this URL
+  if (!document.head.querySelector(`link[rel="preload"][href="${src}"]`)) {
+    document.head.appendChild(link);
+  }
+}
+
 export default function MovieBanner({
   movies,
   userId,
@@ -54,7 +67,17 @@ export default function MovieBanner({
   const [tickKey, setTickKey]             = useState(0);
   const [inLib, setInLib]                 = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile]           = useState(false);
+  // Track which slide indices have been "revealed" (image loaded at least once)
+  const [revealed, setRevealed]           = useState<Set<number>>(new Set([0]));
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Preload first image + next two immediately on mount for instant display
+  useEffect(() => {
+    if (!movies.length) return;
+    // Preload current + next 2 slides aggressively
+    const toPreload = [0, 1, 2].filter((i) => i < movies.length);
+    toPreload.forEach((i) => preloadImage(movies[i].img));
+  }, [movies]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 480);
@@ -69,8 +92,16 @@ export default function MovieBanner({
     setCurrent(idx);
     setKenKey((k) => k + 1);
     setTickKey((k) => k + 1);
+    setRevealed((prev) => new Set([...prev, idx]));
+
+    // Preload the NEXT slide's image ahead of time
+    const nextIdx = (idx + 1) % movies.length;
+    const prevIdx = (idx - 1 + movies.length) % movies.length;
+    preloadImage(movies[nextIdx].img);
+    preloadImage(movies[prevIdx].img);
+
     setTimeout(() => setTransitioning(false), 900);
-  }, [transitioning]);
+  }, [transitioning, movies]);
 
   const next = useCallback(() => goTo((current + 1) % movies.length), [current, goTo, movies.length]);
   const prev = useCallback(() => goTo((current - 1 + movies.length) % movies.length), [current, goTo, movies.length]);
@@ -114,28 +145,59 @@ export default function MovieBanner({
 
       {/* Background slides */}
       {movies.map((s, i) => {
-        const isActive = i === current;
+        const isActive  = i === current;
+        const isAdjacent = Math.abs(i - current) <= 1 ||
+          (current === 0 && i === movies.length - 1) ||
+          (current === movies.length - 1 && i === 0);
         const kb = s.kenBurns ?? "zoom-in-right";
+
+        // Only render slides that are active, adjacent, or have been seen before
+        // This avoids mounting many Image components at once on first load
+        const shouldRender = isActive || isAdjacent || revealed.has(i);
+
         return (
           <div key={i} aria-hidden={!isActive} style={{
             position: "absolute", inset: 0, zIndex: isActive ? 2 : 1,
             opacity: isActive ? 1 : 0,
             transition: "opacity 1s cubic-bezier(0.4,0,0.2,1)",
           }}>
-            <div
-              key={isActive ? `kb-${kenKey}` : `idle-${i}`}
-              style={{
-                position: "absolute", inset: 0,
-                backgroundImage: `url(${s.img})`,
-                backgroundSize: "cover", backgroundPosition: "center",
-                willChange: "transform",
-                animation: isActive
-                  ? kb === "zoom-in-right" ? "djBannerKbRight 8s ease-in-out forwards"
-                  : kb === "zoom-in-left"  ? "djBannerKbLeft 8s ease-in-out forwards"
-                  : "djBannerKbOut 8s ease-in-out forwards"
-                  : "none",
-              }}
-            />
+            {shouldRender && (
+              <div
+                key={isActive ? `kb-${kenKey}` : `idle-${i}`}
+                style={{
+                  position: "absolute", inset: 0,
+                  willChange: isActive ? "transform" : "auto",
+                  animation: isActive
+                    ? kb === "zoom-in-right" ? "djBannerKbRight 8s ease-in-out forwards"
+                    : kb === "zoom-in-left"  ? "djBannerKbLeft 8s ease-in-out forwards"
+                    : "djBannerKbOut 8s ease-in-out forwards"
+                    : "none",
+                }}
+              >
+                <Image
+                  src={s.img}
+                  alt={s.title}
+                  fill
+                  // Hero (first/active) loads with high priority; others lazy
+                  priority={i === 0}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  // fetchpriority drives the browser's resource scheduler
+                  {...(i === 0 ? { fetchPriority: "high" } : { fetchPriority: isAdjacent ? "low" : "auto" })}
+                  sizes="(max-width: 768px) 100vw, 100vw"
+                  style={{
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    // Keeps layout stable while image streams in
+                    backgroundColor: "rgba(0,0,0,0.3)",
+                  }}
+                  // Quality: hero gets full quality, others slightly compressed
+                  quality={i === 0 ? 90 : 75}
+                  draggable={false}
+                  // Mark image as revealed once loaded so we keep it mounted
+                  onLoad={() => setRevealed((prev) => new Set([...prev, i]))}
+                />
+              </div>
+            )}
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(105deg, ${t.overlay} 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.15) 100%)` }} />
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${t.bgBase} 0%, rgba(0,0,0,0.7) 18%, transparent 50%)` }} />
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 22%)` }} />
@@ -167,9 +229,22 @@ export default function MovieBanner({
                 boxShadow: `0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px ${t.borderSubtle}`,
                 animation: "djBannerFadeUp 0.65s cubic-bezier(0.22,1,0.36,1) both",
                 position: "relative",
+                // Placeholder background while poster loads
+                backgroundColor: "rgba(255,255,255,0.05)",
               }}
             >
-              <Image src={slide.img} alt={slide.title} fill sizes="130px" style={{ objectFit: "cover" }} draggable={false} />
+              <Image
+                src={slide.img}
+                alt={slide.title}
+                fill
+                sizes="130px"
+                // Poster reuses the already-cached banner image — loads instantly
+                priority={current === 0}
+                loading={current === 0 ? "eager" : "lazy"}
+                quality={80}
+                style={{ objectFit: "cover" }}
+                draggable={false}
+              />
               {isLocked && (
                 <div style={{
                   position: "absolute", inset: 0,
@@ -264,14 +339,12 @@ export default function MovieBanner({
               </div>
               <span style={{ fontSize: isMobile ? 13 : 12, fontWeight: 700, color: t.accent, fontFamily: "'DM Sans', sans-serif" }}>{slide.rating}</span>
               <span style={{ fontSize: 11, color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>/ 10</span>
-              {/* Duration only on desktop */}
               {!isMobile && slide.duration && (
                 <>
                   <span style={{ width: 3, height: 3, borderRadius: "50%", background: t.borderMedium }} />
                   <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{slide.duration}</span>
                 </>
               )}
-              {/* Owned badge inline on mobile */}
               {isMobile && slide.premium && isPaid && (
                 <span style={{
                   fontSize: 8, fontWeight: 700, letterSpacing: "0.18em",
@@ -284,7 +357,6 @@ export default function MovieBanner({
                   <CheckCircle2 size={7} /> Owned
                 </span>
               )}
-              {/* Locked badge inline on mobile */}
               {isMobile && isLocked && (
                 <span style={{
                   fontSize: 8, fontWeight: 700, letterSpacing: "0.18em",
@@ -365,7 +437,6 @@ export default function MovieBanner({
                 }}
               >
                 <Info size={13} />
-                {/* Hide "More Info" text on mobile, just the icon */}
                 {!isMobile && "More Info"}
               </button>
 
