@@ -33,7 +33,7 @@ const NAV_GENERAL = [
 ];
 
 export interface DashboardSidebarProps {
-  user?: { name: string; email: string };
+  user?: { name: string; email: string; avStyle?: string; avSeed?: string };
   collapsed?: boolean;
   onCollapsedChange?: (v: boolean) => void;
 }
@@ -41,7 +41,13 @@ export interface DashboardSidebarProps {
 const W_EXPANDED  = 178;
 const W_COLLAPSED = 52;
 
-const BORDER_RADIUS = "0 24px 24px 0";
+const BORDER_RADIUS = "0 32px 32px 0";
+
+// ── DICEBEAR AVATAR HELPER ────────────────────────────────────────────────────
+
+function dicebearUrl(style: string, seed: string) {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=0a0a0f`;
+}
 
 // ── PORTAL TOOLTIP ────────────────────────────────────────────────────────────
 
@@ -268,7 +274,7 @@ export default function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname   = usePathname() ?? "";
   const router     = useRouter();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
 
   const [logoutHovered, setLogoutHovered]   = useState(false);
   const [profileHovered, setProfileHovered] = useState(false);
@@ -284,10 +290,10 @@ export default function DashboardSidebar({
   const W      = collapsed ? W_COLLAPSED : W_EXPANDED;
   const SPACER = W + 8;
 
-  const initials = userProp.name
-    .split(" ").slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+  // ── Resolve avatar from prefs (same source as ProfilePage) ──────────────
+  const avStyle = (authUser?.prefs?.avStyle as string) ?? userProp.avStyle ?? "bottts";
+  const avSeed  = (authUser?.prefs?.avSeed  as string) ?? userProp.avSeed  ?? (authUser?.$id ?? "djafro");
+  const avatarUrl = dicebearUrl(avStyle, avSeed);
 
   const handleLogout = async () => {
     await logout();
@@ -309,10 +315,6 @@ export default function DashboardSidebar({
           from { opacity: 0; transform: translateX(-100%); }
           to   { opacity: 1; transform: translateX(0); }
         }
-        @keyframes shimmer {
-          0%   { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
         @keyframes filmFlicker {
           0%, 94%, 100% { opacity: 1; }
           95% { opacity: 0.93; }
@@ -321,6 +323,15 @@ export default function DashboardSidebar({
         }
         .nav-scroll::-webkit-scrollbar { display: none; }
         .nav-scroll { scrollbar-width: none; }
+        .sidebar-avatar {
+          border-radius: 50%;
+          overflow: hidden;
+          background: #101015;
+          border: 2px solid rgba(229,9,20,0.22);
+          box-shadow: 0 0 12px rgba(229,9,20,0.25);
+          flex-shrink: 0;
+          display: block;
+        }
       `}</style>
 
       <aside
@@ -380,28 +391,6 @@ export default function DashboardSidebar({
             pointerEvents:"none",
           }} />
         </div>
-
-        {/* Shimmer top hairline — full left, fades out before right curve */}
-        <div style={{
-          position:"absolute", top:0, left:0, right:"15%",
-          height:1, zIndex:1,
-          background:"linear-gradient(90deg, rgba(229,9,20,0.5) 0%, rgba(255,120,120,0.95) 40%, rgba(229,9,20,0.7) 70%, transparent 100%)",
-          backgroundSize:"200% 100%",
-          animation:"shimmer 3.5s ease-in-out infinite",
-          pointerEvents:"none",
-          boxShadow:"0 0 12px rgba(229,9,20,0.4)",
-        }} />
-        {/* Shimmer bottom hairline — full left, fades out before right curve */}
-        <div style={{
-          position:"absolute", bottom:0, left:0, right:"15%",
-          height:1, zIndex:1,
-          background:"linear-gradient(90deg, rgba(229,9,20,0.4) 0%, rgba(255,120,120,0.75) 40%, rgba(229,9,20,0.5) 70%, transparent 100%)",
-          backgroundSize:"200% 100%",
-          animation:"shimmer 3.5s ease-in-out infinite",
-          animationDelay:"1.75s",
-          pointerEvents:"none",
-          boxShadow:"0 0 10px rgba(229,9,20,0.3)",
-        }} />
 
         {/* ── CONTENT ── */}
         <div style={{
@@ -487,14 +476,14 @@ export default function DashboardSidebar({
                 background: profileHovered ? "rgba(255,255,255,0.045)" : "transparent",
                 transition:"background 0.18s", marginBottom:2,
               }}>
-                <div style={{
-                  width:30, height:30, borderRadius:"50%",
-                  background:"linear-gradient(145deg, #e50914, #7d050c)",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:11, fontWeight:700, color:"#fff",
-                  fontFamily:"'DM Sans', sans-serif", flexShrink:0,
-                  boxShadow:"0 0 0 2px rgba(229,9,20,0.22), 0 0 12px rgba(229,9,20,0.25)",
-                }}>{initials || "?"}</div>
+                {/* DiceBear avatar — same as ProfilePage */}
+                <img
+                  src={avatarUrl}
+                  alt={userProp.name}
+                  width={30}
+                  height={30}
+                  className="sidebar-avatar"
+                />
 
                 {!collapsed && (
                   <div style={{ overflow:"hidden", flex:1, minWidth:0 }}>
