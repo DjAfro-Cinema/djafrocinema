@@ -15,8 +15,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { account, databases } from "@/lib/appwrite";
 import DashboardSidebar from "@/components/dashboard/sidebar/DashboardSidebar";
 import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
-import MobileTopBar from "@/components/dashboard/topbar/MobileTopBar";
-import DesktopTopBar from "@/components/dashboard/topbar/DesktopTopBar";
 import { ID } from "appwrite";
 
 const DATABASE_ID               = process.env.NEXT_PUBLIC_DATABASE_ID!;
@@ -490,21 +488,7 @@ export default function ProfilePage() {
         )}
 
         <div id="dj-content-col" className="col">
-          {isSmall ? (
-            <MobileTopBar
-              onSearchOpen={() => setSearchOpen(true)}
-              notifCount={2} userName={displayName}
-            />
-          ) : (
-            <DesktopTopBar
-              scrolled={scrolled}
-              searchOpen={searchOpen} searchVal={searchVal}
-              onSearchOpen={() => setSearchOpen(true)}
-              onSearchClose={() => { setSearchOpen(false); setSearchVal(""); }}
-              onSearchChange={setSearchVal}
-              notifCount={2} userName={displayName}
-            />
-          )}
+         
 
           <div className="page">
 
