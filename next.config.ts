@@ -18,10 +18,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "image.tmdb.org",
       },
+      {
+        protocol: "https",
+        hostname: "www.themoviedb.org",
+      },
       // IMDb
       {
         protocol: "https",
         hostname: "m.media-amazon.com",
+      },
+      {
+        protocol: "https",
+        hostname: "posters.movieposterdb.com",
       },
       // Bunny CDN (your video CDN, may serve images too)
       {
