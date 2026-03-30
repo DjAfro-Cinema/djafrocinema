@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const clashDisplay = localFont({
   src: [
@@ -113,6 +114,7 @@ export default function RootLayout({
           <PWAInstallPrompt />
         </AuthProvider>
       </body>
+      <GoogleAnalytics gaId="G-LBWS7DEJRM" />
     </html>
   );
 }
