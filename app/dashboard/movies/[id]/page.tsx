@@ -20,6 +20,7 @@ import type { Movie } from "@/types/movie.types";
 import { usePremiumGate } from "@/context/PremiumGateContext";
 import { useTheme } from "@/context/ThemeContext";
 import PremiumPlayButton from "@/components/payment/Premiumplaybutton";
+import VideoPlayer from "@/components/dashboard/video-player/VideoPlayer";
 
 // ── STAR RATING WIDGET ────────────────────────────────────────────────────────
 
@@ -94,177 +95,6 @@ function StarRating({
           You rated: {selected}/5 stars
         </p>
       )}
-    </div>
-  );
-}
-
-// ── VIDEO PLAYER ──────────────────────────────────────────────────────────────
-
-function VideoPlayer({ movie, onClose }: { movie: Movie; onClose: () => void }) {
-  const { t } = useTheme();
-  const [playing,      setPlaying]      = useState(false);
-  const [muted,        setMuted]        = useState(false);
-  const [volume,       setVolume]       = useState(0.8);
-  const [progress,     setProgress]     = useState(0);
-  const [elapsed,      setElapsed]      = useState(0);
-  const [fullscreen,   setFullscreen]   = useState(false);
-  const [showCtrl,     setShowCtrl]     = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [quality,      setQuality]      = useState("1080p");
-  const [subtitles,    setSubtitles]    = useState(false);
-  const [buffered,     setBuffered]     = useState(35);
-  const hideTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const totalSec = 7200;
-
-  useEffect(() => {
-    if (playing) {
-      intervalRef.current = setInterval(() => {
-        setElapsed(p => { const n = p + 1; setProgress((n / totalSec) * 100); return n; });
-        setBuffered(p => Math.min(100, p + 0.05));
-      }, 1000);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [playing, totalSec]);
-
-  function resetHideTimer() {
-    setShowCtrl(true);
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => { if (playing) setShowCtrl(false); }, 3200);
-  }
-
-  function fmt(sec: number) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = Math.floor(sec % 60);
-    return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
-  }
-
-  function seek(pct: number) { setProgress(pct); setElapsed(Math.floor((pct / 100) * totalSec)); }
-
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) { containerRef.current?.requestFullscreen(); setFullscreen(true); }
-    else { document.exitFullscreen(); setFullscreen(false); }
-  }
-
-  const skipSec = 10;
-
-  if (movie.video_url) {
-    return (
-      <div ref={containerRef} style={{ position: "relative", width: "100%", background: "#000", aspectRatio: "16/9", overflow: "hidden", borderRadius: fullscreen ? 0 : 12 }}>
-        <video src={movie.video_url} poster={movie.poster_url ?? undefined} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-        <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, background: `${t.bgElevated}99`, border: `1px solid ${t.borderSubtle}`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t.textSecondary, zIndex: 10 }}>
-          <X size={14} />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      onMouseMove={resetHideTimer}
-      onClick={() => { if (!showSettings) { setPlaying(p => !p); resetHideTimer(); } }}
-      style={{ position: "relative", width: "100%", background: "#000", aspectRatio: "16/9", overflow: "hidden", cursor: showCtrl ? "default" : "none", borderRadius: fullscreen ? 0 : 12 }}
-    >
-      <img src={movie.poster_url ?? ""} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: playing ? "brightness(0.55)" : "brightness(0.35)" }} />
-      {!playing && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 72, height: 72, background: t.accent, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 50px ${t.accentGlow}` }}>
-            <Play size={28} fill={t.textOnAccent} color={t.textOnAccent} />
-          </div>
-        </div>
-      )}
-      {subtitles && playing && (
-        <div style={{ position: "absolute", bottom: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.7)", padding: "6px 18px", borderRadius: 4, color: t.textPrimary, fontSize: 15, fontFamily: "'DM Sans', sans-serif", textAlign: "center", backdropFilter: "blur(4px)" }}>
-          Maisha si mchezo… mwisho wake ni jana.
-        </div>
-      )}
-      {showSettings && (
-        <div onClick={e => e.stopPropagation()} style={{ position: "absolute", bottom: 72, right: 16, width: 220, background: t.bgElevated, border: `1px solid ${t.borderSubtle}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.9)", zIndex: 10 }}>
-          <div style={{ padding: "14px 16px 8px" }}>
-            <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "0 0 8px" }}>Quality</p>
-            {["4K Ultra", "1080p", "720p", "480p"].map(q => (
-              <button key={q} onClick={() => setQuality(q)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", background: "transparent", border: "none", color: q === quality ? t.textPrimary : t.textSecondary, fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", textAlign: "left" }}>
-                {q}{q === quality && <Check size={12} color={t.accent} />}
-              </button>
-            ))}
-          </div>
-          <div style={{ height: 1, background: t.borderSubtle }} />
-          <div style={{ padding: "8px 16px 14px" }}>
-            <p style={{ fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, margin: "8px 0 8px" }}>Subtitles</p>
-            {["Off", "English", "Swahili"].map(s => (
-              <button key={s} onClick={() => setSubtitles(s !== "Off")} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", background: "transparent", border: "none", color: t.textSecondary, fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", textAlign: "left" }}>
-                {s}
-                {(s === "Off" && !subtitles) || (s !== "Off" && subtitles && s === "English") ? <Check size={12} color={t.accent} /> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.5) 100%)", opacity: showCtrl ? 1 : 0, transition: "opacity 0.3s", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "16px", pointerEvents: showCtrl ? "auto" : "none" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: t.textSecondary, fontFamily: "'DM Sans', sans-serif", margin: "0 0 2px" }}>{movie.genre[0]}</p>
-            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", color: t.textPrimary, letterSpacing: "0.06em", margin: 0 }}>{movie.title}</h3>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <span style={{ fontSize: 10, letterSpacing: "0.25em", color: t.accent, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, background: t.navActiveBg, border: `1px solid ${t.borderAccent}`, padding: "4px 10px", borderRadius: 4 }}>{quality}</span>
-            <button onClick={e => { e.stopPropagation(); onClose(); }} style={{ width: 34, height: 34, background: t.navHoverBg, border: `1px solid ${t.borderSubtle}`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t.textSecondary }}>
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-        <div onClick={e => e.stopPropagation()}>
-          <div style={{ marginBottom: 12 }}>
-            <div
-              style={{ position: "relative", height: 4, background: t.borderMedium, borderRadius: 2, cursor: "pointer" }}
-              onClick={e => { const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * 100); }}
-            >
-              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${buffered}%`, background: t.borderMedium, borderRadius: 2 }} />
-              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${progress}%`, background: t.accent, borderRadius: 2 }}>
-                <div style={{ position: "absolute", right: -6, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, background: t.accent, borderRadius: "50%", boxShadow: `0 0 10px ${t.accentGlow}` }} />
-              </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-              <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{fmt(elapsed)}</span>
-              <span style={{ fontSize: 11, color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>{movie.duration ?? "—"}</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => seek(Math.max(0, progress - (skipSec / totalSec) * 100))} style={{ width: 36, height: 36, background: "transparent", border: "none", cursor: "pointer", color: t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Rewind size={16} />
-              </button>
-              <button onClick={() => { setPlaying(p => !p); resetHideTimer(); }} style={{ width: 44, height: 44, background: t.accent, border: "none", borderRadius: "50%", cursor: "pointer", color: t.textOnAccent, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 20px ${t.accentGlow}` }}>
-                {playing ? <Pause size={18} fill={t.textOnAccent} /> : <Play size={18} fill={t.textOnAccent} />}
-              </button>
-              <button onClick={() => seek(Math.min(100, progress + (skipSec / totalSec) * 100))} style={{ width: 36, height: 36, background: "transparent", border: "none", cursor: "pointer", color: t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <FastForward size={16} />
-              </button>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button onClick={() => setMuted(p => !p)} style={{ width: 32, height: 32, background: "transparent", border: "none", cursor: "pointer", color: t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                </button>
-                <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} onChange={e => { setVolume(parseFloat(e.target.value)); setMuted(false); }} style={{ width: 70, accentColor: t.accent, cursor: "pointer" }} />
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setSubtitles(p => !p)} style={{ width: 34, height: 34, background: subtitles ? t.navActiveBg : "transparent", border: `1px solid ${subtitles ? t.borderAccent : t.borderSubtle}`, borderRadius: 8, cursor: "pointer", color: subtitles ? t.accent : t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Subtitles size={14} />
-              </button>
-              <button onClick={() => setShowSettings(p => !p)} style={{ width: 34, height: 34, background: showSettings ? t.navActiveBg : "transparent", border: `1px solid ${showSettings ? t.borderAccent : t.borderSubtle}`, borderRadius: 8, cursor: "pointer", color: showSettings ? t.accent : t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Settings size={14} />
-              </button>
-              <button onClick={toggleFullscreen} style={{ width: 34, height: 34, background: "transparent", border: `1px solid ${t.borderSubtle}`, borderRadius: 8, cursor: "pointer", color: t.textSecondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {fullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -363,6 +193,19 @@ export default function MovieDetailPage() {
 
   return (
     <>
+      {/* ── FULL-SCREEN VIDEO PLAYER OVERLAY ── */}
+      {playerOpen && movie && (
+        <VideoPlayer
+          src={movie.video_url ?? ""}
+          title={movie.title}
+          subtitle={movie.genre?.[0] ? `${movie.genre[0]} · ${movie.release_year ?? ""}` : undefined}
+          poster={movie.poster_url ?? undefined}
+          onClose={handleClosePlayer}
+          onBack={handleClosePlayer}
+          autoPlay
+        />
+      )}
+
       <div style={{ display: "flex", height: "100svh", background: t.bgBase, overflow: "hidden" }}>
         {!isSmall && (
           <DashboardSidebar user={userObj} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
@@ -384,49 +227,45 @@ export default function MovieDetailPage() {
             </div>
           ) : movie ? (
             <>
-              {/* ── HERO / PLAYER AREA ── */}
+              {/* ── HERO AREA (shown when player is closed) ── */}
               <div style={{ position: "relative", width: "100%", background: "#000" }}>
-                {playerOpen ? (
-                  <VideoPlayer movie={movie} onClose={handleClosePlayer} />
-                ) : (
-                  <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", overflow: "hidden" }}>
-                    <img src={movie.poster_url ?? ""} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.35) saturate(1.1)" }} />
-                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(0deg, ${t.bgBase} 0%, rgba(0,0,0,0.2) 60%, transparent 100%)` }} />
-                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${t.overlay} 0%, transparent 60%)` }} />
+                <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", overflow: "hidden" }}>
+                  <img src={movie.poster_url ?? ""} alt={movie.title} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.35) saturate(1.1)" }} />
+                  <div style={{ position: "absolute", inset: 0, background: `linear-gradient(0deg, ${t.bgBase} 0%, rgba(0,0,0,0.2) 60%, transparent 100%)` }} />
+                  <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${t.overlay} 0%, transparent 60%)` }} />
 
-                    <button onClick={() => router.back()} style={{ position: "absolute", top: 20, left: 20, display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgba(0,0,0,0.5)", border: `1px solid ${t.borderSubtle}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", backdropFilter: "blur(8px)" }}>
-                      <ChevronLeft size={14} /> Back
-                    </button>
+                  <button onClick={() => router.back()} style={{ position: "absolute", top: 20, left: 20, display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgba(0,0,0,0.5)", border: `1px solid ${t.borderSubtle}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", backdropFilter: "blur(8px)" }}>
+                    <ChevronLeft size={14} /> Back
+                  </button>
 
-                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-                      <PremiumPlayButton
-                        movieId={movie.$id}
-                        movieTitle={movie.title}
-                        posterUrl={movie.poster_url ?? undefined}
-                        isPremium={!!movie.premium_only}
-                        isPaid={isPaid}
-                        userId=""
-                        onPlay={handlePlayRequest}
-                        style={{ width: 80, height: 80, background: isLocked ? `${t.accent}bf` : t.accent, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: `0 0 60px ${t.accentGlow}` }}
-                      >
-                        {isLocked ? <Lock size={32} color={t.textOnAccent} /> : <Play size={32} fill={t.textOnAccent} color={t.textOnAccent} />}
-                      </PremiumPlayButton>
-                    </div>
-
-                    {isLocked && (
-                      <div style={{ position: "absolute", top: "calc(50% + 52px)", left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
-                        <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif", background: "rgba(0,0,0,0.5)", padding: "4px 12px", borderRadius: 20, backdropFilter: "blur(4px)" }}>
-                          Unlock for KES 10
-                        </span>
-                      </div>
-                    )}
-
-                    <div style={{ position: "absolute", bottom: 20, right: 20, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 6, border: `1px solid ${t.borderSubtle}` }}>
-                      <Clock size={11} color={t.textMuted} />
-                      <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{movie.duration ?? "—"}</span>
-                    </div>
+                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                    <PremiumPlayButton
+                      movieId={movie.$id}
+                      movieTitle={movie.title}
+                      posterUrl={movie.poster_url ?? undefined}
+                      isPremium={!!movie.premium_only}
+                      isPaid={isPaid}
+                      userId=""
+                      onPlay={handlePlayRequest}
+                      style={{ width: 80, height: 80, background: isLocked ? `${t.accent}bf` : t.accent, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: `0 0 60px ${t.accentGlow}` }}
+                    >
+                      {isLocked ? <Lock size={32} color={t.textOnAccent} /> : <Play size={32} fill={t.textOnAccent} color={t.textOnAccent} />}
+                    </PremiumPlayButton>
                   </div>
-                )}
+
+                  {isLocked && (
+                    <div style={{ position: "absolute", top: "calc(50% + 52px)", left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
+                      <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif", background: "rgba(0,0,0,0.5)", padding: "4px 12px", borderRadius: 20, backdropFilter: "blur(4px)" }}>
+                        Unlock for KES 10
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{ position: "absolute", bottom: 20, right: 20, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 6, border: `1px solid ${t.borderSubtle}` }}>
+                    <Clock size={11} color={t.textMuted} />
+                    <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{movie.duration ?? "—"}</span>
+                  </div>
+                </div>
               </div>
 
               {/* ── CONTENT GRID ── */}
