@@ -17,7 +17,7 @@ const BG_IMAGES = [
 
 // ── QUOTES cycling on visual panel ─────────────────────────────────────────
 const TAGLINES = [
-  { line: "The best stories", sub: "are dubbed for you." },
+  { line: "The best DjAfro movies", sub: "are here for you." },
   { line: "Enjoy DjAfro Movies", sub: "available on all devices." },
   { line: "500+ movies.", sub: "DjAfro movies. All yours." },
 ];
