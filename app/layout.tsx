@@ -64,7 +64,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "DjAfro Cinema — East Africa's Movies, Your Way",
+    title: "DjAfro Cinema — Eanjoy best djafro Movies, Your Way",
     description:
       "Stream and download DJ Afro dubbed movies, Bollywood, and African cinema. Kenya's #1 movie streaming platform.",
     images: ["/logos/android-chrome-512x512.png"],
