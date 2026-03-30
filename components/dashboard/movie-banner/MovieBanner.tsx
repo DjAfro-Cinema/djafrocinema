@@ -53,7 +53,15 @@ export default function MovieBanner({
   const [kenKey, setKenKey]               = useState(0);
   const [tickKey, setTickKey]             = useState(0);
   const [inLib, setInLib]                 = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile]           = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 480);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const goTo = useCallback((idx: number) => {
     if (transitioning) return;
@@ -128,7 +136,6 @@ export default function MovieBanner({
                   : "none",
               }}
             />
-            {/* Overlay tinted with theme base color */}
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(105deg, ${t.overlay} 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.15) 100%)` }} />
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${t.bgBase} 0%, rgba(0,0,0,0.7) 18%, transparent 50%)` }} />
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 22%)` }} />
@@ -141,133 +148,171 @@ export default function MovieBanner({
         position: "relative", zIndex: 10,
         display: "flex", flexDirection: "column", justifyContent: "flex-end",
         minHeight: minH,
-        padding: compact ? "24px 32px 48px" : "36px 44px 56px",
+        padding: isMobile
+          ? "20px 16px 44px"
+          : compact ? "24px 32px 48px" : "36px 44px 56px",
       }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 28, maxWidth: 760 }}>
 
-          {/* Poster card */}
-          <div
-            key={`poster-${current}`}
-            className="banner-poster-card"
-            style={{
-              flexShrink: 0,
-              width: compact ? 100 : 130,
-              height: compact ? 148 : 192,
-              borderRadius: 10, overflow: "hidden",
-              boxShadow: `0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px ${t.borderSubtle}`,
-              animation: "djBannerFadeUp 0.65s cubic-bezier(0.22,1,0.36,1) both",
-              position: "relative",
-            }}
-          >
-            <Image src={slide.img} alt={slide.title} fill sizes="130px" style={{ objectFit: "cover" }} draggable={false} />
-
-            {isLocked && (
-              <div style={{
-                position: "absolute", inset: 0,
-                background: "rgba(0,0,0,0.45)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
+          {/* Poster card — desktop only */}
+          {!isMobile && (
+            <div
+              key={`poster-${current}`}
+              className="banner-poster-card"
+              style={{
+                flexShrink: 0,
+                width: compact ? 100 : 130,
+                height: compact ? 148 : 192,
+                borderRadius: 10, overflow: "hidden",
+                boxShadow: `0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px ${t.borderSubtle}`,
+                animation: "djBannerFadeUp 0.65s cubic-bezier(0.22,1,0.36,1) both",
+                position: "relative",
+              }}
+            >
+              <Image src={slide.img} alt={slide.title} fill sizes="130px" style={{ objectFit: "cover" }} draggable={false} />
+              {isLocked && (
                 <div style={{
-                  width: 34, height: 34, borderRadius: "50%",
-                  background: t.accent,
+                  position: "absolute", inset: 0,
+                  background: "rgba(0,0,0,0.45)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: `0 0 20px ${t.accentGlow}`,
                 }}>
-                  <Lock size={14} color={t.textOnAccent} />
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%",
+                    background: t.accent,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: `0 0 20px ${t.accentGlow}`,
+                  }}>
+                    <Lock size={14} color={t.textOnAccent} />
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {slide.premium && isPaid && (
-              <div style={{
-                position: "absolute", top: 7, right: 7,
-                width: 22, height: 22, borderRadius: "50%",
-                background: `rgba(16,185,129,0.9)`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <CheckCircle2 size={12} color="#fff" />
-              </div>
-            )}
-          </div>
+              )}
+              {slide.premium && isPaid && (
+                <div style={{
+                  position: "absolute", top: 7, right: 7,
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: `rgba(16,185,129,0.9)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <CheckCircle2 size={12} color="#fff" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Text + CTAs */}
           <div style={{ flex: 1, minWidth: 0 }}>
 
-            {/* Tag + meta */}
-            <div key={`tag-${current}`} style={{
-              display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both",
-            }}>
-              <span style={{
-                fontSize: 8.5, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
-                letterSpacing: "0.35em", textTransform: "uppercase", padding: "3px 9px",
-                color: t.accent, background: `${t.accent}1a`, border: `1px solid ${t.borderAccent}`,
-              }}>{slide.tag}</span>
-
-              {slide.premium && (
+            {/* Tag + meta — desktop only */}
+            {!isMobile && (
+              <div key={`tag-${current}`} style={{
+                display: "flex", alignItems: "center", gap: 10, marginBottom: 14,
+                animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both",
+              }}>
                 <span style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase",
-                  padding: "3px 8px", borderRadius: 4,
-                  background: isPaid ? "rgba(16,185,129,0.12)" : `${t.accent}1a`,
-                  color: isPaid ? t.success : t.accent,
-                  border: isPaid ? `1px solid rgba(16,185,129,0.28)` : `1px solid ${t.borderAccent}`,
-                  display: "flex", alignItems: "center", gap: 4,
-                  transition: "all 0.3s ease",
-                }}>
-                  {isPaid ? <CheckCircle2 size={8} /> : <Lock size={8} />}
-                  {isPaid ? "Owned" : "KES 10"}
-                </span>
-              )}
+                  fontSize: 8.5, fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                  letterSpacing: "0.35em", textTransform: "uppercase", padding: "3px 9px",
+                  color: t.accent, background: `${t.accent}1a`, border: `1px solid ${t.borderAccent}`,
+                }}>{slide.tag}</span>
 
-              <span style={{ width: 20, height: 1, background: t.borderMedium }} />
-              <span style={{ fontSize: 9, color: t.textMuted, letterSpacing: "0.25em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>{slide.genre}</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", background: t.borderMedium }} />
-              <span style={{ fontSize: 9, color: t.textMuted, letterSpacing: "0.15em", fontFamily: "'DM Sans', sans-serif" }}>{slide.year}</span>
-            </div>
+                {slide.premium && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase",
+                    padding: "3px 8px", borderRadius: 4,
+                    background: isPaid ? "rgba(16,185,129,0.12)" : `${t.accent}1a`,
+                    color: isPaid ? t.success : t.accent,
+                    border: isPaid ? `1px solid rgba(16,185,129,0.28)` : `1px solid ${t.borderAccent}`,
+                    display: "flex", alignItems: "center", gap: 4,
+                    transition: "all 0.3s ease",
+                  }}>
+                    {isPaid ? <CheckCircle2 size={8} /> : <Lock size={8} />}
+                    {isPaid ? "Owned" : "KES 10"}
+                  </span>
+                )}
+
+                <span style={{ width: 20, height: 1, background: t.borderMedium }} />
+                <span style={{ fontSize: 9, color: t.textMuted, letterSpacing: "0.25em", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>{slide.genre}</span>
+                <span style={{ width: 3, height: 3, borderRadius: "50%", background: t.borderMedium }} />
+                <span style={{ fontSize: 9, color: t.textMuted, letterSpacing: "0.15em", fontFamily: "'DM Sans', sans-serif" }}>{slide.year}</span>
+              </div>
+            )}
 
             {/* Title */}
             <h1 key={`title-${current}`} style={{
-              fontSize: compact ? "clamp(2rem,5vw,3.2rem)" : "clamp(2.4rem,6vw,4.8rem)",
+              fontSize: isMobile
+                ? "clamp(1.7rem,7vw,2.4rem)"
+                : compact ? "clamp(2rem,5vw,3.2rem)" : "clamp(2.4rem,6vw,4.8rem)",
               fontFamily: "var(--font-display)", color: t.textPrimary, letterSpacing: "0.02em",
-              lineHeight: 0.92, marginBottom: 14,
+              lineHeight: 0.92,
+              marginBottom: isMobile ? 10 : 14,
               textShadow: "0 2px 30px rgba(0,0,0,0.5)",
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.07s both",
             }}>{slide.title}</h1>
 
-            {/* Rating */}
+            {/* Rating — always shown, but simplified on mobile */}
             <div key={`rating-${current}`} style={{
-              display: "flex", alignItems: "center", gap: 8, marginBottom: 12,
+              display: "flex", alignItems: "center", gap: 8,
+              marginBottom: isMobile ? 16 : 12,
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.12s both",
             }}>
               <div style={{ display: "flex", gap: 2 }}>
                 {Array.from({ length: 5 }).map((_, i) => {
                   const filled = i < Math.round(parseFloat(slide.rating) / 2);
-                  return <Star key={i} size={10}
+                  return <Star key={i} size={isMobile ? 11 : 10}
                     fill={filled ? t.accent : t.borderSubtle}
                     color={filled ? t.accent : t.borderSubtle} />;
                 })}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: t.accent, fontFamily: "'DM Sans', sans-serif" }}>{slide.rating}</span>
+              <span style={{ fontSize: isMobile ? 13 : 12, fontWeight: 700, color: t.accent, fontFamily: "'DM Sans', sans-serif" }}>{slide.rating}</span>
               <span style={{ fontSize: 11, color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>/ 10</span>
-              {slide.duration && (
+              {/* Duration only on desktop */}
+              {!isMobile && slide.duration && (
                 <>
                   <span style={{ width: 3, height: 3, borderRadius: "50%", background: t.borderMedium }} />
                   <span style={{ fontSize: 11, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>{slide.duration}</span>
                 </>
               )}
+              {/* Owned badge inline on mobile */}
+              {isMobile && slide.premium && isPaid && (
+                <span style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.18em",
+                  padding: "2px 7px", borderRadius: 4,
+                  background: "rgba(16,185,129,0.12)",
+                  color: t.success,
+                  border: `1px solid rgba(16,185,129,0.28)`,
+                  display: "flex", alignItems: "center", gap: 3,
+                }}>
+                  <CheckCircle2 size={7} /> Owned
+                </span>
+              )}
+              {/* Locked badge inline on mobile */}
+              {isMobile && isLocked && (
+                <span style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: "0.18em",
+                  padding: "2px 7px", borderRadius: 4,
+                  background: `${t.accent}1a`,
+                  color: t.accent,
+                  border: `1px solid ${t.borderAccent}`,
+                  display: "flex", alignItems: "center", gap: 3,
+                }}>
+                  <Lock size={7} /> KES 10
+                </span>
+              )}
             </div>
 
-            {/* Description */}
-            <p key={`desc-${current}`} style={{
-              fontSize: "clamp(0.8rem,1.2vw,0.9rem)",
-              color: t.textSecondary, lineHeight: 1.65, maxWidth: 430, marginBottom: 24,
-              fontFamily: "'DM Sans', sans-serif",
-              animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both",
-            }}>{slide.description}</p>
+            {/* Description — desktop only */}
+            {!isMobile && (
+              <p key={`desc-${current}`} style={{
+                fontSize: "clamp(0.8rem,1.2vw,0.9rem)",
+                color: t.textSecondary, lineHeight: 1.65, maxWidth: 430, marginBottom: 24,
+                fontFamily: "'DM Sans', sans-serif",
+                animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both",
+              }}>{slide.description}</p>
+            )}
 
             {/* CTAs */}
             <div key={`cta-${current}`} style={{
-              display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
+              display: "flex", flexWrap: "wrap", alignItems: "center",
+              gap: isMobile ? 8 : 10,
               animation: "djBannerFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both",
             }}>
               <PremiumPlayButton
@@ -280,13 +325,15 @@ export default function MovieBanner({
                 onPlay={handlePlay}
                 style={{
                   display: "flex", alignItems: "center", gap: 8,
-                  padding: "11px 26px",
+                  padding: isMobile ? "10px 20px" : "11px 26px",
                   background: t.accent, border: "none", cursor: "pointer",
-                  color: t.textOnAccent, fontSize: 10.5,
+                  color: t.textOnAccent,
+                  fontSize: isMobile ? 11 : 10.5,
                   fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
                   letterSpacing: "0.2em", textTransform: "uppercase",
                   boxShadow: `0 0 30px ${t.accentGlow}`,
                   transition: "box-shadow 0.25s",
+                  borderRadius: isMobile ? 8 : 0,
                 }}
               >
                 {isLocked ? <Lock size={13} /> : <Play size={13} fill={t.textOnAccent} />}
@@ -296,12 +343,17 @@ export default function MovieBanner({
               <button
                 onClick={() => handleMoreInfo(slide)}
                 style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "11px 20px",
-                  background: t.navHoverBg, border: `1px solid ${t.borderMedium}`,
-                  cursor: "pointer", color: t.textSecondary, fontSize: 10.5,
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: isMobile ? "10px 16px" : "11px 20px",
+                  background: t.navHoverBg,
+                  border: `1px solid ${t.borderMedium}`,
+                  cursor: "pointer", color: t.textSecondary,
+                  fontSize: isMobile ? 11 : 10.5,
                   fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
                   letterSpacing: "0.2em", textTransform: "uppercase",
-                  backdropFilter: "blur(8px)", transition: "border-color 0.2s, color 0.2s, background 0.2s",
+                  backdropFilter: "blur(8px)",
+                  transition: "border-color 0.2s, color 0.2s, background 0.2s",
+                  borderRadius: isMobile ? 8 : 0,
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.background = t.bgElevated;
@@ -312,7 +364,9 @@ export default function MovieBanner({
                   (e.currentTarget as HTMLElement).style.color = t.textSecondary;
                 }}
               >
-                <Info size={13} /> More Info
+                <Info size={13} />
+                {/* Hide "More Info" text on mobile, just the icon */}
+                {!isMobile && "More Info"}
               </button>
 
               <button
@@ -322,9 +376,10 @@ export default function MovieBanner({
                   return n;
                 })}
                 style={{
-                  width: 42, height: 42,
+                  width: 40, height: 40,
                   background: inLib.has(slide.id) ? "rgba(37,211,102,0.1)" : t.navHoverBg,
                   border: `1px solid ${inLib.has(slide.id) ? "rgba(37,211,102,0.28)" : t.borderMedium}`,
+                  borderRadius: isMobile ? 8 : 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: "pointer", transition: "all 0.2s",
                 }}
@@ -335,49 +390,61 @@ export default function MovieBanner({
           </div>
         </div>
 
-        {/* Slide pips */}
-        <div style={{ position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)", zIndex: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-          {movies.map((_, i) => (
-            <button key={i} onClick={() => goTo(i)} style={{
-              width: 4, height: i === current ? 24 : 6,
-              border: "none", cursor: "pointer",
-              background: i === current ? t.accent : t.borderMedium,
-              boxShadow: i === current ? `0 0 8px ${t.accent}` : "none",
-              transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
-            }} />
-          ))}
-        </div>
+        {/* Slide pips — desktop only */}
+        {!isMobile && (
+          <div style={{ position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)", zIndex: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+            {movies.map((_, i) => (
+              <button key={i} onClick={() => goTo(i)} style={{
+                width: 4, height: i === current ? 24 : 6,
+                border: "none", cursor: "pointer",
+                background: i === current ? t.accent : t.borderMedium,
+                boxShadow: i === current ? `0 0 8px ${t.accent}` : "none",
+                transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
+              }} />
+            ))}
+          </div>
+        )}
 
-        {/* Arrows */}
-        <button onClick={prev} style={{
-          position: "absolute", left: 16, bottom: "36%", width: 38, height: 38,
-          background: t.navHoverBg, border: `1px solid ${t.borderSubtle}`,
-          backdropFilter: "blur(10px)", display: "flex", alignItems: "center",
-          justifyContent: "center", cursor: "pointer", color: t.textSecondary,
-          transition: "all 0.2s", zIndex: 20,
+        {/* Arrows — desktop only */}
+        {!isMobile && (
+          <>
+            <button onClick={prev} style={{
+              position: "absolute", left: 16, bottom: "36%", width: 38, height: 38,
+              background: t.navHoverBg, border: `1px solid ${t.borderSubtle}`,
+              backdropFilter: "blur(10px)", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", color: t.textSecondary,
+              transition: "all 0.2s", zIndex: 20,
+            }}>
+              <ChevronLeft size={16} />
+            </button>
+            <button onClick={next} style={{
+              position: "absolute", right: 46, bottom: "36%", width: 38, height: 38,
+              background: t.navHoverBg, border: `1px solid ${t.borderSubtle}`,
+              backdropFilter: "blur(10px)", display: "flex", alignItems: "center",
+              justifyContent: "center", cursor: "pointer", color: t.textSecondary,
+              transition: "all 0.2s", zIndex: 20,
+            }}>
+              <ChevronRight size={16} />
+            </button>
+          </>
+        )}
+
+        {/* Slide counter — desktop only */}
+        {!isMobile && (
+          <div style={{ position: "absolute", bottom: 20, right: 16, zIndex: 20, display: "flex", alignItems: "baseline", gap: 3 }}>
+            <span style={{ fontSize: 20, fontFamily: "var(--font-display)", color: t.textPrimary, letterSpacing: "0.08em", lineHeight: 1 }}>
+              {String(current + 1).padStart(2, "0")}
+            </span>
+            <span style={{ fontSize: 11, color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>/ {String(movies.length).padStart(2, "0")}</span>
+          </div>
+        )}
+
+        {/* Pill ticker — always shown */}
+        <div style={{
+          position: "absolute", bottom: isMobile ? 10 : 16,
+          left: "50%", transform: "translateX(-50%)",
+          zIndex: 20, display: "flex", alignItems: "center", gap: 6,
         }}>
-          <ChevronLeft size={16} />
-        </button>
-        <button onClick={next} style={{
-          position: "absolute", right: 46, bottom: "36%", width: 38, height: 38,
-          background: t.navHoverBg, border: `1px solid ${t.borderSubtle}`,
-          backdropFilter: "blur(10px)", display: "flex", alignItems: "center",
-          justifyContent: "center", cursor: "pointer", color: t.textSecondary,
-          transition: "all 0.2s", zIndex: 20,
-        }}>
-          <ChevronRight size={16} />
-        </button>
-
-        {/* Slide counter */}
-        <div style={{ position: "absolute", bottom: 20, right: 16, zIndex: 20, display: "flex", alignItems: "baseline", gap: 3 }}>
-          <span style={{ fontSize: 20, fontFamily: "var(--font-display)", color: t.textPrimary, letterSpacing: "0.08em", lineHeight: 1 }}>
-            {String(current + 1).padStart(2, "0")}
-          </span>
-          <span style={{ fontSize: 11, color: t.textMuted, fontFamily: "'DM Sans', sans-serif" }}>/ {String(movies.length).padStart(2, "0")}</span>
-        </div>
-
-        {/* Pill ticker */}
-        <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 20, display: "flex", alignItems: "center", gap: 6 }}>
           {movies.map((_, i) => {
             const isActive = i === current;
             return (
