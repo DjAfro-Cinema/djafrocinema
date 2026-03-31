@@ -6,7 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { PWANotificationPrompt } from "@/components/PWANotificationPrompt";
-
+import Script from "next/script";
 
 const clashDisplay = localFont({
   src: [
@@ -113,6 +113,23 @@ export default function RootLayout({
       data-theme="dark"
       className={`${clashDisplay.variable} ${outfit.variable} h-full antialiased`}
     >
+      <head>
+        <Script
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+          defer
+          strategy="afterInteractive"
+        />
+        <Script id="onesignal-init" strategy="afterInteractive">
+          {`
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            OneSignalDeferred.push(async function(OneSignal) {
+              await OneSignal.init({
+                appId: "e42c0fe5-3779-44a2-987b-c1e1ecd6f576",
+              });
+            });
+          `}
+        </Script>
+      </head>
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
         <AuthProvider>
           {children}
