@@ -10,6 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+
+/djafro-email-blast.html
+/emails.json
+/fetch-emails.js
+
 # testing
 /coverage
 
