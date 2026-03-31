@@ -7,6 +7,7 @@ import AuthGuard from "@/components/AuthGuard";
 import DashboardGateWrapper from "@/components/payment/DashboardGateWrapper";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { PWANotificationPrompt } from "@/components/PWANotificationPrompt";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <DashboardGateWrapper>
         {children}
         <ThemeToggle/>
+        <PWANotificationPrompt />
       </DashboardGateWrapper>
       </ThemeProvider>
     </AuthGuard>
