@@ -14,20 +14,20 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export async function subscribeToPush(): Promise<PushSubscription | null> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("Push not supported in this browser");
-    return null;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.warn("Push not supported in this browser");
+      return null;
+    }
+  
+    const registration = await navigator.serviceWorker.ready;
+  
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) return existing;
+  
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: VAPID_PUBLIC_KEY, // pass string directly — browser handles it
+    });
+  
+    return subscription;
   }
-
-  const registration = await navigator.serviceWorker.ready;
-
-  const existing = await registration.pushManager.getSubscription();
-  if (existing) return existing;
-
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-  });
-
-  return subscription;
-}
