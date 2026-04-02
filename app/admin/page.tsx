@@ -124,7 +124,7 @@ export default function OverviewPage() {
             <ChartCanvas deps={[data.emailSignups, data.otpSignups, data.googleSignups]} config={{
               type: 'doughnut',
               data: { labels: ['Email','OTP','Google OAuth'], datasets: [{ data: [data.emailSignups,data.otpSignups,data.googleSignups], backgroundColor:['#e50914bb','#f59e0bbb','#4285f4bb'], borderColor:'#080810', borderWidth:4, hoverOffset:8 }] },
-              options: { responsive:true, maintainAspectRatio:false, cutout:'70%', plugins: { legend:{ position:'bottom', labels:{ color:'rgba(255,255,255,0.55)', padding:20, boxWidth:10, font:{size:11,family:'DM Mono'} } } } },
+              options: { responsive:true, maintainAspectRatio:false, plugins: { legend:{ position:'bottom', labels:{ color:'rgba(255,255,255,0.55)', padding:20, boxWidth:10, font:{size:11,family:'DM Mono'} } } } },
             }} />
           </ChartCard>
           <ChartCard title="Platform Split" height={280}>

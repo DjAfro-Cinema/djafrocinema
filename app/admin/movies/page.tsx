@@ -222,20 +222,20 @@ export default function MoviesPage() {
             <DataTable
               data={filteredCatalog as unknown as Record<string,unknown>[]}
               columns={[
-                { key:'poster', label:'', render: r => r.poster_url
+                { key:'poster', label:'', render: (r: { poster_url: string; }) => r.poster_url
                   ? <img src={r.poster_url as string} alt="" style={{ width:34, height:48, objectFit:'cover', borderRadius:3 }} />
                   : <div style={{ width:34, height:48, background:'rgba(255,255,255,0.06)', borderRadius:3 }} />
                 },
                 { key:'title', label:'Title' },
-                { key:'genre', label:'Genre', render: r => (
+                { key:'genre', label:'Genre', render: (r: { genre: string[]; }) => (
                   <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                     {(r.genre as string[]||[]).slice(0,2).map((g:string)=><Badge key={g} label={g} color="#4285f4" />)}
                   </div>
                 )},
                 { key:'release_year', label:'Year' },
-                { key:'view_count', label:'Views', align:'right', render: r => <span style={{ color:'#4285f4', fontWeight:600 }}>{Number(r.view_count||0).toLocaleString()}</span> },
-                { key:'rating', label:'Rating', align:'right', render: r => <span style={{ color:'#f59e0b' }}>★ {Number(r.rating||0).toFixed(1)}</span> },
-                { key:'flags', label:'', render: r => (
+                { key:'view_count', label:'Views', align:'right', render: (r: { view_count: any; }) => <span style={{ color:'#4285f4', fontWeight:600 }}>{Number(r.view_count||0).toLocaleString()}</span> },
+                { key:'rating', label:'Rating', align:'right', render: (r: { rating: any; }) => <span style={{ color:'#f59e0b' }}>★ {Number(r.rating||0).toFixed(1)}</span> },
+                { key:'flags', label:'', render: (r: { is_featured: any; is_trending: any; premium_only: any; }) => (
                   <div style={{ display:'flex', gap:4 }}>
                     {r.is_featured && <Badge label="Featured" color="#f59e0b" />}
                     {r.is_trending && <Badge label="Trending" color="#22c55e" />}
