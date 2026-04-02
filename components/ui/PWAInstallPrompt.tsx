@@ -10,9 +10,9 @@ const STORAGE_KEY_LAST_SHOW = "pwa_prompt_last_show";    // timestamp of last sh
 const STORAGE_KEY_DATE      = "pwa_prompt_date";         // YYYY-MM-DD of current day
 
 // ── Timing config ────────────────────────────────────────────────────────────
-const INITIAL_DELAY_MS  = 5 * 60 * 1000;   // 5 min after page load before first show
-const COOLDOWN_MS       = 2 * 60 * 60 * 1000; // 2 hr cooldown between shows
-const MAX_SHOWS_PER_DAY = 3;
+const INITIAL_DELAY_MS  = 2 * 60 * 1000;        // 2 min after page load before first show
+const COOLDOWN_MS       = 3 * 60 * 60 * 1000;   // 3 hr cooldown between shows (5 shows spread across ~12hr day)
+const MAX_SHOWS_PER_DAY = 5;
 
 type Platform = "android" | "ios" | "desktop" | null;
 
