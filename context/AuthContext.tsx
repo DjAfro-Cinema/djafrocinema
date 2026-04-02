@@ -9,6 +9,8 @@ import {
   ReactNode,
 } from "react";
 import { authService, AppUser } from "@/services/auth.service";
+import { analyticsService } from "@/services/analytics.service";
+import { useDetectPlatform } from "@/hooks/useDetectPlatform";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -59,11 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [otpUserId, setOtpUserId] = useState<string | null>(null);
   const [otpEmail, setOtpEmail] = useState<string | null>(null);
 
+  // Platform detection
+  const { platform } = useDetectPlatform();
+
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     authService
       .getCurrentUser()
-      .then((u) => setUser(u))
+      .then((u) => {
+        setUser(u);
+        // Record login activity if user exists
+        if (u) {
+          analyticsService.recordLogin(u.$id).catch(console.error);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -79,6 +90,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSuccess(null);
   }, []);
 
+  // ── Helper: Record analytics safely ────────────────────────────────────────
+  const recordSignupAnalytics = useCallback(
+    async (userId: string, userEmail: string, method: "email" | "otp" | "google-oauth") => {
+      try {
+        await analyticsService.recordSignup(userId, userEmail, method, platform);
+        console.log(`✅ Analytics: ${method} signup on ${platform}`);
+      } catch (err) {
+        console.error("Analytics recording failed (non-critical):", err);
+        // Don't throw—analytics failure should not fail auth
+      }
+    },
+    [platform]
+  );
+
   // ── Email + Password Login ────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -87,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const u = await authService.login(email, password);
       setUser(u);
+      await analyticsService.recordLogin(u.$id);
       setSuccess(`Welcome back, ${u.name || u.email}!`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed. Please try again.";
@@ -104,28 +130,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Email + Password Signup ───────────────────────────────────────────────
-  const signup = useCallback(async (email: string, password: string, name: string) => {
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
-    try {
-      const u = await authService.signup(email, password, name);
-      setUser(u);
-      setSuccess(`Account created! Welcome, ${u.name || u.email} 🎬`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Sign-up failed. Please try again.";
-      if (msg.includes("user_already_exists") || msg.includes("409")) {
-        setError("An account with that email already exists. Sign in instead.");
-      } else if (msg.includes("password")) {
-        setError("Password must be at least 8 characters.");
-      } else {
-        setError(msg);
+  const signup = useCallback(
+    async (email: string, password: string, name: string) => {
+      setError(null);
+      setSuccess(null);
+      setLoading(true);
+      try {
+        const u = await authService.signup(email, password, name);
+        setUser(u);
+        // Record analytics after successful signup
+        await recordSignupAnalytics(u.$id, u.email, "email");
+        setSuccess(`Account created! Welcome, ${u.name || u.email} 🎬`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Sign-up failed. Please try again.";
+        if (msg.includes("user_already_exists") || msg.includes("409")) {
+          setError("An account with that email already exists. Sign in instead.");
+        } else if (msg.includes("password")) {
+          setError("Password must be at least 8 characters.");
+        } else {
+          setError(msg);
+        }
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [recordSignupAnalytics]
+  );
 
   // ── Email OTP — Send ──────────────────────────────────────────────────────
   const sendEmailOTP = useCallback(async (email: string) => {
@@ -147,32 +178,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Email OTP — Verify ────────────────────────────────────────────────────
-  const verifyEmailOTP = useCallback(async (otp: string) => {
-    if (!otpUserId) {
-      setError("Session expired. Please request a new code.");
-      return;
-    }
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
-    try {
-      const u = await authService.verifyEmailOTP(otpUserId, otp);
-      setUser(u);
-      setOtpUserId(null);
-      setOtpEmail(null);
-      setSuccess(`Welcome, ${u.name || u.email}! 🎬`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Invalid code. Please try again.";
-      if (msg.includes("invalid") || msg.includes("401")) {
-        setError("Invalid or expired code. Please try again.");
-      } else {
-        setError(msg);
+  const verifyEmailOTP = useCallback(
+    async (otp: string) => {
+      if (!otpUserId) {
+        setError("Session expired. Please request a new code.");
+        return;
       }
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [otpUserId]);
+      setError(null);
+      setSuccess(null);
+      setLoading(true);
+      try {
+        const u = await authService.verifyEmailOTP(otpUserId, otp);
+        setUser(u);
+        // Record analytics after successful OTP verification
+        await recordSignupAnalytics(u.$id, u.email, "otp");
+        setOtpUserId(null);
+        setOtpEmail(null);
+        setSuccess(`Welcome, ${u.name || u.email}! 🎬`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Invalid code. Please try again.";
+        if (msg.includes("invalid") || msg.includes("401")) {
+          setError("Invalid or expired code. Please try again.");
+        } else {
+          setError(msg);
+        }
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [otpUserId, recordSignupAnalytics]
+  );
 
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {

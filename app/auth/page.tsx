@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { useDetectPlatform } from "@/hooks/useDetectPlatform";
+import { analyticsService } from "@/services/analytics.service";
 
 // ── BG IMAGES cycling on the visual panel ──────────────────────────────────
 const BG_IMAGES = [
@@ -34,6 +36,7 @@ type FormMode =
 
 export default function AuthPage() {
   const router = useRouter();
+  const { platform } = useDetectPlatform();
   const {
     user,
     loading: authLoading,
