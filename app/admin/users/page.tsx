@@ -137,7 +137,7 @@ export default function UsersPage() {
         </>)}
       </div>
 
-      {/* User table */}
+
       {!loading && (
         <div style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:8, padding:'24px 28px' }}>
           {/* Filters */}
@@ -165,7 +165,7 @@ export default function UsersPage() {
             <span style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,0.3)' }}>{filtered.length} users</span>
           </div>
 
-          {/* Table */}
+       
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontFamily:"'DM Mono',monospace" }}>
               <thead>
