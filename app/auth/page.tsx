@@ -164,19 +164,34 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (tab === "login") {
-        // ✅ FIX: login() returns the user object — use it directly instead of
-        // reading stale `user` state inside a setTimeout closure.
+        // ✅ FIX: login() returns the user object — use it directly
         const loggedInUser = await login(email, password) as unknown as { $id?: string };
-        if ((loggedInUser as unknown as { $id?: string })?.$id) {
-          if (loggedInUser.$id) {
+        
+        console.log("🔵 Login returned user:", loggedInUser);
+        
+        // ✅ CRITICAL FIX: Record the login session AFTER successful login
+        if (loggedInUser?.$id) {
+          console.log("🟢 Recording login for user:", loggedInUser.$id);
+          try {
             await analyticsService.recordLogin(loggedInUser.$id);
+            console.log("✅ Login session recorded successfully");
+          } catch (err) {
+            console.error("❌ Failed to record login session:", err);
+            // Don't throw - let the user continue even if analytics fails
           }
+        } else {
+          console.warn("⚠️ No user $id found after login");
         }
       } else {
         await signup(email, password, name);
         // recordSignup is called inside useAuth/signup flow via analyticsService.recordSignup
       }
-    } catch { /* errors handled in context */ } finally { setLoading(false); }
+    } catch (err) {
+      console.error("Login/signup error:", err);
+      /* errors handled in context */ 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -198,13 +213,30 @@ export default function AuthPage() {
     if (!otpCode) return;
     setLoading(true);
     try {
-      // ✅ FIX: verifyEmailOTP() returns the user — use it directly, same reason
-      // as above: React state won't have updated yet when the next line runs.
+      // ✅ FIX: verifyEmailOTP() returns the user — use it directly
       const loggedInUser = await verifyEmailOTP(otpCode) as unknown as { $id?: string };
-      if (loggedInUser.$id) {
-        await analyticsService.recordLogin(loggedInUser.$id);
+      
+      console.log("🔵 OTP verification returned user:", loggedInUser);
+      
+      // ✅ CRITICAL FIX: Record the login session AFTER successful OTP verification
+      if (loggedInUser?.$id) {
+        console.log("🟢 Recording OTP login for user:", loggedInUser.$id);
+        try {
+          await analyticsService.recordLogin(loggedInUser.$id);
+          console.log("✅ OTP login session recorded successfully");
+        } catch (err) {
+          console.error("❌ Failed to record OTP login session:", err);
+          // Don't throw - let the user continue even if analytics fails
+        }
+      } else {
+        console.warn("⚠️ No user $id found after OTP verification");
       }
-    } catch { /* handled */ } finally { setLoading(false); }
+    } catch (err) {
+      console.error("OTP verification error:", err);
+      /* handled */ 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const goBack = () => {

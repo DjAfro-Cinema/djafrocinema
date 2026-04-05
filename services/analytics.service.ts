@@ -119,9 +119,14 @@ export const analyticsService = {
     platform: "pwa" | "mobile-app" = "pwa"
   ) {
     try {
+      console.log("🟢 recordSignup called:", { userId, email, signupMethod, platform });
+      
       const now = new Date().toISOString();
       const userAgent   = typeof window !== "undefined" ? navigator.userAgent : "server";
       const sessionType = detectSessionType();
+      
+      console.log("🔵 Session type detected:", sessionType);
+      
       const { ID } = await import("appwrite");
 
       // 1. Write to analytics collection (one doc per user — their profile row)
@@ -138,6 +143,8 @@ export const analyticsService = {
         loginCount: 1,
       };
 
+      console.log("📝 Creating analytics record:", record);
+
       const response = await databases.createDocument(
         DATABASE_ID,
         ANALYTICS_COLLECTION_ID,
@@ -145,12 +152,14 @@ export const analyticsService = {
         record
       );
 
+      console.log("✅ Analytics record created:", response.$id);
+
       // 2. Also write a session event to user_sessions
       await analyticsService.recordSessionEvent(userId, email, signupMethod, platform);
 
       return response;
     } catch (error) {
-      console.error("Failed to record signup:", error);
+      console.error("❌ Failed to record signup:", error);
       throw error;
     }
   },
@@ -159,17 +168,29 @@ export const analyticsService = {
 
   async recordLogin(userId: string): Promise<void> {
     try {
+      console.log("🟢 recordLogin called for userId:", userId);
+      
       const response = await databases.listDocuments(
         DATABASE_ID,
         ANALYTICS_COLLECTION_ID,
         [Query.equal("userId", userId)]
       );
 
+      console.log("🔵 Found analytics records:", response.documents.length);
+
       const sessionType = detectSessionType();
+      console.log("🔵 Session type detected:", sessionType);
 
       if (response.documents.length > 0) {
         const doc          = response.documents[0];
         const currentCount = (doc.loginCount as number) || 0;
+
+        console.log("📝 Updating analytics record:", {
+          docId: doc.$id,
+          currentLoginCount: currentCount,
+          newLoginCount: currentCount + 1,
+          sessionType,
+        });
 
         // Update the profile row
         await databases.updateDocument(
@@ -184,16 +205,24 @@ export const analyticsService = {
           }
         );
 
+        console.log("✅ Analytics record updated");
+
         // Write a fresh session event row
+        console.log("📝 Recording session event...");
         await analyticsService.recordSessionEvent(
           userId,
           doc.email as string,
           doc.signupMethod as string,
           doc.platform as "pwa" | "mobile-app"
         );
+        console.log("✅ Session event recorded");
+      } else {
+        console.warn("⚠️ No analytics record found for userId:", userId);
       }
     } catch (error) {
-      console.error("Failed to record login:", error);
+      console.error("❌ Failed to record login:", error);
+      // Re-throw so the calling code knows it failed
+      throw error;
     }
   },
 
@@ -206,27 +235,36 @@ export const analyticsService = {
     platform: "pwa" | "mobile-app" = "pwa"
   ): Promise<void> {
     try {
+      console.log("🟢 recordSessionEvent called:", { userId, email, signupMethod, platform });
+      
       const { ID } = await import("appwrite");
       const sessionType = detectSessionType();
       const userAgent   = typeof window !== "undefined" ? navigator.userAgent : "server";
 
-      await databases.createDocument(
+      const sessionDoc = {
+        userId,
+        email,
+        sessionType,
+        platform,
+        signupMethod,
+        userAgent,
+        loginAt: new Date().toISOString(),
+      };
+
+      console.log("📝 Creating session document:", sessionDoc);
+
+      const result = await databases.createDocument(
         DATABASE_ID,
         USER_SESSIONS_COLLECTION_ID,
         ID.unique(),
-        {
-          userId,
-          email,
-          sessionType,
-          platform,
-          signupMethod,
-          userAgent,
-          loginAt: new Date().toISOString(),
-        }
+        sessionDoc
       );
+
+      console.log("✅ Session document created:", result.$id);
     } catch (error) {
-      console.error("Failed to record session event:", error);
-      // Non-blocking — don't rethrow
+      console.error("❌ Failed to record session event:", error);
+      // ✅ FIX: RE-THROW the error so it propagates up
+      throw error;
     }
   },
 
