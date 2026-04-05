@@ -164,20 +164,17 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (tab === "login") {
-        const result = await login(email, password);
-        // Record login session — result may be the user object depending on your useAuth impl
-        // We call recordLogin after a short tick so the auth state settles
-        setTimeout(async () => {
-          try {
-            // useAuth should expose the userId after login; adjust if your hook returns the user
-            if (user?.$id) {
-              await analyticsService.recordLogin(user.$id);
-            }
-          } catch { /* non-blocking */ }
-        }, 500);
+        // ✅ FIX: login() returns the user object — use it directly instead of
+        // reading stale `user` state inside a setTimeout closure.
+        const loggedInUser = await login(email, password) as unknown as { $id?: string };
+        if ((loggedInUser as unknown as { $id?: string })?.$id) {
+          if (loggedInUser.$id) {
+            await analyticsService.recordLogin(loggedInUser.$id);
+          }
+        }
       } else {
         await signup(email, password, name);
-        // recordSignup is handled inside useAuth / your signup flow already via analyticsService.recordSignup
+        // recordSignup is called inside useAuth/signup flow via analyticsService.recordSignup
       }
     } catch { /* errors handled in context */ } finally { setLoading(false); }
   };
@@ -201,15 +198,12 @@ export default function AuthPage() {
     if (!otpCode) return;
     setLoading(true);
     try {
-      await verifyEmailOTP(otpCode);
-      // After OTP verify the user is logged in — record the session
-      setTimeout(async () => {
-        try {
-          if (user?.$id) {
-            await analyticsService.recordLogin(user.$id);
-          }
-        } catch { /* non-blocking */ }
-      }, 500);
+      // ✅ FIX: verifyEmailOTP() returns the user — use it directly, same reason
+      // as above: React state won't have updated yet when the next line runs.
+      const loggedInUser = await verifyEmailOTP(otpCode) as unknown as { $id?: string };
+      if (loggedInUser.$id) {
+        await analyticsService.recordLogin(loggedInUser.$id);
+      }
     } catch { /* handled */ } finally { setLoading(false); }
   };
 
