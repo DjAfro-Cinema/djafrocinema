@@ -7,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDetectPlatform } from "@/hooks/useDetectPlatform";
 import { analyticsService } from "@/services/analytics.service";
 
-// ── BG IMAGES cycling on the visual panel ──────────────────────────────────
 const BG_IMAGES = [
   "/images/login1.jpg",
   "/images/login2.jpg",
@@ -17,7 +16,6 @@ const BG_IMAGES = [
   "/images/login6.jpg",
 ];
 
-// ── QUOTES cycling on visual panel ─────────────────────────────────────────
 const TAGLINES = [
   { line: "The best DjAfro movies", sub: "are here for you." },
   { line: "Enjoy DjAfro Movies", sub: "available on all devices." },
@@ -27,12 +25,7 @@ const TAGLINES = [
 const LOTTIE_SUCCESS = "https://assets10.lottiefiles.com/packages/lf20_jbrw3hcz.json";
 const LOTTIE_ERROR   = "https://assets4.lottiefiles.com/packages/lf20_qpwbiyxf.json";
 
-// ── Sub-modes for the form panel ───────────────────────────────────────────
-type FormMode =
-  | "default"
-  | "forgot"
-  | "otp-email"
-  | "otp-verify";
+type FormMode = "default" | "forgot" | "otp-email" | "otp-verify";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -66,20 +59,15 @@ export default function AuthPage() {
   const [mounted, setMounted]   = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
 
-  // Forgot password
-  const [forgotEmail, setForgotEmail] = useState("");
-
-  // OTP
+  const [forgotEmail, setForgotEmail]     = useState("");
   const [otpInputEmail, setOtpInputEmail] = useState("");
   const [otpCode, setOtpCode]             = useState("");
 
-  // Lottie refs
   const successLottieRef  = useRef<HTMLDivElement>(null);
   const errorLottieRef    = useRef<HTMLDivElement>(null);
   const lottieSuccessInst = useRef<{ destroy: () => void } | null>(null);
   const lottieErrorInst   = useRef<{ destroy: () => void } | null>(null);
 
-  // ── Preload all images eagerly on mount ─────────────────────────────────
   useEffect(() => {
     let loaded = 0;
     const total = BG_IMAGES.length;
@@ -91,23 +79,19 @@ export default function AuthPage() {
         if (loaded === total) setImagesReady(true);
       };
     });
-    // Show UI after short delay even if images are slow
     const fallback = setTimeout(() => setImagesReady(true), 800);
     return () => clearTimeout(fallback);
   }, []);
 
-  // ── Redirect if already logged in ──────────────────────────────────────
   useEffect(() => {
     if (user && !authLoading) router.replace("/dashboard");
   }, [user, authLoading, router]);
 
-  // ── Mount animation ─────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
   }, []);
 
-  // ── Cycle backgrounds — pre-stage next image ────────────────────────────
   useEffect(() => {
     const t = setInterval(() => {
       setBgIdx((i) => {
@@ -120,7 +104,6 @@ export default function AuthPage() {
     return () => clearInterval(t);
   }, []);
 
-  // ── Lottie helpers ──────────────────────────────────────────────────────
   const playSuccessLottie = useCallback(async () => {
     if (!successLottieRef.current) return;
     try {
@@ -145,7 +128,6 @@ export default function AuthPage() {
     } catch { /* silent */ }
   }, []);
 
-  // ── React to success / error ────────────────────────────────────────────
   useEffect(() => {
     if (success) {
       playSuccessLottie();
@@ -164,28 +146,38 @@ export default function AuthPage() {
     }
   }, [error, playErrorLottie, clearMessages]);
 
-  // ── Sync OTP step ───────────────────────────────────────────────────────
   useEffect(() => {
     if (otpUserId && mode === "otp-email") {
       setMode("otp-verify");
     }
   }, [otpUserId, mode]);
 
-  // ── Cleanup lottie ──────────────────────────────────────────────────────
   useEffect(() => {
     return () => { lottieSuccessInst.current?.destroy(); lottieErrorInst.current?.destroy(); };
   }, []);
 
   // ── Handlers ────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
     try {
       if (tab === "login") {
-        await login(email, password);
+        const result = await login(email, password);
+        // Record login session — result may be the user object depending on your useAuth impl
+        // We call recordLogin after a short tick so the auth state settles
+        setTimeout(async () => {
+          try {
+            // useAuth should expose the userId after login; adjust if your hook returns the user
+            if (user?.$id) {
+              await analyticsService.recordLogin(user.$id);
+            }
+          } catch { /* non-blocking */ }
+        }, 500);
       } else {
         await signup(email, password, name);
+        // recordSignup is handled inside useAuth / your signup flow already via analyticsService.recordSignup
       }
     } catch { /* errors handled in context */ } finally { setLoading(false); }
   };
@@ -208,7 +200,17 @@ export default function AuthPage() {
     e.preventDefault();
     if (!otpCode) return;
     setLoading(true);
-    try { await verifyEmailOTP(otpCode); } catch { /* handled */ } finally { setLoading(false); }
+    try {
+      await verifyEmailOTP(otpCode);
+      // After OTP verify the user is logged in — record the session
+      setTimeout(async () => {
+        try {
+          if (user?.$id) {
+            await analyticsService.recordLogin(user.$id);
+          }
+        } catch { /* non-blocking */ }
+      }, 500);
+    } catch { /* handled */ } finally { setLoading(false); }
   };
 
   const goBack = () => {
@@ -223,7 +225,6 @@ export default function AuthPage() {
   const tagline   = TAGLINES[tagIdx];
   const isLoading = loading || authLoading;
 
-  // ── Shared toast block ──────────────────────────────────────────────────
   const Toast = () => (
     <>
       {success && (
@@ -241,7 +242,6 @@ export default function AuthPage() {
     </>
   );
 
-  // ── Back button ─────────────────────────────────────────────────────────
   const BackBtn = ({ label = "Back to Sign In" }: { label?: string }) => (
     <button className="auth-back-btn" onClick={goBack}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -253,7 +253,6 @@ export default function AuthPage() {
 
   return (
     <>
-      {/* Preload next image in the background — invisible, no layout cost */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={BG_IMAGES[nextBgIdx]}
@@ -274,7 +273,6 @@ export default function AuthPage() {
         }
         html, body { height: 100%; background: var(--bg); }
 
-        /* ── PAGE LAYOUT ── */
         .auth-page {
           font-family: var(--font-body);
           min-height: 100svh;
@@ -288,7 +286,6 @@ export default function AuthPage() {
         }
         .auth-page.mounted { opacity: 1; }
 
-        /* ── VISUAL PANEL ── */
         .auth-visual {
           position: relative;
           overflow: hidden;
@@ -310,7 +307,6 @@ export default function AuthPage() {
           will-change: opacity;
           transition: opacity 1.2s var(--ease-out);
         }
-        /* Skeleton shimmer before images load */
         .auth-img-skeleton {
           position: absolute;
           inset: 0;
@@ -327,14 +323,12 @@ export default function AuthPage() {
           100% { background-position: 0% 0%; }
         }
 
-        /* Overlays */
         .auth-visual-ov1 { position: absolute; inset: 0; z-index: 1; background: linear-gradient(135deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.40) 60%, rgba(0,0,0,0.15) 100%); }
         .auth-visual-ov2 { position: absolute; inset: 0; z-index: 1; background: linear-gradient(to top, rgba(6,6,8,1) 0%, rgba(6,6,8,0.65) 20%, transparent 55%); }
         .auth-visual-ov3 { position: absolute; inset: 0; z-index: 1; background: linear-gradient(to right, rgba(6,6,8,0.0) 75%, rgba(6,6,8,0.98) 100%); }
         .auth-visual-accent { position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse 70% 55% at 30% 70%, rgba(229,9,20,0.10) 0%, transparent 70%); }
         .auth-grain { position: absolute; inset: 0; z-index: 2; opacity: 0.03; mix-blend-mode: overlay; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 180px; }
 
-        /* Logo */
         .auth-visual-logo {
           position: absolute; top: 36px; left: 36px; z-index: 5;
           display: flex; align-items: center;
@@ -343,7 +337,6 @@ export default function AuthPage() {
         }
         .auth-page.mounted .auth-visual-logo { opacity: 1; }
 
-        /* Progress pips */
         .auth-visual-pips {
           position: absolute; top: 50%; right: 20px;
           transform: translateY(-50%);
@@ -353,7 +346,6 @@ export default function AuthPage() {
         .auth-pip { width: 3px; border-radius: 99px; background: rgba(255,255,255,0.18); transition: all 0.4s var(--ease-out); }
         .auth-pip.active { background: var(--red); box-shadow: 0 0 8px var(--red); }
 
-        /* Visual content */
         .auth-visual-content {
           position: relative; z-index: 5; padding: 0 40px 48px;
           opacity: 0; transform: translateY(20px);
@@ -372,7 +364,6 @@ export default function AuthPage() {
         .auth-stat-n { font-family: var(--font-display, 'Bebas Neue', sans-serif); font-size: 1.6rem; color: #fff; letter-spacing: 0.06em; line-height: 1; }
         .auth-stat-l { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.25); margin-top: 3px; }
 
-        /* ── FORM PANEL ── */
         .auth-form-panel {
           display: flex; flex-direction: column; justify-content: center; align-items: center;
           padding: 48px 40px; position: relative; background: var(--bg); overflow-y: auto;
@@ -385,30 +376,25 @@ export default function AuthPage() {
         }
         .auth-page.mounted .auth-form-inner { opacity: 1; transform: translateY(0); }
 
-        /* Tabs */
         .auth-tabs { display: flex; gap: 0; margin-bottom: 36px; position: relative; }
         .auth-tab { flex: 1; background: none; border: none; cursor: pointer; padding: 14px 0; font-family: var(--font-body); font-size: 10.5px; font-weight: 600; letter-spacing: 0.35em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.07); transition: color 0.25s; position: relative; }
         .auth-tab.active { color: var(--text); }
         .auth-tab-indicator { position: absolute; bottom: -1px; height: 2px; background: var(--red); box-shadow: 0 0 10px var(--red); transition: left 0.35s var(--ease-out), width 0.35s var(--ease-out); border-radius: 99px; }
 
-        /* Heading */
         .auth-heading { margin-bottom: 28px; }
         .auth-heading-title { font-family: var(--font-display, 'Bebas Neue', sans-serif); font-size: clamp(2.4rem, 4vw, 3.2rem); color: #fff; letter-spacing: 0.05em; line-height: 0.88; margin-bottom: 8px; }
         .auth-heading-sub { font-family: var(--font-body); font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
         .auth-heading-sub strong { color: crimson; font-weight: 500; }
 
-        /* OTP button */
         .auth-otp-btn { font-family: var(--font-body); display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 14px 20px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.80); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s; }
         .auth-otp-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.20); color: #fff; }
         .auth-otp-btn:active { transform: scale(0.985); }
         .auth-otp-btn:disabled { opacity: 0.5; cursor: wait; }
 
-        /* Divider */
         .auth-divider { display: flex; align-items: center; gap: 14px; margin: 20px 0; }
         .auth-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
         .auth-divider-text { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.2); }
 
-        /* Form fields */
         .auth-form { display: flex; flex-direction: column; gap: 14px; }
         .auth-field { display: flex; flex-direction: column; gap: 6px; }
         .auth-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.35); }
@@ -420,7 +406,6 @@ export default function AuthPage() {
         .auth-input-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.22); display: flex; align-items: center; cursor: pointer; background: none; border: none; }
         .auth-input-icon:hover { color: rgba(255,255,255,0.55); }
 
-        /* Submit */
         .auth-submit { position: relative; overflow: hidden; width: 100%; padding: 15px 20px; border-radius: 6px; border: none; background: var(--red); color: #fff; font-family: var(--font-body); font-size: 10.5px; font-weight: 700; letter-spacing: 0.32em; text-transform: uppercase; cursor: pointer; margin-top: 6px; transition: box-shadow 0.25s, transform 0.15s; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .auth-submit:hover { box-shadow: 0 0 36px rgba(229,9,20,0.55), 0 4px 20px rgba(0,0,0,0.5); }
         .auth-submit:active { transform: scale(0.98); }
@@ -430,24 +415,20 @@ export default function AuthPage() {
         .auth-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Forgot */
         .auth-forgot { text-align: right; margin-top: -4px; }
         .auth-forgot a { font-size: 11px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; cursor: pointer; }
         .auth-forgot a:hover { color: var(--red); }
 
-        /* Footer */
         .auth-footer-note { margin-top: 22px; text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
         .auth-footer-note a { color: var(--red); text-decoration: none; cursor: pointer; }
         .auth-footer-note a:hover { text-decoration: underline; }
         .auth-legal { margin-top: 28px; font-size: 9.5px; color: rgba(255,255,255,0.15); text-align: center; line-height: 1.6; letter-spacing: 0.02em; }
         .auth-legal a { color: rgba(255,255,255,0.25); text-decoration: none; }
 
-        /* Animations */
         .auth-form-fields { animation: formFade 0.38s var(--ease-out); }
         .auth-forgot-panel, .auth-otp-panel { animation: formFade 0.38s var(--ease-out); }
         @keyframes formFade { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
 
-        /* Toast */
         .auth-toast { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; margin-bottom: 16px; animation: toastIn 0.35s var(--ease-out); }
         @keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         .auth-toast.success { background: rgba(37,211,102,0.10); border: 1px solid rgba(37,211,102,0.25); color: #25d366; }
@@ -455,33 +436,20 @@ export default function AuthPage() {
         .auth-toast-lottie { width: 36px; height: 36px; flex-shrink: 0; }
         .auth-toast-lottie-error { width: 36px; height: 36px; flex-shrink: 0; }
 
-        /* Back button */
         .auth-back-btn { background: none; border: none; color: rgba(255,255,255,0.35); font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 20px; padding: 0; font-family: var(--font-body); letter-spacing: 0.02em; transition: color 0.2s; }
         .auth-back-btn:hover { color: rgba(255,255,255,0.7); }
 
-        /* OTP resend */
         .auth-otp-resend { margin-top: 12px; text-align: center; font-size: 11px; color: var(--text-muted); }
         .auth-otp-resend a { color: var(--red); cursor: pointer; text-decoration: none; }
         .auth-otp-resend a:hover { text-decoration: underline; }
 
-        /* ════════════════════════════════════════
-           MOBILE STYLES
-        ════════════════════════════════════════ */
         @media (max-width: 768px) {
           .auth-page {
             grid-template-columns: 1fr;
             grid-template-rows: auto 1fr;
             min-height: 100svh;
           }
-
-          /* Visual panel — compact but not cramped */
-          .auth-visual {
-            height: 300px;
-            flex-shrink: 0;
-            /* No bottom rounding — form panel's top rounding creates the effect */
-          }
-
-          /* Hide right-edge fade (no adjacent column on mobile) */
+          .auth-visual { height: 300px; flex-shrink: 0; }
           .auth-visual-ov3 { display: none; }
           .auth-visual-pips { right: 12px; }
           .auth-visual-logo { top: 18px; left: 18px; width: 160px; height: 44px; }
@@ -490,23 +458,18 @@ export default function AuthPage() {
           .auth-visual-sub { font-size: 11.5px; }
           .auth-stats { display: none; }
           .auth-visual-tag { font-size: 8px; }
-
-          /* Form panel — rounded top corners, sits flush below visual */
           .auth-form-panel {
             padding: 32px 20px 48px;
             justify-content: flex-start;
             border-radius: 40px 40px 0 0;
-            margin-top: -20px; /* overlap the visual slightly */
+            margin-top: -20px;
             position: relative;
             z-index: 10;
             background: var(--bg);
-            /* Subtle top border glow */
             box-shadow: 0 -1px 0 rgba(229,9,20,0.3), 0 -24px 48px rgba(6,6,8,0.9);
           }
           .auth-form-ambient { border-radius: 20px 20px 0 0; }
           .auth-form-inner { max-width: 100%; }
-
-          /* Heading — slightly smaller on mobile but still bold */
           .auth-heading-title { font-size: clamp(2rem, 9vw, 2.8rem); }
         }
 
@@ -519,12 +482,8 @@ export default function AuthPage() {
 
       <div className={`auth-page${mounted ? " mounted" : ""}`}>
 
-        {/* ══ VISUAL PANEL — LEFT / TOP ══ */}
         <div className="auth-visual">
-          {/* Skeleton shimmer while images load */}
           <div className={`auth-img-skeleton${imagesReady ? " hidden" : ""}`} />
-
-          {/* Cycling background images — both login and signup use images (no video) */}
           <div className="auth-img-stack">
             {BG_IMAGES.map((src, i) => (
               <div
@@ -537,14 +496,11 @@ export default function AuthPage() {
               />
             ))}
           </div>
-
           <div className="auth-visual-ov1" />
           <div className="auth-visual-ov2" />
           <div className="auth-visual-ov3" />
           <div className="auth-visual-accent" />
           <div className="auth-grain" />
-
-          {/* Logo — Next/Image with fill inside positioned container */}
           <div className="auth-visual-logo">
             <Image
               src="/logo.png"
@@ -558,8 +514,6 @@ export default function AuthPage() {
               }}
             />
           </div>
-
-          {/* Slide indicator pips */}
           <div className="auth-visual-pips">
             {BG_IMAGES.map((_, i) => (
               <div
@@ -569,7 +523,6 @@ export default function AuthPage() {
               />
             ))}
           </div>
-
           <div className="auth-visual-content">
             <div className="auth-visual-tag">
               <span className="auth-visual-tag-dot" />
@@ -590,12 +543,10 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* ══ FORM PANEL — RIGHT / BOTTOM ══ */}
         <div className="auth-form-panel">
           <div className="auth-form-ambient" />
           <div className="auth-form-inner">
 
-            {/* ══ FORGOT PASSWORD MODE ══ */}
             {mode === "forgot" && (
               <div className="auth-forgot-panel">
                 <BackBtn />
@@ -626,7 +577,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ══ OTP — ENTER EMAIL ══ */}
             {mode === "otp-email" && (
               <div className="auth-otp-panel">
                 <BackBtn label="Back to Sign In" />
@@ -658,7 +608,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ══ OTP — ENTER CODE ══ */}
             {mode === "otp-verify" && (
               <div className="auth-otp-panel">
                 <BackBtn label="Use different email" />
@@ -706,7 +655,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ══ DEFAULT MODE — email+password tabs ══ */}
             {mode === "default" && (
               <>
                 <div className="auth-tabs">

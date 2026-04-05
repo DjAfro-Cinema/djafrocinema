@@ -20,6 +20,8 @@ export interface AnalyticsRecord {
   isActive: boolean;
   signupAt: string;
   lastLoginAt?: string;
+  sessionType?: "pwa" | "app" | "unknown";
+  loginCount?: number;
   $createdAt?: string;
   $updatedAt?: string;
 }
@@ -51,6 +53,38 @@ export interface RevenueStats {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper — detect if running as installed PWA or in a browser tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+function detectSessionType(): "pwa" | "app" | "unknown" {
+  if (typeof window === "undefined") return "unknown";
+
+  // Installed PWA (standalone / fullscreen / minimal-ui display mode)
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    // iOS Safari "Add to Home Screen"
+    (navigator as any).standalone === true;
+
+  if (isStandalone) return "pwa";
+
+  // Native mobile app wrapper (Capacitor / Cordova)
+  const ua = navigator.userAgent || "";
+  if (
+    (window as any).Capacitor?.isNativePlatform?.() ||
+    (window as any).cordova ||
+    ua.includes("CapacitorApp") ||
+    ua.includes("wv") // Android WebView hint
+  ) {
+    return "app";
+  }
+
+  // Regular browser tab — still counts as PWA-capable but not installed
+  return "pwa";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Analytics Service
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -67,6 +101,7 @@ export const analyticsService = {
     try {
       const now = new Date().toISOString();
       const userAgent = typeof window !== "undefined" ? navigator.userAgent : "server";
+      const sessionType = detectSessionType();
 
       const { ID } = await import("appwrite");
 
@@ -79,6 +114,8 @@ export const analyticsService = {
         isActive: true,
         signupAt: now,
         lastLoginAt: now,
+        sessionType,
+        loginCount: 1,
       };
 
       const response = await databases.createDocument(
@@ -96,7 +133,8 @@ export const analyticsService = {
   },
 
   /**
-   * Update lastLoginAt timestamp for a user.
+   * Update lastLoginAt timestamp, sessionType, and loginCount for a user.
+   * Call this whenever the user successfully signs in.
    */
   async recordLogin(userId: string): Promise<void> {
     try {
@@ -106,15 +144,48 @@ export const analyticsService = {
         [Query.equal("userId", userId)]
       );
 
+      const sessionType = detectSessionType();
+
       if (response.documents.length > 0) {
-        const docId = response.documents[0].$id;
-        await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION_ID, docId, {
+        const doc = response.documents[0];
+        const currentCount = (doc.loginCount as number) || 0;
+
+        await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION_ID, doc.$id, {
           lastLoginAt: new Date().toISOString(),
           isActive: true,
+          sessionType,
+          loginCount: currentCount + 1,
         });
       }
     } catch (error) {
       console.error("Failed to record login:", error);
+    }
+  },
+
+  /**
+   * Record a session check-in (call on app load / page focus when user is already logged in).
+   * Updates sessionType and lastLoginAt without incrementing loginCount.
+   */
+  async recordSession(userId: string): Promise<void> {
+    try {
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        ANALYTICS_COLLECTION_ID,
+        [Query.equal("userId", userId)]
+      );
+
+      if (response.documents.length > 0) {
+        const doc = response.documents[0];
+        const sessionType = detectSessionType();
+
+        await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION_ID, doc.$id, {
+          lastLoginAt: new Date().toISOString(),
+          sessionType,
+          isActive: true,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to record session:", error);
     }
   },
 
@@ -211,23 +282,18 @@ export const analyticsService = {
    */
   async getMostWatchedMovies(limit: number = 20): Promise<MostWatchedMovie[]> {
     try {
-      // Fetch all library entries - no query filters
       const libraryResponse = await databases.listDocuments(
         DATABASE_ID,
         USER_LIBRARY_COLLECTION_ID
       );
 
-      // Group by movieId
-      const movieStats = new Map<
-        string,
-        {
+      const movieStats = new Map<string, {
           watchers: Set<string>;
           totalProgress: number;
           count: number;
           purchases: number;
           revenue: number;
-        }
-      >();
+        }>();
 
       for (const entry of libraryResponse.documents) {
         const movieId = entry.movieId as string;
@@ -258,7 +324,6 @@ export const analyticsService = {
         }
       }
 
-      // Fetch all movies
       const moviesResponse = await databases.listDocuments(
         DATABASE_ID,
         MOVIES_COLLECTION_ID
@@ -269,7 +334,6 @@ export const analyticsService = {
         moviesMap.set(movie.$id, movie.title || "Unknown");
       }
 
-      // Build results
       const results: MostWatchedMovie[] = Array.from(movieStats.entries()).map(
         ([movieId, stat]) => ({
           movieId,
@@ -294,26 +358,20 @@ export const analyticsService = {
    */
   async getMostPurchasedMovies(limit: number = 20): Promise<MostWatchedMovie[]> {
     try {
-      // Fetch all library entries
       const libraryResponse = await databases.listDocuments(
         DATABASE_ID,
         USER_LIBRARY_COLLECTION_ID
       );
 
-      // Group by movieId, filter only purchased
-      const movieStats = new Map<
-        string,
-        {
+      const movieStats = new Map<string, {
           watchers: Set<string>;
           totalProgress: number;
           count: number;
           purchases: number;
           revenue: number;
-        }
-      >();
+        }>();
 
       for (const entry of libraryResponse.documents) {
-        // Only count if purchased
         if (!entry.purchasedAt) continue;
 
         const movieId = entry.movieId as string;
@@ -341,7 +399,6 @@ export const analyticsService = {
         stat.revenue += amountPaid;
       }
 
-      // Fetch all movies
       const moviesResponse = await databases.listDocuments(
         DATABASE_ID,
         MOVIES_COLLECTION_ID
@@ -352,7 +409,6 @@ export const analyticsService = {
         moviesMap.set(movie.$id, movie.title || "Unknown");
       }
 
-      // Build results
       const results: MostWatchedMovie[] = Array.from(movieStats.entries()).map(
         ([movieId, stat]) => ({
           movieId,
@@ -385,7 +441,6 @@ export const analyticsService = {
       const purchases = libraryResponse.documents.filter((d) => !!d.purchasedAt);
       const totalRevenue = purchases.reduce((sum, d) => sum + ((d.amountPaid as number) || 0), 0);
 
-      // Group by date for top day
       const byDate = new Map<string, number>();
       for (const doc of purchases) {
         const date = new Date(doc.purchasedAt as string).toISOString().split("T")[0];
