@@ -19,13 +19,13 @@ interface AnaUser {
   signupAt: string;
   lastLoginAt?: string;
   userAgent?: string;
-  sessionType?: 'pwa' | 'app' | 'unknown';
+  sessionType?: 'pwa' | 'app' | 'browser';
   loginCount?: number;
 }
 
 type PlatformFilter = 'all' | 'pwa' | 'mobile-app';
 type MethodFilter   = 'all' | 'email' | 'otp' | 'google-oauth';
-type SessionFilter  = 'all' | 'pwa' | 'app' | 'unknown';
+type SessionFilter  = 'all' | 'pwa' | 'app' | 'browser';
 type Period         = '7d' | '30d' | '90d' | 'all';
 type PageTab        = 'users' | 'sessions';
 
@@ -65,35 +65,42 @@ function groupSessionsByDay(sessions: SessionRecord[], period: Period) {
     return new Date(0);
   })();
   const filtered = sessions.filter(s => new Date(s.loginAt) >= from);
-  const pwaMap = new Map<string, number>();
-  const appMap = new Map<string, number>();
+  const pwaMap     = new Map<string, number>();
+  const appMap     = new Map<string, number>();
+  const browserMap = new Map<string, number>();
   for (const s of filtered) {
     const date = s.loginAt.split('T')[0];
-    if (s.sessionType === 'pwa') pwaMap.set(date, (pwaMap.get(date) || 0) + 1);
-    else                          appMap.set(date, (appMap.get(date) || 0) + 1);
+    if (s.sessionType === 'pwa')         pwaMap.set(date,     (pwaMap.get(date)     || 0) + 1);
+    else if (s.sessionType === 'app')    appMap.set(date,     (appMap.get(date)     || 0) + 1);
+    else                                 browserMap.set(date, (browserMap.get(date) || 0) + 1);
   }
-  const allDates = Array.from(new Set([...pwaMap.keys(), ...appMap.keys()])).sort();
-  return allDates.map(date => ({ date, pwa: pwaMap.get(date) || 0, app: appMap.get(date) || 0 }));
+  const allDates = Array.from(new Set([...pwaMap.keys(), ...appMap.keys(), ...browserMap.keys()])).sort();
+  return allDates.map(date => ({
+    date,
+    pwa:     pwaMap.get(date)     || 0,
+    app:     appMap.get(date)     || 0,
+    browser: browserMap.get(date) || 0,
+  }));
 }
 
 export default function UsersPage() {
-  const [pageTab, setPageTab]     = useState<PageTab>('users');
-  const [users, setUsers]         = useState<AnaUser[]>([]);
-  const [sessions, setSessions]   = useState<SessionRecord[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [pageTab, setPageTab]       = useState<PageTab>('users');
+  const [users, setUsers]           = useState<AnaUser[]>([]);
+  const [sessions, setSessions]     = useState<SessionRecord[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // User filters
-  const [search, setSearch]       = useState('');
-  const [platform, setPlatform]   = useState<PlatformFilter>('all');
-  const [method, setMethod]       = useState<MethodFilter>('all');
+  const [search, setSearch]               = useState('');
+  const [platform, setPlatform]           = useState<PlatformFilter>('all');
+  const [method, setMethod]               = useState<MethodFilter>('all');
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>('all');
-  const [period, setPeriod]       = useState<Period>('30d');
+  const [period, setPeriod]               = useState<Period>('30d');
 
   // Session filters
-  const [sessionSearch, setSessionSearch]   = useState('');
-  const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'pwa' | 'app'>('all');
-  const [sessionPeriod, setSessionPeriod]   = useState<Period>('7d');
+  const [sessionSearch, setSessionSearch]           = useState('');
+  const [sessionTypeFilter, setSessionTypeFilter]   = useState<'all' | 'pwa' | 'app' | 'browser'>('all');
+  const [sessionPeriod, setSessionPeriod]           = useState<Period>('7d');
 
   const load = useCallback(async () => {
     const [usersRes, sessionsRes] = await Promise.all([
@@ -109,29 +116,31 @@ export default function UsersPage() {
   const handleRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   // ── User stats ──
-  const total         = users.length;
-  const pwa           = users.filter(u => u.platform === 'pwa').length;
-  const mobile        = users.filter(u => u.platform === 'mobile-app').length;
-  const active        = users.filter(u => u.isActive).length;
-  const newThisWeek   = users.filter(u => daysAgo(u.signupAt) <= 7).length;
-  const activeToday   = users.filter(u => u.lastLoginAt && daysAgo(u.lastLoginAt) === 0).length;
-  const sessionPWA    = users.filter(u => u.sessionType === 'pwa').length;
-  const sessionApp    = users.filter(u => u.sessionType === 'app').length;
+  const total       = users.length;
+  const pwa         = users.filter(u => u.platform === 'pwa').length;
+  const mobile      = users.filter(u => u.platform === 'mobile-app').length;
+  const active      = users.filter(u => u.isActive).length;
+  const newThisWeek = users.filter(u => daysAgo(u.signupAt) <= 7).length;
+  const activeToday = users.filter(u => u.lastLoginAt && daysAgo(u.lastLoginAt) === 0).length;
+  const sessionPWA  = users.filter(u => u.sessionType === 'pwa').length;
+  const sessionApp  = users.filter(u => u.sessionType === 'app').length;
+  const sessionWeb  = users.filter(u => u.sessionType === 'browser').length;
 
   const emailC  = users.filter(u => u.signupMethod === 'email').length;
   const otpC    = users.filter(u => u.signupMethod === 'otp').length;
   const googleC = users.filter(u => u.signupMethod === 'google-oauth').length;
 
   // ── Session stats ──
-  const totalSessions     = sessions.length;
-  const pwaSessions       = sessions.filter(s => s.sessionType === 'pwa').length;
-  const appSessions       = sessions.filter(s => s.sessionType === 'app').length;
-  const todayStr          = new Date().toISOString().split('T')[0];
-  const sessionsToday     = sessions.filter(s => s.loginAt?.startsWith(todayStr)).length;
-  const uniqueToday       = new Set(sessions.filter(s => s.loginAt?.startsWith(todayStr)).map(s => s.userId)).size;
-  const weekAgo           = new Date(Date.now() - 7 * 86400000);
-  const sessionsThisWeek  = sessions.filter(s => new Date(s.loginAt) >= weekAgo).length;
-  const uniqueThisWeek    = new Set(sessions.filter(s => new Date(s.loginAt) >= weekAgo).map(s => s.userId)).size;
+  const totalSessions    = sessions.length;
+  const pwaSessions      = sessions.filter(s => s.sessionType === 'pwa').length;
+  const appSessions      = sessions.filter(s => s.sessionType === 'app').length;
+  const browserSessions  = sessions.filter(s => s.sessionType === 'browser').length;
+  const todayStr         = new Date().toISOString().split('T')[0];
+  const sessionsToday    = sessions.filter(s => s.loginAt?.startsWith(todayStr)).length;
+  const uniqueToday      = new Set(sessions.filter(s => s.loginAt?.startsWith(todayStr)).map(s => s.userId)).size;
+  const weekAgo          = new Date(Date.now() - 7 * 86400000);
+  const sessionsThisWeek = sessions.filter(s => new Date(s.loginAt) >= weekAgo).length;
+  const uniqueThisWeek   = new Set(sessions.filter(s => new Date(s.loginAt) >= weekAgo).map(s => s.userId)).size;
 
   // ── Charts ──
   const byDay  = groupByDay(users, period);
@@ -139,10 +148,11 @@ export default function UsersPage() {
   const counts = byDay.map(d => d.count);
   const cum    = counts.reduce<number[]>((acc, v) => { acc.push((acc[acc.length - 1] || 0) + v); return acc; }, []);
 
-  const sessionsByDay    = groupSessionsByDay(sessions, sessionPeriod);
-  const sessionDates     = sessionsByDay.map(d => d.date.slice(5));
-  const sessionPwaCounts = sessionsByDay.map(d => d.pwa);
-  const sessionAppCounts = sessionsByDay.map(d => d.app);
+  const sessionsByDay      = groupSessionsByDay(sessions, sessionPeriod);
+  const sessionDates       = sessionsByDay.map(d => d.date.slice(5));
+  const sessionPwaCounts   = sessionsByDay.map(d => d.pwa);
+  const sessionAppCounts   = sessionsByDay.map(d => d.app);
+  const sessionWebCounts   = sessionsByDay.map(d => d.browser);
 
   // ── Filtered users table ──
   const filteredUsers = users.filter(u => {
@@ -150,7 +160,7 @@ export default function UsersPage() {
     const matchSearch   = !q || u.email.toLowerCase().includes(q) || (u.userId || '').toLowerCase().includes(q);
     const matchPlatform = platform === 'all' || u.platform === platform;
     const matchMethod   = method === 'all' || u.signupMethod === method;
-    const matchSession  = sessionFilter === 'all' || (u.sessionType || 'unknown') === sessionFilter;
+    const matchSession  = sessionFilter === 'all' || (u.sessionType || 'browser') === sessionFilter;
     return matchSearch && matchPlatform && matchMethod && matchSession;
   });
 
@@ -168,10 +178,12 @@ export default function UsersPage() {
   });
 
   // ── Color helpers ──
-  const methodColor    = (m: string) => m === 'email' ? '#e50914' : m === 'otp' ? '#f59e0b' : '#4285f4';
-  const platformColor  = (p: string) => p === 'pwa' ? '#a855f7' : '#25d366';
-  const sessionColor   = (s: string | undefined) => s === 'pwa' ? '#a855f7' : s === 'app' ? '#25d366' : '#6b7280';
-  const sessionLabel   = (s: string | undefined) => s === 'pwa' ? 'PWA' : s === 'app' ? 'App' : 'Unknown';
+  const methodColor   = (m: string) => m === 'email' ? '#e50914' : m === 'otp' ? '#f59e0b' : '#4285f4';
+  const platformColor = (p: string) => p === 'pwa' ? '#a855f7' : '#25d366';
+  const sessionColor  = (s: string | undefined) =>
+    s === 'pwa' ? '#a855f7' : s === 'app' ? '#25d366' : s === 'browser' ? '#4285f4' : '#6b7280';
+  const sessionLabel  = (s: string | undefined) =>
+    s === 'pwa' ? 'PWA' : s === 'app' ? 'App' : s === 'browser' ? 'Web' : 'Unknown';
 
   const tabStyle = (t: PageTab) => ({
     padding: '10px 24px',
@@ -193,7 +205,7 @@ export default function UsersPage() {
 
       {/* Page tabs */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
-        <button style={tabStyle('users')}   onClick={() => setPageTab('users')}>Users</button>
+        <button style={tabStyle('users')}    onClick={() => setPageTab('users')}>Users</button>
         <button style={tabStyle('sessions')} onClick={() => setPageTab('sessions')}>Sessions</button>
       </div>
 
@@ -202,16 +214,17 @@ export default function UsersPage() {
         <>
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 16, marginBottom: 28 }}>
-            {loading ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} h={100} />) : (
+            {loading ? Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} h={100} />) : (
               <>
-                <StatCard label="Total Users"   value={total.toLocaleString()} />
-                <StatCard label="PWA / Web"     value={pwa}          accent="#4285f4" />
-                <StatCard label="Mobile App"    value={mobile}       accent="#25d366" />
-                <StatCard label="Active Users"  value={active}       accent="#22c55e" />
-                <StatCard label="New This Week" value={newThisWeek}  accent="#f59e0b" />
-                <StatCard label="Active Today"  value={activeToday}  accent="#e50914" />
-                <StatCard label="PWA Sessions"  value={sessionPWA}   accent="#a855f7" />
-                <StatCard label="App Sessions"  value={sessionApp}   accent="#25d366" />
+                <StatCard label="Total Users"    value={total.toLocaleString()} />
+                <StatCard label="PWA / Web"      value={pwa}          accent="#4285f4" />
+                <StatCard label="Mobile App"     value={mobile}       accent="#25d366" />
+                <StatCard label="Active Users"   value={active}       accent="#22c55e" />
+                <StatCard label="New This Week"  value={newThisWeek}  accent="#f59e0b" />
+                <StatCard label="Active Today"   value={activeToday}  accent="#e50914" />
+                <StatCard label="PWA Sessions"   value={sessionPWA}   accent="#a855f7" />
+                <StatCard label="App Sessions"   value={sessionApp}   accent="#25d366" />
+                <StatCard label="Web Sessions"   value={sessionWeb}   accent="#4285f4" />
               </>
             )}
           </div>
@@ -237,7 +250,7 @@ export default function UsersPage() {
                       type: 'bar' as const,
                       data: { labels: dates, datasets: [
                         { type: 'bar',  label: 'New Signups', data: counts, backgroundColor: 'rgba(229,9,20,0.6)', borderColor: '#e50914', borderWidth: 1, borderRadius: 3, yAxisID: 'y' } as any,
-                        { type: 'line', label: 'Total Users',  data: cum,   borderColor: '#4285f4', backgroundColor: 'rgba(66,133,244,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true, yAxisID: 'y2' } as any,
+                        { type: 'line', label: 'Total Users', data: cum,    borderColor: '#4285f4', backgroundColor: 'rgba(66,133,244,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true, yAxisID: 'y2' } as any,
                       ]},
                       options: { responsive: true, maintainAspectRatio: false,
                         plugins: { legend: { labels: { color: 'rgba(255,255,255,0.45)', font: { family: 'DM Mono', size: 10 } } } },
@@ -267,9 +280,9 @@ export default function UsersPage() {
                     }} />
                   </ChartCard>
                   <ChartCard title="Last session via" height={110}>
-                    <ChartCanvas deps={[sessionPWA, sessionApp]} config={{
+                    <ChartCanvas deps={[sessionPWA, sessionApp, sessionWeb]} config={{
                       type: 'doughnut',
-                      data: { labels: ['PWA', 'App'], datasets: [{ data: [sessionPWA, sessionApp], backgroundColor: ['#a855f7bb', '#25d366bb'], borderColor: '#080810', borderWidth: 3, hoverOffset: 5 }] },
+                      data: { labels: ['PWA', 'App', 'Web'], datasets: [{ data: [sessionPWA, sessionApp, sessionWeb], backgroundColor: ['#a855f7bb', '#25d366bb', '#4285f4bb'], borderColor: '#080810', borderWidth: 3, hoverOffset: 5 }] },
                       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: 'rgba(255,255,255,0.5)', padding: 10, boxWidth: 8, font: { size: 10, family: 'DM Mono' } } } } },
                     }} />
                   </ChartCard>
@@ -302,13 +315,13 @@ export default function UsersPage() {
                     color: method === m ? '#e50914' : 'rgba(255,255,255,0.35)',
                   }}>{m}</button>
                 ))}
-                {(['all', 'pwa', 'app', 'unknown'] as SessionFilter[]).map(s => (
+                {(['all', 'pwa', 'app', 'browser'] as SessionFilter[]).map(s => (
                   <button key={s} onClick={() => setSessionFilter(s)} style={{
                     padding: '6px 14px', borderRadius: 3, cursor: 'pointer', fontFamily: "'DM Mono',monospace", fontSize: 10,
                     background: sessionFilter === s ? 'rgba(37,211,102,0.08)' : 'transparent',
                     border: `1px solid ${sessionFilter === s ? 'rgba(37,211,102,0.25)' : 'rgba(255,255,255,0.08)'}`,
                     color: sessionFilter === s ? '#25d366' : 'rgba(255,255,255,0.35)',
-                  }}>{s === 'all' ? 'All Sessions' : s === 'pwa' ? 'PWA' : s === 'app' ? 'App' : 'Unknown'}</button>
+                  }}>{s === 'all' ? 'All Sessions' : s === 'pwa' ? 'PWA' : s === 'app' ? 'App' : 'Web'}</button>
                 ))}
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{filteredUsers.length} users</span>
               </div>
@@ -363,24 +376,25 @@ export default function UsersPage() {
         <>
           {/* Session KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 16, marginBottom: 28 }}>
-            {loading ? Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} h={100} />) : (
+            {loading ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} h={100} />) : (
               <>
                 <StatCard label="Total Logins"      value={totalSessions.toLocaleString()} />
-                <StatCard label="PWA Logins"        value={pwaSessions}       accent="#a855f7" />
-                <StatCard label="App Logins"        value={appSessions}       accent="#25d366" />
-                <StatCard label="Logins Today"      value={sessionsToday}     accent="#e50914" />
-                <StatCard label="Unique Today"      value={uniqueToday}       accent="#f59e0b" />
-                <StatCard label="Logins This Week"  value={sessionsThisWeek}  accent="#4285f4" />
-                <StatCard label="Unique This Week"  value={uniqueThisWeek}    accent="#22c55e" />
+                <StatCard label="PWA Logins"        value={pwaSessions}      accent="#a855f7" />
+                <StatCard label="App Logins"        value={appSessions}      accent="#25d366" />
+                <StatCard label="Web Browser"       value={browserSessions}  accent="#4285f4" />
+                <StatCard label="Logins Today"      value={sessionsToday}    accent="#e50914" />
+                <StatCard label="Unique Today"      value={uniqueToday}      accent="#f59e0b" />
+                <StatCard label="Logins This Week"  value={sessionsThisWeek} accent="#4285f4" />
+                <StatCard label="Unique This Week"  value={uniqueThisWeek}   accent="#22c55e" />
               </>
             )}
           </div>
 
-          {/* Session chart */}
+          {/* Session chart — now shows 3 series: PWA / App / Web */}
           {!loading && (
             <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '24px 28px', marginBottom: 28 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', flex: 1 }}>Login Activity — PWA vs App</div>
+                <div style={{ fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', flex: 1 }}>Login Activity — PWA vs App vs Web</div>
                 {(['7d', '30d', '90d', 'all'] as Period[]).map(p => (
                   <button key={p} onClick={() => setSessionPeriod(p)} style={{
                     padding: '4px 12px', borderRadius: 3, cursor: 'pointer', fontFamily: "'DM Mono',monospace", fontSize: 10,
@@ -394,8 +408,9 @@ export default function UsersPage() {
                 <ChartCanvas deps={[sessionsByDay, sessionPeriod]} config={{
                   type: 'bar' as const,
                   data: { labels: sessionDates, datasets: [
-                    { label: 'PWA', data: sessionPwaCounts, backgroundColor: 'rgba(168,85,247,0.7)', borderColor: '#a855f7', borderWidth: 1, borderRadius: 3 },
-                    { label: 'App', data: sessionAppCounts, backgroundColor: 'rgba(37,211,102,0.7)', borderColor: '#25d366', borderWidth: 1, borderRadius: 3 },
+                    { label: 'PWA',     data: sessionPwaCounts, backgroundColor: 'rgba(168,85,247,0.7)', borderColor: '#a855f7', borderWidth: 1, borderRadius: 3 },
+                    { label: 'App',     data: sessionAppCounts, backgroundColor: 'rgba(37,211,102,0.7)', borderColor: '#25d366', borderWidth: 1, borderRadius: 3 },
+                    { label: 'Web',     data: sessionWebCounts, backgroundColor: 'rgba(66,133,244,0.7)', borderColor: '#4285f4', borderWidth: 1, borderRadius: 3 },
                   ]},
                   options: { responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { labels: { color: 'rgba(255,255,255,0.45)', font: { family: 'DM Mono', size: 10 } } } },
@@ -417,13 +432,13 @@ export default function UsersPage() {
                   padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4,
                   color: '#fff', fontFamily: "'DM Mono',monospace", fontSize: 12, outline: 'none', width: 240,
                 }} />
-                {(['all', 'pwa', 'app'] as const).map(t => (
+                {(['all', 'pwa', 'app', 'browser'] as const).map(t => (
                   <button key={t} onClick={() => setSessionTypeFilter(t)} style={{
                     padding: '6px 14px', borderRadius: 3, cursor: 'pointer', fontFamily: "'DM Mono',monospace", fontSize: 10,
                     background: sessionTypeFilter === t ? 'rgba(168,85,247,0.12)' : 'transparent',
                     border: `1px solid ${sessionTypeFilter === t ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.08)'}`,
                     color: sessionTypeFilter === t ? '#a855f7' : 'rgba(255,255,255,0.35)', textTransform: 'uppercase',
-                  }}>{t === 'all' ? 'All' : t}</button>
+                  }}>{t === 'all' ? 'All' : t === 'browser' ? 'Web' : t}</button>
                 ))}
                 {(['7d', '30d', '90d', 'all'] as Period[]).map(p => (
                   <button key={p} onClick={() => setSessionPeriod(p)} style={{

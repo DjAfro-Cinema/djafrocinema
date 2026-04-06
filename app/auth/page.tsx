@@ -46,17 +46,17 @@ export default function AuthPage() {
     clearMessages,
   } = useAuth();
 
-  const [tab, setTab]           = useState<"login" | "signup">("login");
-  const [mode, setMode]         = useState<FormMode>("default");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName]         = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [bgIdx, setBgIdx]       = useState(0);
+  const [tab, setTab]             = useState<"login" | "signup">("login");
+  const [mode, setMode]           = useState<FormMode>("default");
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [name, setName]           = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [bgIdx, setBgIdx]         = useState(0);
   const [nextBgIdx, setNextBgIdx] = useState(1);
-  const [tagIdx, setTagIdx]     = useState(0);
-  const [showPass, setShowPass] = useState(false);
-  const [mounted, setMounted]   = useState(false);
+  const [tagIdx, setTagIdx]       = useState(0);
+  const [showPass, setShowPass]   = useState(false);
+  const [mounted, setMounted]     = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
 
   const [forgotEmail, setForgotEmail]     = useState("");
@@ -162,14 +162,19 @@ export default function AuthPage() {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
+
+    // ✅ Record the button click immediately — captures sessionType (pwa/app/browser)
+    // before auth completes, so even abandoned attempts are tracked
+    try {
+      await analyticsService.recordEngagementClick(email);
+    } catch { /* never block auth */ }
+
     try {
       if (tab === "login") {
-        // ✅ FIX: login() returns the user object — use it directly
         const loggedInUser = await login(email, password) as unknown as { $id?: string };
-        
+
         console.log("🔵 Login returned user:", loggedInUser);
-        
-        // ✅ CRITICAL FIX: Record the login session AFTER successful login
+
         if (loggedInUser?.$id) {
           console.log("🟢 Recording login for user:", loggedInUser.$id);
           try {
@@ -177,7 +182,7 @@ export default function AuthPage() {
             console.log("✅ Login session recorded successfully");
           } catch (err) {
             console.error("❌ Failed to record login session:", err);
-            // Don't throw - let the user continue even if analytics fails
+            // Don't throw — let the user continue even if analytics fails
           }
         } else {
           console.warn("⚠️ No user $id found after login");
@@ -188,9 +193,9 @@ export default function AuthPage() {
       }
     } catch (err) {
       console.error("Login/signup error:", err);
-      /* errors handled in context */ 
-    } finally { 
-      setLoading(false); 
+      /* errors handled in context */
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -205,6 +210,12 @@ export default function AuthPage() {
     e.preventDefault();
     if (!otpInputEmail) return;
     setLoading(true);
+
+    // ✅ Record the OTP send click too — same sessionType capture
+    try {
+      await analyticsService.recordEngagementClick(otpInputEmail);
+    } catch { /* silent */ }
+
     try { await sendEmailOTP(otpInputEmail); } catch { /* handled */ } finally { setLoading(false); }
   };
 
@@ -213,12 +224,10 @@ export default function AuthPage() {
     if (!otpCode) return;
     setLoading(true);
     try {
-      // ✅ FIX: verifyEmailOTP() returns the user — use it directly
       const loggedInUser = await verifyEmailOTP(otpCode) as unknown as { $id?: string };
-      
+
       console.log("🔵 OTP verification returned user:", loggedInUser);
-      
-      // ✅ CRITICAL FIX: Record the login session AFTER successful OTP verification
+
       if (loggedInUser?.$id) {
         console.log("🟢 Recording OTP login for user:", loggedInUser.$id);
         try {
@@ -226,16 +235,16 @@ export default function AuthPage() {
           console.log("✅ OTP login session recorded successfully");
         } catch (err) {
           console.error("❌ Failed to record OTP login session:", err);
-          // Don't throw - let the user continue even if analytics fails
+          // Don't throw — let the user continue even if analytics fails
         }
       } else {
         console.warn("⚠️ No user $id found after OTP verification");
       }
     } catch (err) {
       console.error("OTP verification error:", err);
-      /* handled */ 
-    } finally { 
-      setLoading(false); 
+      /* handled */
+    } finally {
+      setLoading(false);
     }
   };
 

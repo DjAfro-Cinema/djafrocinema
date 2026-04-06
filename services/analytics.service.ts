@@ -21,7 +21,7 @@ export interface AnalyticsRecord {
   isActive: boolean;
   signupAt: string;
   lastLoginAt?: string;
-  sessionType?: "pwa" | "app" | "unknown";
+  sessionType?: "pwa" | "app" | "browser";
   loginCount?: number;
   $createdAt?: string;
   $updatedAt?: string;
@@ -31,7 +31,7 @@ export interface SessionRecord {
   $id: string;
   userId: string;
   email: string;
-  sessionType: "pwa" | "app" | "unknown";
+  sessionType: "pwa" | "app" | "browser";
   platform: "pwa" | "mobile-app";
   signupMethod: string;
   userAgent: string;
@@ -43,6 +43,7 @@ export interface SessionStats {
   totalSessions: number;
   pwaSessions: number;
   appSessions: number;
+  browserSessions: number;
   uniqueUsersToday: number;
   uniqueUsersThisWeek: number;
   sessionsToday: number;
@@ -76,32 +77,38 @@ export interface RevenueStats {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper — detect if running as installed PWA, native app, or browser tab
+// Helper — detect if running as installed PWA, native app, or regular browser
 // ─────────────────────────────────────────────────────────────────────────────
+// "pwa"     = installed PWA opened in standalone/fullscreen mode (display-mode)
+// "app"     = Capacitor / Cordova native wrapper / WebView
+// "browser" = regular browser tab (most web traffic — previously misclassified as "pwa")
 
-function detectSessionType(): "pwa" | "app" | "unknown" {
-  if (typeof window === "undefined") return "unknown";
-
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.matchMedia("(display-mode: fullscreen)").matches ||
-    window.matchMedia("(display-mode: minimal-ui)").matches ||
-    (navigator as any).standalone === true;
-
-  if (isStandalone) return "pwa";
+function detectSessionType(): "pwa" | "app" | "browser" {
+  if (typeof window === "undefined") return "browser";
 
   const ua = navigator.userAgent || "";
+
+  // 1. Native app — Capacitor / Cordova / Android WebView
   if (
     (window as any).Capacitor?.isNativePlatform?.() ||
     (window as any).cordova ||
     ua.includes("CapacitorApp") ||
-    ua.includes("wv")
+    /wv\)/.test(ua) // Android WebView signature
   ) {
     return "app";
   }
 
-  // Regular browser — still a web/PWA session
-  return "pwa";
+  // 2. Installed PWA — user has added to home screen and opened in standalone mode
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    (navigator as any).standalone === true; // iOS Safari standalone
+
+  if (isStandalone) return "pwa";
+
+  // 3. Regular browser tab — this is what most of your traffic actually is
+  return "browser";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,16 +127,15 @@ export const analyticsService = {
   ) {
     try {
       console.log("🟢 recordSignup called:", { userId, email, signupMethod, platform });
-      
-      const now = new Date().toISOString();
+
+      const now         = new Date().toISOString();
       const userAgent   = typeof window !== "undefined" ? navigator.userAgent : "server";
       const sessionType = detectSessionType();
-      
+
       console.log("🔵 Session type detected:", sessionType);
-      
+
       const { ID } = await import("appwrite");
 
-      // 1. Write to analytics collection (one doc per user — their profile row)
       const record = {
         userId,
         email,
@@ -154,7 +160,6 @@ export const analyticsService = {
 
       console.log("✅ Analytics record created:", response.$id);
 
-      // 2. Also write a session event to user_sessions
       await analyticsService.recordSessionEvent(userId, email, signupMethod, platform);
 
       return response;
@@ -164,12 +169,12 @@ export const analyticsService = {
     }
   },
 
-  // ── LOGIN — updates the analytics profile row + writes a session event ────
+  // ── LOGIN — updates analytics profile row + writes session event ──────────
 
   async recordLogin(userId: string): Promise<void> {
     try {
       console.log("🟢 recordLogin called for userId:", userId);
-      
+
       const response = await databases.listDocuments(
         DATABASE_ID,
         ANALYTICS_COLLECTION_ID,
@@ -192,7 +197,6 @@ export const analyticsService = {
           sessionType,
         });
 
-        // Update the profile row
         await databases.updateDocument(
           DATABASE_ID,
           ANALYTICS_COLLECTION_ID,
@@ -207,7 +211,6 @@ export const analyticsService = {
 
         console.log("✅ Analytics record updated");
 
-        // Write a fresh session event row
         console.log("📝 Recording session event...");
         await analyticsService.recordSessionEvent(
           userId,
@@ -221,8 +224,41 @@ export const analyticsService = {
       }
     } catch (error) {
       console.error("❌ Failed to record login:", error);
-      // Re-throw so the calling code knows it failed
       throw error;
+    }
+  },
+
+  // ── ENGAGEMENT CLICK — logs button click before auth completes ────────────
+  // Captures sessionType at the moment the user taps "Sign In" — useful for
+  // knowing how many PWA users are attempting login even if they don't finish.
+
+  async recordEngagementClick(email: string): Promise<void> {
+    try {
+      const { ID } = await import("appwrite");
+      const sessionType = detectSessionType();
+      const userAgent   = typeof window !== "undefined" ? navigator.userAgent : "server";
+
+      console.log("🟡 recordEngagementClick:", { email, sessionType });
+
+      await databases.createDocument(
+        DATABASE_ID,
+        USER_SESSIONS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId:       "anonymous",
+          email:        email || "unknown",
+          sessionType,
+          platform:     sessionType === "app" ? "mobile-app" : "pwa",
+          signupMethod: "unknown",
+          userAgent,
+          loginAt:      new Date().toISOString(),
+        }
+      );
+
+      console.log("✅ Engagement click recorded, sessionType:", sessionType);
+    } catch (error) {
+      // Silent — don't block auth flow
+      console.error("❌ Failed to record engagement click:", error);
     }
   },
 
@@ -236,8 +272,8 @@ export const analyticsService = {
   ): Promise<void> {
     try {
       console.log("🟢 recordSessionEvent called:", { userId, email, signupMethod, platform });
-      
-      const { ID } = await import("appwrite");
+
+      const { ID }      = await import("appwrite");
       const sessionType = detectSessionType();
       const userAgent   = typeof window !== "undefined" ? navigator.userAgent : "server";
 
@@ -263,7 +299,6 @@ export const analyticsService = {
       console.log("✅ Session document created:", result.$id);
     } catch (error) {
       console.error("❌ Failed to record session event:", error);
-      // ✅ FIX: RE-THROW the error so it propagates up
       throw error;
     }
   },
@@ -272,7 +307,7 @@ export const analyticsService = {
 
   async getSessionStats(): Promise<SessionStats> {
     try {
-      const res  = await databases.listDocuments(
+      const res = await databases.listDocuments(
         DATABASE_ID,
         USER_SESSIONS_COLLECTION_ID,
         [Query.limit(2000), Query.orderDesc("loginAt")]
@@ -280,20 +315,21 @@ export const analyticsService = {
 
       const sessions = res.documents as unknown as SessionRecord[];
 
-      const now       = new Date();
-      const todayStr  = now.toISOString().split("T")[0];
-      const weekAgo   = new Date(now.getTime() - 7 * 86400000);
+      const now      = new Date();
+      const todayStr = now.toISOString().split("T")[0];
+      const weekAgo  = new Date(now.getTime() - 7 * 86400000);
 
-      const sessionsToday     = sessions.filter(s => s.loginAt?.startsWith(todayStr));
-      const sessionsThisWeek  = sessions.filter(s => new Date(s.loginAt) >= weekAgo);
+      const sessionsToday    = sessions.filter(s => s.loginAt?.startsWith(todayStr));
+      const sessionsThisWeek = sessions.filter(s => new Date(s.loginAt) >= weekAgo);
 
-      const uniqueUsersToday     = new Set(sessionsToday.map(s => s.userId)).size;
-      const uniqueUsersThisWeek  = new Set(sessionsThisWeek.map(s => s.userId)).size;
+      const uniqueUsersToday    = new Set(sessionsToday.map(s => s.userId)).size;
+      const uniqueUsersThisWeek = new Set(sessionsThisWeek.map(s => s.userId)).size;
 
       return {
         totalSessions:      sessions.length,
         pwaSessions:        sessions.filter(s => s.sessionType === "pwa").length,
         appSessions:        sessions.filter(s => s.sessionType === "app").length,
+        browserSessions:    sessions.filter(s => s.sessionType === "browser").length,
         uniqueUsersToday,
         uniqueUsersThisWeek,
         sessionsToday:      sessionsToday.length,
@@ -302,7 +338,7 @@ export const analyticsService = {
     } catch (error) {
       console.error("Failed to fetch session stats:", error);
       return {
-        totalSessions: 0, pwaSessions: 0, appSessions: 0,
+        totalSessions: 0, pwaSessions: 0, appSessions: 0, browserSessions: 0,
         uniqueUsersToday: 0, uniqueUsersThisWeek: 0,
         sessionsToday: 0, sessionsThisWeek: 0,
       };
@@ -400,12 +436,12 @@ export const analyticsService = {
       );
       const docs = allUsers.documents as unknown as AnalyticsRecord[];
       return {
-        total:        docs.length,
-        pwaUsers:     docs.filter(u => u.platform === "pwa").length,
-        mobileUsers:  docs.filter(u => u.platform === "mobile-app").length,
-        emailSignups: docs.filter(u => u.signupMethod === "email").length,
-        otpSignups:   docs.filter(u => u.signupMethod === "otp").length,
-        googleSignups:docs.filter(u => u.signupMethod === "google-oauth").length,
+        total:         docs.length,
+        pwaUsers:      docs.filter(u => u.platform === "pwa").length,
+        mobileUsers:   docs.filter(u => u.platform === "mobile-app").length,
+        emailSignups:  docs.filter(u => u.signupMethod === "email").length,
+        otpSignups:    docs.filter(u => u.signupMethod === "otp").length,
+        googleSignups: docs.filter(u => u.signupMethod === "google-oauth").length,
       };
     } catch (error) {
       console.error("Failed to fetch signup stats:", error);
@@ -440,12 +476,12 @@ export const analyticsService = {
       return Array.from(movieStats.entries())
         .map(([movieId, stat]) => ({
           movieId,
-          movieTitle: moviesMap.get(movieId) || "Unknown",
-          totalWatchers: stat.watchers.size,
-          avgProgress: stat.count > 0 ? Math.round((stat.totalProgress / stat.count) * 100) : 0,
+          movieTitle:      moviesMap.get(movieId) || "Unknown",
+          totalWatchers:   stat.watchers.size,
+          avgProgress:     stat.count > 0 ? Math.round((stat.totalProgress / stat.count) * 100) : 0,
           totalTimeWatched: stat.totalProgress,
-          totalPurchases: stat.purchases,
-          totalRevenue: stat.revenue,
+          totalPurchases:  stat.purchases,
+          totalRevenue:    stat.revenue,
         }))
         .sort((a, b) => b.totalWatchers - a.totalWatchers)
         .slice(0, limit);
@@ -483,12 +519,12 @@ export const analyticsService = {
       return Array.from(movieStats.entries())
         .map(([movieId, stat]) => ({
           movieId,
-          movieTitle: moviesMap.get(movieId) || "Unknown",
-          totalWatchers: stat.watchers.size,
-          avgProgress: stat.count > 0 ? Math.round((stat.totalProgress / stat.count) * 100) : 0,
+          movieTitle:       moviesMap.get(movieId) || "Unknown",
+          totalWatchers:    stat.watchers.size,
+          avgProgress:      stat.count > 0 ? Math.round((stat.totalProgress / stat.count) * 100) : 0,
           totalTimeWatched: stat.totalProgress,
-          totalPurchases: stat.purchases,
-          totalRevenue: stat.revenue,
+          totalPurchases:   stat.purchases,
+          totalRevenue:     stat.revenue,
         }))
         .sort((a, b) => b.totalRevenue - a.totalRevenue)
         .slice(0, limit);
@@ -514,8 +550,8 @@ export const analyticsService = {
       }
       return {
         totalRevenue,
-        totalTransactions: purchases.length,
-        avgTransactionValue: purchases.length > 0 ? Math.round(totalRevenue / purchases.length) : 0,
+        totalTransactions:    purchases.length,
+        avgTransactionValue:  purchases.length > 0 ? Math.round(totalRevenue / purchases.length) : 0,
         topDay,
       };
     } catch (error) {
@@ -532,7 +568,12 @@ export const analyticsService = {
         [Query.equal("userId", userId)]
       );
       if (response.documents.length > 0) {
-        await databases.updateDocument(DATABASE_ID, ANALYTICS_COLLECTION_ID, response.documents[0].$id, { isActive: false });
+        await databases.updateDocument(
+          DATABASE_ID,
+          ANALYTICS_COLLECTION_ID,
+          response.documents[0].$id,
+          { isActive: false }
+        );
       }
     } catch (error) {
       console.error("Failed to deactivate user:", error);
