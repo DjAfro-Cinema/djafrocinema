@@ -10,9 +10,9 @@ const STORAGE_KEY_LAST_SHOW = "pwa_prompt_last_show";    // timestamp of last sh
 const STORAGE_KEY_DATE      = "pwa_prompt_date";         // YYYY-MM-DD of current day
 
 // ── Timing config ────────────────────────────────────────────────────────────
-const INITIAL_DELAY_MS  = 2 * 60 * 1000;        // 2 min after page load before first show
-const COOLDOWN_MS       = 3 * 60 * 60 * 1000;   // 3 hr cooldown between shows (5 shows spread across ~12hr day)
-const MAX_SHOWS_PER_DAY = 5;
+const INITIAL_DELAY_MS  = 5 * 1000;             // 5 sec after page load before first show
+const COOLDOWN_MS       = 10 * 60 * 1000;       // 10 min cooldown between shows
+const MAX_SHOWS_PER_DAY = 20;
 
 type Platform = "android" | "ios" | "desktop" | null;
 
@@ -131,11 +131,6 @@ export default function PWAInstallPrompt() {
   }, [show]);
 
   // ── Core: decide whether / when to show ────────────────────────────────────
-  /**
-   * Returns the delay (ms) until the next show, or null if we should not show.
-   * "Now" means delay=0 isn't quite right — we still honour the initial 5-min
-   * page-load delay, which is handled by the caller.
-   */
   function getShowDelay(): number | null {
     if (typeof window === "undefined") return null;
     if (window.matchMedia("(display-mode: standalone)").matches) return null;
@@ -145,7 +140,6 @@ export default function PWAInstallPrompt() {
     if (count >= MAX_SHOWS_PER_DAY) return null;
 
     if (lastShow === null) {
-      // Never shown today — use initial delay from page-load (handled in caller)
       return 0;
     }
 
@@ -177,12 +171,11 @@ export default function PWAInstallPrompt() {
     const detected = detectPlatform();
     setPlatform(detected);
 
-    if (detected !== "ios") return; // Android/Desktop handled in the next effect
+    if (detected !== "ios") return;
 
     const cooldownDelay = getShowDelay();
     if (cooldownDelay === null) return;
 
-    // First show: wait for initial page-load delay; subsequent: cooldown
     const { lastShow } = getTodayStats();
     const delay = lastShow === null ? INITIAL_DELAY_MS : cooldownDelay;
 
@@ -222,7 +215,6 @@ export default function PWAInstallPrompt() {
     setTimeout(() => {
       setShow(false);
 
-      // Schedule next show after cooldown (if quota remaining)
       const nextDelay = getShowDelay();
       if (nextDelay !== null) {
         const waitMs = nextDelay === 0 ? COOLDOWN_MS : nextDelay;
@@ -327,7 +319,7 @@ export default function PWAInstallPrompt() {
         /* ── Hero — SMALLER on mobile ── */
         .pci-hero {
           position: relative;
-          height: 110px;          /* mobile */
+          height: 110px;
           background: #070707;
           overflow: hidden;
         }
@@ -361,7 +353,7 @@ export default function PWAInstallPrompt() {
           display: flex; align-items: center; justify-content: center;
         }
         .pci-lottie {
-          width: 110px; height: 110px;   /* mobile */
+          width: 110px; height: 110px;
           filter:
             drop-shadow(0 0 28px rgba(229,9,20,0.48))
             drop-shadow(0 0 8px rgba(229,9,20,0.18));
@@ -385,7 +377,7 @@ export default function PWAInstallPrompt() {
           color: #fff; border-color: rgba(229,9,20,0.42);
         }
 
-        /* ── Body — tighter on mobile ── */
+        /* ── Body ── */
         .pci-body { padding: 9px 11px 11px; }
         @media (min-width: 600px) { .pci-body { padding: 15px 15px 17px; } }
 
@@ -397,12 +389,12 @@ export default function PWAInstallPrompt() {
 
         .pci-logo-img {
           position: relative; flex-shrink: 0;
-          height: 26px; width: 90px;  /* mobile */
+          height: 26px; width: 90px;
         }
         @media (min-width: 600px) { .pci-logo-img { height: 34px; width: 118px; } }
 
         .pci-tagline {
-          font-size: 9.5px;            /* mobile */
+          font-size: 9.5px;
           color: rgba(255,255,255,0.33);
           font-style: italic;
           line-height: 1.5;
@@ -418,11 +410,11 @@ export default function PWAInstallPrompt() {
 
         .pci-pill {
           display: inline-flex; align-items: center; gap: 4px;
-          padding: 3px 8px;           /* mobile */
+          padding: 3px 8px;
           border-radius: 3px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.07);
-          font-size: 9px; font-weight: 500;   /* mobile */
+          font-size: 9px; font-weight: 500;
           color: rgba(255,255,255,0.5);
           letter-spacing: 0.01em;
           user-select: none;
@@ -438,12 +430,12 @@ export default function PWAInstallPrompt() {
 
         /* ── Install button ── */
         .pci-btn {
-          width: 100%; height: 38px;   /* mobile */
+          width: 100%; height: 38px;
           border-radius: 4px;
           background: linear-gradient(135deg, #e50914 0%, #c00811 100%);
           border: none; color: #fff;
           font-family: 'DM Sans', sans-serif;
-          font-weight: 700; font-size: 11px;   /* mobile */
+          font-weight: 700; font-size: 11px;
           letter-spacing: 0.09em; text-transform: uppercase;
           cursor: pointer;
           display: flex; align-items: center; justify-content: center; gap: 8px;
