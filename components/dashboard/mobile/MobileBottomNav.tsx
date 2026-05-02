@@ -2,294 +2,194 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { useTheme } from "@/context/ThemeContext";
-
-// ── Custom SVG icons ──────────────────────────────────────────────────────────
-
-function IconHome({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
-  const c = active ? t.iconActive : t.iconInactive;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <path d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H15v-5h-6v5H4a1 1 0 01-1-1V10.5z"
-        stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinejoin="round"
-        fill={active ? t.navActiveBg : "none"} />
-      <path d="M9 22V16h6v6" stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconFilm({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
-  const c = active ? t.iconActive : t.iconInactive;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <rect x="2" y="4" width="20" height="16" rx="2"
-        stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? t.navActiveBg : "none"} />
-      <path d="M7 4v16M17 4v16" stroke={c} strokeWidth={active ? 1.8 : 1.4} />
-      <path d="M2 8.5h3M2 15.5h3M19 8.5h3M19 15.5h3" stroke={c} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" />
-      <path d="M10.5 9.5l4 2.5-4 2.5V9.5z" fill={c} />
-    </svg>
-  );
-}
-
-function IconCompass({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
-  const c = active ? t.iconActive : t.iconInactive;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? t.navActiveBg : "none"} />
-      <path d="M16.5 7.5l-2.8 5.6-5.2 1.4 2.8-5.6 5.2-1.4z"
-        stroke={c} strokeWidth={active ? 1.6 : 1.3} strokeLinejoin="round"
-        fill={active ? `${t.accent}40` : "none"} />
-      <circle cx="12" cy="12" r="1.2" fill={c} />
-    </svg>
-  );
-}
-
-function IconLibrary({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
-  const c = active ? t.iconActive : t.iconInactive;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="4" width="5" height="16" rx="1"
-        stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? t.navActiveBg : "none"} />
-      <rect x="10" y="4" width="4" height="16" rx="1"
-        stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? t.navActiveBg : "none"} />
-      <path d="M16.5 4.5l3.8 15.2" stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
-      <path d="M17 7.5l3 1M17.5 10.5l3 1" stroke={c} strokeWidth={1.2} strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconProfile({ active, t }: { active: boolean; t: ReturnType<typeof useTheme>["t"] }) {
-  const c = active ? t.iconActive : t.iconInactive;
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="3.5" stroke={c} strokeWidth={active ? 1.8 : 1.4}
-        fill={active ? t.navActiveBg : "none"} />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-        stroke={c} strokeWidth={active ? 1.8 : 1.4} strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// ── Tab config ────────────────────────────────────────────────────────────────
+import { Home, Film, Tv2, Compass, Library, User } from "lucide-react";
 
 const TABS = [
-  { label: "Home",     href: "/dashboard",          IconComp: IconHome    },
-  { label: "Movies",   href: "/dashboard/movies",   IconComp: IconFilm    },
-  { label: "Discover", href: "/dashboard/discover", IconComp: IconCompass },
-  { label: "Library",  href: "/dashboard/library",  IconComp: IconLibrary },
-  { label: "Profile",  href: "/dashboard/profile",  IconComp: IconProfile },
+  { label: "Home",     href: "/dashboard",          Icon: Home    },
+  { label: "Movies",   href: "/dashboard/movies",   Icon: Film    },
+  { label: "Series",   href: "/dashboard/series",   Icon: Tv2     },
+  { label: "Discover", href: "/dashboard/discover", Icon: Compass },
+  { label: "Library",  href: "/dashboard/library",  Icon: Library },
 ];
-
-// ── Component ────────────────────────────────────────────────────────────────
 
 export default function MobileBottomNav() {
   const pathname = usePathname() ?? "";
-  const [pressed, setPressed] = useState<string | null>(null);
-  const { t } = useTheme();
 
   const isActive = (href: string) =>
     href === "/dashboard"
       ? pathname === "/dashboard"
       : pathname.startsWith(href);
 
+  const profileActive = pathname.startsWith("/dashboard/profile");
+
   return (
     <>
       <style>{`
-        @keyframes arcPulse {
-          0%, 100% { opacity: 1; transform: translateX(-50%) scaleX(1); }
-          50%       { opacity: 0.6; transform: translateX(-50%) scaleX(0.7); }
+        @keyframes dj-tab-pop {
+          0%   { transform: scale(0.88); opacity: 0.5; }
+          60%  { transform: scale(1.08); }
+          100% { transform: scale(1);   opacity: 1; }
         }
-        @keyframes glowBreathe {
-          0%, 100% { opacity: 0.7; }
-          50%       { opacity: 1; }
+        @keyframes pfloat {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-2px); }
         }
-        @keyframes dotPop {
-          0%   { transform: translateX(-50%) scale(0); opacity: 0; }
-          60%  { transform: translateX(-50%) scale(1.3); opacity: 1; }
-          100% { transform: translateX(-50%) scale(1); opacity: 1; }
+        .dj-tab-active-icon {
+          animation: dj-tab-pop 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
-        @keyframes tabPress {
-          0%   { transform: scale(1); }
-          40%  { transform: scale(0.88); }
-          100% { transform: scale(1); }
-        }
-        @keyframes navSlideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        @keyframes grainShift {
-          0%   { transform: translate(0,0); }
-          20%  { transform: translate(-1px,1px); }
-          40%  { transform: translate(1px,-1px); }
-          60%  { transform: translate(-1px,0); }
-          80%  { transform: translate(1px,1px); }
-          100% { transform: translate(0,0); }
+        .dj-tab-link, .dj-profile-chip {
+          -webkit-tap-highlight-color: transparent;
         }
       `}</style>
 
-      {/* Spacer so content isn't hidden behind nav */}
-      <div style={{ height: "calc(72px + env(safe-area-inset-bottom))" }} aria-hidden />
+      {/* Floating Profile Chip — sits above nav, anchored right */}
+      <Link
+        href="/dashboard/profile"
+        className="dj-profile-chip"
+        style={{
+          position: "fixed",
+          bottom: "calc(62px + env(safe-area-inset-bottom) + 8px)",
+          right: 18,
+          zIndex: 901,
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          background: "rgba(20,20,24,0.95)",
+          border: profileActive
+            ? "1.5px solid rgba(229,9,20,0.9)"
+            : "1.5px solid rgba(229,9,20,0.45)",
+          boxShadow: profileActive
+            ? "0 0 20px rgba(229,9,20,0.5), 0 4px 16px rgba(0,0,0,0.6)"
+            : "0 0 14px rgba(229,9,20,0.25), 0 4px 16px rgba(0,0,0,0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textDecoration: "none",
+          animation: "pfloat 3s ease-in-out infinite",
+        }}
+      >
+        <User
+          size={18}
+          strokeWidth={profileActive ? 2.2 : 1.5}
+          color={profileActive ? "#e50914" : "rgba(255,255,255,0.5)"}
+          style={{
+            filter: profileActive
+              ? "drop-shadow(0 0 4px rgba(229,9,20,0.55))"
+              : "none",
+          }}
+        />
+        {/* Notification dot — remove if not needed */}
+        <span style={{
+          position: "absolute",
+          top: 5, right: 5,
+          width: 7, height: 7,
+          borderRadius: "50%",
+          background: "#e50914",
+          border: "1.5px solid rgba(9,9,12,1)",
+          boxShadow: "0 0 6px rgba(229,9,20,0.8)",
+        }} />
+      </Link>
 
+      {/* Bottom Nav */}
       <nav
         style={{
           position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: 0, left: 0, right: 0,
           zIndex: 900,
           paddingBottom: "env(safe-area-inset-bottom)",
-          animation: "navSlideUp 0.5s cubic-bezier(0.34,1.2,0.64,1) both",
+          background: "rgba(9,9,12,0.92)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          borderTop: "1px solid rgba(255,255,255,0.055)",
         }}
       >
-        {/* Outer container — floating pill */}
         <div style={{
-          margin: "0 10px 10px",
-          borderRadius: 28,
-          overflow: "hidden",
-          position: "relative",
-          boxShadow: `0 -2px 40px rgba(0,0,0,0.7), 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${t.borderSubtle}`,
+          position: "absolute",
+          top: 0, left: "20%", right: "20%",
+          height: 1,
+          background:
+            "linear-gradient(90deg, transparent, rgba(229,9,20,0.4) 50%, transparent)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{
+          display: "flex",
+          alignItems: "flex-end",
+          height: 62,
+          padding: "0 4px",
         }}>
-
-          {/* Glass base */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: t.bgSidebarGradient,
-            backdropFilter: "blur(40px)",
-            WebkitBackdropFilter: "blur(40px)",
-          }} />
-
-          {/* Film grain overlay */}
-          <div style={{
-            position: "absolute", inset: -50,
-            opacity: 0.035,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-            animation: "grainShift 0.15s steps(1) infinite",
-            pointerEvents: "none",
-          }} />
-
-          {/* Accent ambient glow center */}
-          <div style={{
-            position: "absolute",
-            bottom: -20, left: "50%", transform: "translateX(-50%)",
-            width: 200, height: 80, borderRadius: "50%",
-            background: `radial-gradient(ellipse, ${t.sidebarGlowBottom} 0%, transparent 70%)`,
-            pointerEvents: "none",
-            animation: "glowBreathe 3s ease-in-out infinite",
-          }} />
-
-          {/* Top edge shimmer — uses accent color */}
-          <div style={{
-            position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
-            background: `linear-gradient(90deg, transparent, ${t.accentDark} 30%, ${t.accentLight} 50%, ${t.accentDark} 70%, transparent)`,
-            pointerEvents: "none",
-          }} />
-
-          {/* Tab row */}
-          <div style={{
-            position: "relative", zIndex: 2,
-            display: "flex",
-            alignItems: "stretch",
-            height: 64,
-          }}>
-            {TABS.map(({ label, href, IconComp }) => {
-              const active = isActive(href);
-              const isPressed = pressed === href;
-
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onPointerDown={() => setPressed(href)}
-                  onPointerUp={() => setPressed(null)}
-                  onPointerLeave={() => setPressed(null)}
+          {TABS.map(({ label, href, Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="dj-tab-link"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 0,
+                  paddingBottom: 10,
+                  paddingTop: 10,
+                  textDecoration: "none",
+                  position: "relative",
+                  userSelect: "none",
+                }}
+              >
+                <div
+                  className={active ? "dj-tab-active-icon" : ""}
                   style={{
-                    flex: 1,
+                    position: "relative",
+                    width: 44, height: 30,
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 4,
-                    textDecoration: "none",
-                    position: "relative",
-                    WebkitTapHighlightColor: "transparent",
-                    userSelect: "none",
-                    animation: isPressed ? "tabPress 0.25s ease forwards" : "none",
+                    borderRadius: 10,
+                    background: active ? "rgba(229,9,20,0.16)" : "transparent",
+                    transition: "background 0.2s",
+                    marginBottom: 4,
                   }}
                 >
-                  {/* Active top arc indicator */}
                   {active && (
-                    <span style={{
-                      position: "absolute",
-                      top: 0,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      width: 36,
-                      height: 3,
-                      borderRadius: "0 0 6px 6px",
-                      background: `linear-gradient(90deg, ${t.accentDark}, ${t.accentLight}, ${t.accentDark})`,
-                      boxShadow: `0 0 10px ${t.accentGlow}, 0 0 24px ${t.accentGlow}`,
-                      animation: "arcPulse 2.5s ease-in-out infinite",
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      borderRadius: 10,
+                      boxShadow: "inset 0 0 0 1px rgba(229,9,20,0.22)",
                     }} />
                   )}
+                  <Icon
+                    size={18}
+                    strokeWidth={active ? 2.2 : 1.5}
+                    color={active ? "#e50914" : "rgba(255,255,255,0.28)"}
+                    style={{
+                      filter: active
+                        ? "drop-shadow(0 0 4px rgba(229,9,20,0.55))"
+                        : "none",
+                      transition: "color 0.18s, filter 0.18s",
+                    }}
+                  />
+                </div>
 
-                  {/* Active glow blob behind icon */}
-                  {active && (
-                    <span style={{
-                      position: "absolute",
-                      top: "50%", left: "50%",
-                      transform: "translate(-50%, -55%)",
-                      width: 48, height: 48,
-                      borderRadius: "50%",
-                      background: `radial-gradient(circle, ${t.sidebarGlowTop} 0%, transparent 70%)`,
-                      animation: "glowBreathe 2s ease-in-out infinite",
-                      pointerEvents: "none",
-                    }} />
-                  )}
-
-                  {/* Icon */}
-                  <div style={{
-                    position: "relative", zIndex: 1,
-                    transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1)",
-                    transform: active ? "translateY(-1px) scale(1.08)" : "scale(1)",
-                  }}>
-                    <IconComp active={active} t={t} />
-                  </div>
-
-                  {/* Label */}
-                  <span style={{
-                    fontSize: 9,
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontWeight: active ? 700 : 400,
-                    letterSpacing: active ? "0.08em" : "0.04em",
-                    textTransform: "uppercase",
-                    color: active ? t.textPrimary : t.iconInactive,
-                    transition: "color 0.18s, letter-spacing 0.18s",
-                    position: "relative", zIndex: 1,
-                    lineHeight: 1,
-                  }}>
-                    {label}
-                  </span>
-
-                  {/* Active dot under label */}
-                  {active && (
-                    <span style={{
-                      position: "absolute",
-                      bottom: 6, left: "50%",
-                      width: 3, height: 3, borderRadius: "50%",
-                      background: t.accent,
-                      boxShadow: `0 0 6px ${t.accentGlow}`,
-                      animation: "dotPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
-                    }} />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+                <span style={{
+                  fontSize: 9,
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontWeight: active ? 700 : 400,
+                  letterSpacing: active ? "0.04em" : "0.06em",
+                  textTransform: "uppercase",
+                  color: active
+                    ? "rgba(255,255,255,0.88)"
+                    : "rgba(255,255,255,0.22)",
+                  transition: "color 0.18s, font-weight 0.18s",
+                  lineHeight: 1,
+                }}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
     </>
