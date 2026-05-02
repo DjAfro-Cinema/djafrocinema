@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Film, Compass, Library, User } from "lucide-react";
+import { Home, Film, Tv2, Compass, Library } from "lucide-react";
 
 const TABS = [
-  { label: "Home",     href: "/dashboard",          Icon: Home },
-  { label: "Movies",   href: "/dashboard/movies",   Icon: Film },
+  { label: "Home",     href: "/dashboard",          Icon: Home    },
+  { label: "Movies",   href: "/dashboard/movies",   Icon: Film    },
+  { label: "Series",   href: "/dashboard/series",   Icon: Tv2     },
   { label: "Discover", href: "/dashboard/discover", Icon: Compass },
   { label: "Library",  href: "/dashboard/library",  Icon: Library },
-  { label: "Profile",  href: "/dashboard/profile",  Icon: User },
 ];
 
 export default function MobileBottomNav() {
