@@ -21,7 +21,7 @@ import { useTopRated }        from "@/hooks/useTopRated";
 import { useMostViewed }      from "@/hooks/useMostViewed";
 import { useMovies }          from "@/hooks/useMovies";
 import { useMovie }           from "@/hooks/useMovie";
-import { movieService }       from "@/services/movie.service";
+import { movieService, getStreamUrl } from "@/services/movie.service";
 import type { Movie }         from "@/types/movie.types";
 import { usePremiumGate }     from "@/context/PremiumGateContext";
 
@@ -592,7 +592,7 @@ export default function DiscoverPage() {
       onUnlocked: (_movieId: string) => {
         if (!videoUrl) return;
         setCurrentPlayId(movie.id);
-        openPlayer(videoUrl, movie.title, movie.genre, movie.img);
+        openPlayer(getStreamUrl(videoUrl) ?? videoUrl, movie.title, movie.genre, movie.img);
       },
     });
   }, [allMovies.movies, requestPlay, openPlayer]);

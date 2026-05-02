@@ -65,7 +65,7 @@ export interface VideoPlayerProps {
   hasPrev?: boolean;
 }
 
-type SourceType = "hls" | "mp4" | "youtube" | "dailymotion" | "iframe";
+type SourceType = "hls" | "mp4" | "youtube" | "dailymotion" | "iframe" | "drive";
 type ToastKind  = "error" | "warn" | "info";
 interface Toast  { id: string; kind: ToastKind; message: string; }
 
@@ -77,6 +77,7 @@ function detectSource(src: string): SourceType {
   if (u.includes("youtube.com") || u.includes("youtu.be") || u.includes("youtube-nocookie.com")) return "youtube";
   if (u.includes("dailymotion.com") || u.includes("dai.ly")) return "dailymotion";
   if (u.includes("iframe.mediadelivery.net") || u.includes("player.cloudflare.com") || u.includes("embed.cloudflarestream.com")) return "iframe";
+  if (u.includes("drive.google.com") || u.includes("/api/stream?fileid")) return "drive";
   if (u.includes(".m3u8") || u.includes("manifest") || u.includes("playlist")) return "hls";
   return "mp4";
 }
@@ -99,6 +100,21 @@ function toDailymotionEmbed(src: string): string {
   if (short) return `https://www.dailymotion.com/embed/video/${short[1]}?autoplay=1`;
   const id = src.match(/dailymotion\.com\/(?:video\/)?([a-zA-Z0-9]+)/);
   if (id) return `https://www.dailymotion.com/embed/video/${id[1]}?autoplay=1`;
+  return src;
+}
+
+/** Extract Google Drive fileId from any Drive URL format and return proxy URL */
+function toDriveProxyUrl(src: string): string {
+  // Already a proxy URL
+  if (src.includes("/api/stream?fileId=")) return src;
+  // drive.google.com/file/d/FILE_ID/view
+  const fileMatch = src.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return `/api/stream?fileId=${fileMatch[1]}`;
+  // drive.google.com/uc?id=FILE_ID or ?export=download&id=FILE_ID
+  const idMatch = src.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return `/api/stream?fileId=${idMatch[1]}`;
+  // Raw fileId passed directly (no slashes, no dots, 25–45 chars)
+  if (/^[a-zA-Z0-9_-]{25,60}$/.test(src.trim())) return `/api/stream?fileId=${src.trim()}`;
   return src;
 }
 
@@ -406,17 +422,17 @@ export default function VideoPlayer({
   const initMp4 = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.src = src;
+    video.src = sourceType === "drive" ? toDriveProxyUrl(src) : src;
     video.load();
     if (autoPlay) video.play().catch(() => {});
-  }, [src, autoPlay]);
+  }, [src, autoPlay, sourceType]);
 
   // ── Mount / src change ───────────────────────────────────────────────────
 
   useEffect(() => {
     if (sourceType === "youtube" || sourceType === "dailymotion" || sourceType === "iframe") return;
     setLoading(true); setFatalError(false); retryCount.current = 0;
-    if (sourceType === "hls") initHls(); else initMp4();
+    if (sourceType === "hls") initHls(); else initMp4(); // drive also uses initMp4 via proxy
     return () => {
       hlsRef.current?.destroy(); hlsRef.current = null;
       const v = videoRef.current;
@@ -508,7 +524,12 @@ export default function VideoPlayer({
     setSeekHoverPct(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
   };
   const setRate = (r: number) => { setPlaybackRate(r); if (videoRef.current) videoRef.current.playbackRate = r; setShowSettings(false); };
-  const handleRetry = () => { retryCount.current = 0; setFatalError(false); setLoading(true); if (sourceType === "hls") initHls(); else initMp4(); };
+  const handleRetry = () => {
+    retryCount.current = 0;
+    setFatalError(false);
+    setLoading(true);
+    if (sourceType === "hls") initHls(); else initMp4();
+  };
 
   const pct     = duration > 0 ? (currentTime / duration) * 100 : 0;
   const buffPct = duration > 0 ? (buffered  / duration) * 100 : 0;
@@ -516,6 +537,7 @@ export default function VideoPlayer({
   // ── Iframe branch ────────────────────────────────────────────────────────
 
   if (sourceType === "youtube" || sourceType === "dailymotion" || sourceType === "iframe") {
+    // drive is handled by the native player below via the proxy
     const embedSrc =
       sourceType === "youtube"     ? toYouTubeEmbed(src) :
       sourceType === "dailymotion" ? toDailymotionEmbed(src) :

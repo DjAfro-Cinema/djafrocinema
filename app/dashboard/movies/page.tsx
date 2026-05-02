@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMovies } from "@/hooks/useMovies";
 import { useAllGenres } from "@/hooks/useAllGenres";
 import VideoPlayer, { useVideoPlayer } from "@/components/dashboard/video-player/VideoPlayer";
-import { movieService } from "@/services/movie.service";
+import { movieService, getStreamUrl } from "@/services/movie.service";
 import type { Movie } from "@/types/movie.types";
 import { usePremiumGate } from "@/context/PremiumGateContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -365,7 +365,7 @@ export default function MoviesPage() {
       isPremium:  !!movie.premium_only,
       onUnlocked: (movieId: string) => {
         if (!movie.video_url) return;
-        openPlayer(movie.video_url, movie.title, movie.genre[0], movie.poster_url ?? undefined);
+        openPlayer(getStreamUrl(movie.video_url) ?? movie.video_url, movie.title, movie.genre[0], movie.poster_url ?? undefined);
       },
     });
   }, [requestPlay, openPlayer]);

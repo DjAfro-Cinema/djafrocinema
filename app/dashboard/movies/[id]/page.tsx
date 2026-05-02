@@ -14,7 +14,7 @@ import MobileBottomNav from "@/components/dashboard/mobile/MobileBottomNav";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useMovie } from "@/hooks/useMovie";
-import { movieService } from "@/services/movie.service";
+import { movieService, getStreamUrl } from "@/services/movie.service";
 import { databases } from "@/lib/appwrite";
 import type { Movie } from "@/types/movie.types";
 import { usePremiumGate } from "@/context/PremiumGateContext";

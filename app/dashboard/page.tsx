@@ -27,7 +27,7 @@ import { useTopRated }       from "@/hooks/useTopRated";
 import { useMovies }         from "@/hooks/useMovies";
 import { useAllGenres }      from "@/hooks/useAllGenres";
 import { useMovie }          from "@/hooks/useMovie";
-import { movieService }      from "@/services/movie.service";
+import { movieService, getStreamUrl } from "@/services/movie.service";
 import type { Movie }        from "@/types/movie.types";
 
 // ── Mappers ───────────────────────────────────────────────────────────────────
@@ -319,7 +319,8 @@ export default function DashboardPage() {
     const full = allMovies.movies.find(m => m.$id === movieId);
     if (!full?.video_url) return;
     setCurrentPlayId(full.$id);
-    openPlayer(full.video_url, full.title, full.genre[0], full.poster_url ?? undefined);
+    const streamUrl = getStreamUrl(full.video_url) ?? full.video_url;
+    openPlayer(streamUrl, full.title, full.genre[0], full.poster_url ?? undefined);
   }, [allMovies.movies, openPlayer]);
 
   const handlePlayCard = useCallback((card: MovieCardData) => {

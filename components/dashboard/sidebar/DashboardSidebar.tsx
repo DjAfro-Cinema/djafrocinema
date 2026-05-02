@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Star,
   Palette,
+  Tv2,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -26,6 +27,7 @@ import ThemeToggle, { type ThemeToggleHandle } from "@/components/ui/ThemeToggle
 const NAV_MAIN = [
   { label: "Home",     href: "/dashboard",          Icon: Home     },
   { label: "Movies",   href: "/dashboard/movies",   Icon: Film     },
+  { label: "Series",   href: "/dashboard/series",   Icon: Tv2      },
   { label: "Discover", href: "/dashboard/discover", Icon: Compass  },
   { label: "Library",  href: "/dashboard/library",  Icon: BookOpen },
   { label: "Profile",  href: "/dashboard/profile",  Icon: User     },
@@ -231,7 +233,6 @@ function NavItem({
 }
 
 // ── PALETTE BUTTON (triggers ThemeToggle drawer) ──────────────────────────────
-// This is a button (not a Link) that fires the theme drawer open.
 
 function PaletteNavItem({
   collapsed, onOpen,
@@ -270,7 +271,6 @@ function PaletteNavItem({
           overflow: "hidden",
         }}
       >
-        {/* Accent dot preview — shows current theme colour */}
         <div style={{ position: "relative", flexShrink: 0 }}>
           <Palette
             size={16}
@@ -281,7 +281,6 @@ function PaletteNavItem({
               display: "block",
             }}
           />
-          {/* Small coloured dot on icon to hint current theme */}
           <span style={{
             position: "absolute", top: -3, right: -4,
             width: 6, height: 6, borderRadius: "50%",
@@ -301,7 +300,6 @@ function PaletteNavItem({
           }}>Appearance</span>
         )}
 
-        {/* Theme name pill — only shown expanded */}
         {!collapsed && (
           <span style={{
             fontSize: 9, fontFamily: "'DM Sans', sans-serif",
@@ -375,7 +373,6 @@ export default function DashboardSidebar({
   const { logout, user: authUser } = useAuth();
   const { t } = useTheme();
 
-  // Ref to ThemeToggle so the Palette nav item can open it
   const themeToggleRef = useRef<ThemeToggleHandle>(null);
 
   const [logoutHovered, setLogoutHovered]   = useState(false);

@@ -24,6 +24,38 @@ import type {
 const DB        = process.env.NEXT_PUBLIC_DATABASE_ID!;
 const MOVIES_COL = process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!;
 
+// ── Google Drive helpers ──────────────────────────────────────────────────────
+
+/** Extract fileId from any Drive URL format */
+export function extractDriveFileId(url: string): string | null {
+  if (!url) return null;
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+  if (/^[a-zA-Z0-9_-]{25,60}$/.test(url.trim())) return url.trim();
+  return null;
+}
+
+/** Return the correct playback URL for any source.
+ *  Drive URLs → /api/stream?fileId=...
+ *  Everything else → unchanged */
+export function getStreamUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes("drive.google.com") || u.includes("/api/stream?fileid")) {
+    const fileId = extractDriveFileId(url);
+    return fileId ? `/api/stream?fileId=${fileId}` : null;
+  }
+  return url;
+}
+
+/** Check if a URL is a Google Drive source */
+export function isDriveUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.toLowerCase().includes("drive.google.com");
+}
+
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let _cache: Movie[] | null = null;
@@ -56,7 +88,9 @@ function toMovie(doc: any): Movie {
     tags:              Array.isArray(doc.tags) ? doc.tags : [],
     release_year:      doc.release_year   ?? null,
     duration:          doc.duration       ?? null,
-    video_url:         doc.video_url      ?? null,
+    video_url:         doc.drive_file_id
+                         ? `/api/stream?fileId=${doc.drive_file_id}`
+                         : (doc.video_url ?? null),
     telegram_file_id:  doc.telegram_file_id ?? null,
     channel_id:        doc.channel_id     ?? null,
     message_id:        doc.message_id     ?? null,
