@@ -1,12 +1,6 @@
 "use client";
 
 // app/dashboard/series/page.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Series listing page — same layout shell as the movies dashboard page.
-// Shows a banner of featured series, then trending, latest, top-rated rows,
-// plus an explore-by-genre grid.  Clicking a series card navigates to
-// /dashboard/series/[id] (the episodes page).
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -31,12 +25,11 @@ import {
   useTopRatedSeries,
   useSeries,
   useAllSeriesGenres,
-  useEpisodeTrackView,
 } from "@/hooks/useSeries";
 import { seriesService } from "@/services/series.service";
-import type { Series, Episode } from "@/types/series.types";
-import type { MovieCardData }   from "@/components/dashboard/movie-card/MovieCard";
-import type { BannerMovie }     from "@/components/dashboard/movie-banner/MovieBanner";
+import type { Series }        from "@/types/series.types";
+import type { MovieCardData } from "@/components/dashboard/movie-card/MovieCard";
+import type { BannerMovie }   from "@/components/dashboard/movie-banner/MovieBanner";
 
 // ── Mappers ───────────────────────────────────────────────────────────────────
 
@@ -70,7 +63,7 @@ function toBannerMovie(s: Series): BannerMovie {
   };
 }
 
-// ── Skeletons (identical to dashboard) ───────────────────────────────────────
+// ── Skeletons ─────────────────────────────────────────────────────────────────
 
 function SkeletonBanner() {
   const { t } = useTheme();
@@ -164,10 +157,10 @@ function MobileSearchOverlay({ open, val, onChange, onClose }: { open: boolean; 
 function StatsWidget({ isMobile, seriesCount }: { isMobile: boolean; seriesCount: number }) {
   const { t } = useTheme();
   const items = [
-    { Icon: Tv,     val: seriesCount > 0 ? `${seriesCount}+` : "…", label: "Series",  sub: "available" },
-    { Icon: Star,   val: "Top",                                       label: "Rated",   sub: "picks"     },
-    { Icon: Flame,  val: "Hot",                                       label: "Trending",sub: "now"       },
-    { Icon: Layers, val: "New",                                       label: "Seasons", sub: "weekly"    },
+    { Icon: Tv,     val: seriesCount > 0 ? `${seriesCount}+` : "…", label: "Series",   sub: "available" },
+    { Icon: Star,   val: "Top",                                       label: "Rated",    sub: "picks"     },
+    { Icon: Flame,  val: "Hot",                                       label: "Trending", sub: "now"       },
+    { Icon: Layers, val: "New",                                       label: "Seasons",  sub: "weekly"    },
   ];
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 2, background: t.borderSubtle, borderRadius: 4, overflow: "hidden", marginBottom: 44 }}>
@@ -235,46 +228,49 @@ export default function SeriesPage() {
     searchVal, setSearchVal,
   } = layout;
 
-  const featured     = useFeaturedSeries(6);
-  const trending     = useTrendingSeries(20);
-  const latest       = useLatestSeries(20);
-  const topRated     = useTopRatedSeries(20);
-  const allSeries    = useSeries();
-  const genreData    = useAllSeriesGenres();
+  const featured    = useFeaturedSeries(6);
+  const trending    = useTrendingSeries(20);
+  const latest      = useLatestSeries(20);
+  const topRated    = useTopRatedSeries(20);
+  const allSeries   = useSeries();
+  const genreData   = useAllSeriesGenres();
   const [activeGenre, setActiveGenre] = useState("All");
   const exploreSeries = useSeries({ genre: activeGenre === "All" ? undefined : activeGenre });
 
-  const { playerState, openPlayer, closePlayer } = useVideoPlayer();
-  const [playingSeriesId,  setPlayingSeriesId]  = useState<string | null>(null);
-  const [playingEpisodeId, setPlayingEpisodeId] = useState<string | null>(null);
-  const { trackView: trackEpisodeView } = useEpisodeTrackView(playingSeriesId, playingEpisodeId);
+  const { playerState, closePlayer } = useVideoPlayer();
 
-  useEffect(() => { seriesService.warmCache(); }, []);
-  useEffect(() => {
-    if (playerState.open && playingSeriesId && playingEpisodeId) trackEpisodeView();
-  }, [playerState.open, playingSeriesId, playingEpisodeId, trackEpisodeView]);
+  useEffect(() => { seriesService.warmCache?.(); }, []);
 
-  // When a series card is clicked → navigate to the series detail page
-  // (episodes listing). The player is only opened from the episodes page.
+  // ── KEY FIX: always navigate to /dashboard/series/[id] ───────────────────
+  const navigateToSeries = useCallback((seriesId: string) => {
+    router.push(`/dashboard/series/${seriesId}`);
+  }, [router]);
+
   const handleCardClick = useCallback((card: MovieCardData) => {
     const full = allSeries.series.find(s => s.$id === card.id);
-    if (!full) return;
-    // If premium and user can't access, gate it; otherwise go to detail
-    requestPlay({
-      movieId:    full.$id,
-      movieTitle: full.title,
-      posterUrl:  full.poster_url ?? undefined,
-      isPremium:  full.premium_only,
-      videoUrl:   undefined, // no direct video — episodes page handles this
-      onUnlocked: (id: string) => router.push(`/dashboard/series/${id}`),
-    });
-    // If not premium, just navigate directly
-    if (!full.premium_only) router.push(`/dashboard/series/${full.$id}`);
-  }, [allSeries.series, requestPlay, router]);
+    if (!full) {
+      // fallback — navigate anyway
+      navigateToSeries(card.id);
+      return;
+    }
+
+    if (full.premium_only) {
+      requestPlay({
+        movieId:    full.$id,
+        movieTitle: full.title,
+        posterUrl:  full.poster_url ?? undefined,
+        isPremium:  true,
+        videoUrl:   undefined,
+        onUnlocked: (id: string) => navigateToSeries(id),
+      });
+    } else {
+      navigateToSeries(full.$id);
+    }
+  }, [allSeries.series, requestPlay, navigateToSeries]);
 
   const handleBannerPlay = useCallback((banner: BannerMovie) => {
-    router.push(`/dashboard/series/${banner.id}`);
-  }, [router]);
+    navigateToSeries(banner.id);
+  }, [navigateToSeries]);
 
   const initialLoading = featured.loading && trending.loading && latest.loading;
   const bannerSeries   = featured.items.map(toBannerMovie);
@@ -346,7 +342,7 @@ export default function SeriesPage() {
                 {/* Page Header */}
                 <div style={{ marginBottom: 32 }}>
                   <p style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", color: t.textMuted, margin: "0 0 5px", fontFamily: "'DM Sans', sans-serif" }}>Browse All</p>
-                  <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 4vw, 2.8rem)", color: t.textPrimary, letterSpacing: "0.04em", lineHeight: 1, margin: "0 0 0", display: "flex", alignItems: "center", gap: 12 }}>
+                  <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 4vw, 2.8rem)", color: t.textPrimary, letterSpacing: "0.04em", lineHeight: 1, margin: 0, display: "flex", alignItems: "center", gap: 12 }}>
                     TV Series
                     <Tv size={28} color={t.accent} strokeWidth={1.5} style={{ opacity: 0.7 }} />
                   </h1>
@@ -401,7 +397,6 @@ export default function SeriesPage() {
         .dj-shimmer { position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.04) 50%,rgba(255,255,255,0) 100%);background-size:700px 100%;animation:djShimmer 1.6s ease-in-out infinite; }
         .dj-sk { background:var(--dj-bg-elevated);position:relative;overflow:hidden;display:block; }
         .dj-sk::after { content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0.04) 50%,rgba(255,255,255,0) 100%);background-size:700px 100%;animation:djShimmer 1.6s ease-in-out infinite; }
-        @keyframes djPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       `}</style>
     </>
   );
