@@ -59,6 +59,7 @@ function toBannerMovie(m: Movie): BannerMovie {
     duration:    m.duration ?? undefined,
     kenBurns:    KB[Math.floor(Math.random() * KB.length)],
     premium:     m.premium_only,
+    detailHref:  `/movies/${m.$id}`, // Assuming this is the correct URL structure
   };
 }
 
