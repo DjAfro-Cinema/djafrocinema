@@ -32,6 +32,8 @@ export function useSeries(filters: SeriesFilters = {}): UseSeriesReturn {
   const [hasMore, setHasMore] = useState(false);
   const [tick,    setTick]    = useState(0);
 
+  // Stable serialised key — prevents effect re-running on every render due to
+  // the filters object being a new reference each time even if values are equal.
   const filtersKey = JSON.stringify(filters);
 
   useEffect(() => {
@@ -39,14 +41,17 @@ export function useSeries(filters: SeriesFilters = {}): UseSeriesReturn {
     setLoading(true);
     setError(null);
 
-    seriesService.getSeries(filters)
-      .then((page) => {
+    // JSON.parse is safe here — we serialised it above
+    const parsedFilters: SeriesFilters = JSON.parse(filtersKey);
+
+    seriesService.getSeries(parsedFilters)
+      .then(page => {
         if (cancelled) return;
         setSeries(page.series);
         setTotal(page.total);
         setHasMore(page.hasMore);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!cancelled) setError(err?.message ?? "Failed to load series");
       })
       .finally(() => {
@@ -57,18 +62,18 @@ export function useSeries(filters: SeriesFilters = {}): UseSeriesReturn {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtersKey, tick]);
 
-  const reload = useCallback(() => setTick((t) => t + 1), []);
+  const reload = useCallback(() => setTick(t => t + 1), []);
   return { series, total, loading, error, hasMore, reload };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useSeriesById — single series with episodes info
+// useSeriesById — single series with view tracking
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface UseSeriesByIdReturn {
-  series:  Series | null;
-  loading: boolean;
-  error:   string | null;
+  series:    Series | null;
+  loading:   boolean;
+  error:     string | null;
   trackView: () => void;
 }
 
@@ -86,8 +91,8 @@ export function useSeriesById(id: string | null): UseSeriesByIdReturn {
     tracked.current = false;
 
     seriesService.getSeriesById(id)
-      .then((s) => { if (!cancelled) setSeries(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Failed to load series"); })
+      .then(s  => { if (!cancelled) setSeries(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Failed to load series"); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -103,7 +108,11 @@ export function useSeriesById(id: string | null): UseSeriesByIdReturn {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useEpisodes — all episodes for a series, optionally filtered by season
+// useEpisodes — all episodes for a series, optionally filtered by season.
+//
+// FIX: seasons array is fetched once per seriesId (not re-fetched on season
+// change), and the episode list transitions without clearing to empty first
+// so there's no flash of "No episodes" between season switches.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface UseEpisodesReturn {
@@ -123,23 +132,30 @@ export function useEpisodes(seriesId: string | null, season?: number): UseEpisod
   const [seasons,  setSeasons]  = useState<number[]>([]);
   const [tick,     setTick]     = useState(0);
 
+  // Fetch the seasons list once per seriesId
+  useEffect(() => {
+    if (!seriesId) return;
+    let cancelled = false;
+    seriesService.getSeasons(seriesId)
+      .then(s => { if (!cancelled) setSeasons(s); })
+      .catch(() => { /* non-critical */ });
+    return () => { cancelled = true; };
+  }, [seriesId]);
+
+  // Fetch episodes whenever seriesId, season or tick changes
   useEffect(() => {
     if (!seriesId) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([
-      seriesService.getEpisodes(seriesId, { season }),
-      seriesService.getSeasons(seriesId),
-    ])
-      .then(([page, sArr]) => {
+    seriesService.getEpisodes(seriesId, { season })
+      .then(page => {
         if (cancelled) return;
         setEpisodes(page.episodes);
         setTotal(page.total);
-        setSeasons(sArr);
       })
-      .catch((err) => {
+      .catch(err => {
         if (!cancelled) setError(err?.message ?? "Failed to load episodes");
       })
       .finally(() => {
@@ -149,12 +165,12 @@ export function useEpisodes(seriesId: string | null, season?: number): UseEpisod
     return () => { cancelled = true; };
   }, [seriesId, season, tick]);
 
-  const reload = useCallback(() => setTick((t) => t + 1), []);
+  const reload = useCallback(() => setTick(t => t + 1), []);
   return { episodes, total, loading, error, seasons, reload };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useFeaturedSeries
+// Shared list hook return type
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface UseListReturn<T> {
@@ -162,6 +178,10 @@ interface UseListReturn<T> {
   loading: boolean;
   error:   string | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useFeaturedSeries
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function useFeaturedSeries(limit = 5): UseListReturn<Series> {
   const [items,   setItems]   = useState<Series[]>([]);
@@ -171,8 +191,8 @@ export function useFeaturedSeries(limit = 5): UseListReturn<Series> {
   useEffect(() => {
     let cancelled = false;
     seriesService.getFeaturedSeries(limit)
-      .then((s) => { if (!cancelled) setItems(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Error"); })
+      .then(s  => { if (!cancelled) setItems(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Error"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [limit]);
@@ -192,8 +212,8 @@ export function useTrendingSeries(limit = 20): UseListReturn<Series> {
   useEffect(() => {
     let cancelled = false;
     seriesService.getTrendingSeries(limit)
-      .then((s) => { if (!cancelled) setItems(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Error"); })
+      .then(s  => { if (!cancelled) setItems(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Error"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [limit]);
@@ -213,8 +233,8 @@ export function useLatestSeries(limit = 20): UseListReturn<Series> {
   useEffect(() => {
     let cancelled = false;
     seriesService.getLatestSeries(limit)
-      .then((s) => { if (!cancelled) setItems(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Error"); })
+      .then(s  => { if (!cancelled) setItems(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Error"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [limit]);
@@ -234,8 +254,8 @@ export function useTopRatedSeries(limit = 20): UseListReturn<Series> {
   useEffect(() => {
     let cancelled = false;
     seriesService.getTopRatedSeries(limit)
-      .then((s) => { if (!cancelled) setItems(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Error"); })
+      .then(s  => { if (!cancelled) setItems(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Error"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [limit]);
@@ -252,9 +272,11 @@ export function useAllSeriesGenres(): { genres: string[]; loading: boolean } {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     seriesService.getAllGenres()
-      .then(setGenres)
-      .finally(() => setLoading(false));
+      .then(g => { if (!cancelled) setGenres(g); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   return { genres, loading };
@@ -269,26 +291,36 @@ export function useRelatedSeries(series: Series | null, limit = 8): UseListRetur
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
+  // Use series.$id as the dep so we don't re-run when the series object
+  // reference changes but the id hasn't
+  const seriesId = series?.$id ?? null;
+
   useEffect(() => {
     if (!series) return;
     let cancelled = false;
     setLoading(true);
     seriesService.getRelatedSeries(series, limit)
-      .then((s) => { if (!cancelled) setItems(s); })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? "Error"); })
+      .then(s  => { if (!cancelled) setItems(s); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? "Error"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [series?.$id, limit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesId, limit]);
 
   return { items, loading, error };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useEpisodeTrackView — tracks view for a single episode
+// useEpisodeTrackView — tracks a single episode view (fires once per mount)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useEpisodeTrackView(seriesId: string | null, episodeId: string | null) {
   const tracked = useRef(false);
+
+  // Reset tracker when episodeId changes so a new episode gets tracked
+  useEffect(() => {
+    tracked.current = false;
+  }, [episodeId]);
 
   const trackView = useCallback(() => {
     if (!seriesId || !episodeId || tracked.current) return;

@@ -5,6 +5,10 @@
 // Series detail page — shows all episodes grouped by season.
 // User can switch seasons, click an episode to play it (with premium gate),
 // and the VideoPlayer opens inline (same as the movie dashboard).
+//
+// CHANGE: Hero now shows a smaller poster/thumbnail card using banner_url
+// instead of a full-bleed banner image. All episode cards fall back to
+// series.banner_url when they have no thumbnail_url of their own.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useCallback, use } from "react";
@@ -63,18 +67,30 @@ function SkeletonDetail() {
   const { t } = useTheme();
   return (
     <div style={{ padding: "0" }}>
-      {/* Banner skeleton */}
-      <div style={{ position: "relative", width: "100%", height: "min(55vh, 480px)", background: t.bgSurface, overflow: "hidden" }}>
+      {/* Hero skeleton */}
+      <div style={{ padding: "40px 28px 32px", display: "flex", gap: 28, alignItems: "flex-start", background: t.bgSurface, position: "relative", overflow: "hidden" }}>
         <div className="dj-shimmer" />
+        {/* Poster skeleton */}
+        <div className="dj-sk" style={{ width: 180, minWidth: 180, height: 260, borderRadius: 10 }} />
+        {/* Meta skeleton */}
+        <div style={{ flex: 1 }}>
+          <div className="dj-sk" style={{ width: 80, height: 12, marginBottom: 16 }} />
+          <div className="dj-sk" style={{ width: 320, height: 36, marginBottom: 16 }} />
+          <div className="dj-sk" style={{ width: "70%", height: 14, marginBottom: 8 }} />
+          <div className="dj-sk" style={{ width: "50%", height: 14, marginBottom: 24 }} />
+          <div style={{ display: "flex", gap: 10 }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} className="dj-sk" style={{ width: 80, height: 28, borderRadius: 4 }} />
+            ))}
+          </div>
+        </div>
       </div>
-      {/* Content skeleton */}
+      {/* Episodes skeleton */}
       <div style={{ padding: "32px 28px" }}>
-        <div className="dj-sk" style={{ width: 320, height: 36, marginBottom: 16 }} />
-        <div className="dj-sk" style={{ width: "70%", height: 16, marginBottom: 8 }} />
-        <div className="dj-sk" style={{ width: "50%", height: 16, marginBottom: 32 }} />
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="dj-sk" style={{ width: 200, height: 24, marginBottom: 24 }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[1,2,3,4,5,6].map(i => (
-            <div key={i} style={{ position: "relative", width: "100%", height: 140, background: t.bgSurface, overflow: "hidden", borderRadius: 6 }}>
+            <div key={i} style={{ position: "relative", height: 98, background: t.bgSurface, borderRadius: 8, overflow: "hidden" }}>
               <div className="dj-shimmer" />
             </div>
           ))}
@@ -110,15 +126,19 @@ function SeasonTabs({ seasons, active, onChange }: { seasons: number[]; active: 
 // ── Episode Card ──────────────────────────────────────────────────────────────
 
 function EpisodeCard({
-  episode, index, isPlaying, onPlay,
+  episode, index, isPlaying, onPlay, seriesBannerUrl,
 }: {
   episode: Episode;
   index: number;
   isPlaying: boolean;
   onPlay: (ep: Episode) => void;
+  seriesBannerUrl?: string | null;
 }) {
   const { t } = useTheme();
   const [hovered, setHovered] = useState(false);
+
+  // Use episode thumbnail, fall back to series banner_url, then null
+  const thumbnailSrc = seriesBannerUrl ?? seriesBannerUrl ?? null;
 
   return (
     <div
@@ -149,10 +169,10 @@ function EpisodeCard({
         background: t.bgSurface,
         flexShrink: 0,
       }}>
-        {episode.thumbnail_url ? (
+        {thumbnailSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={episode.thumbnail_url}
+            src={thumbnailSrc}
             alt={episode.title}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
@@ -264,7 +284,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
       streamUrl,
       ep.title,
       `${series?.title ?? ""} · S${ep.season_number} E${ep.episode_number}`,
-      ep.thumbnail_url ?? series?.poster_url ?? undefined,
+      ep.thumbnail_url ?? series?.banner_url ?? series?.poster_url ?? undefined,
     );
   }, [series, openPlayer]);
 
@@ -272,7 +292,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     requestPlay({
       movieId:    ep.$id,
       movieTitle: ep.title,
-      posterUrl:  ep.thumbnail_url ?? series?.poster_url ?? undefined,
+      posterUrl:  ep.thumbnail_url ?? series?.banner_url ?? series?.poster_url ?? undefined,
       isPremium:  ep.premium_only,
       videoUrl:   ep.video_url ?? undefined,
       onUnlocked: () => openEpisodePlayer(ep),
@@ -316,28 +336,38 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
             </div>
           ) : (
             <>
-              {/* ── Hero Banner ─────────────────────────────────────────── */}
-              <div style={{ position: "relative", width: "100%", height: isSmall ? "50vw" : "min(55vh, 480px)", minHeight: 200, flexShrink: 0, overflow: "hidden" }}>
-                {/* Poster / banner image */}
-                <div style={{ position: "absolute", inset: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={series.banner_url ?? series.poster_url ?? "/images/placeholder.jpg"}
-                    alt={series.title}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.55)" }}
-                  />
-                </div>
-                {/* Gradient overlays */}
-                <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${t.bgBase} 0%, transparent 60%)` }} />
-                <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to right, ${t.bgBase}99 0%, transparent 80%)` }} />
+              {/* ── Hero Section (poster card layout, no full-bleed banner) ── */}
+              <div style={{
+                position: "relative",
+                width: "100%",
+                flexShrink: 0,
+                overflow: "hidden",
+                background: t.bgSurface,
+                borderBottom: `1px solid ${t.borderSubtle}`,
+              }}>
+                {/* Subtle blurred bg derived from the poster for atmosphere */}
+                {(series.banner_url ?? series.poster_url) && (
+                  <div style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${series.banner_url ?? series.poster_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: "blur(40px) brightness(0.18) saturate(1.4)",
+                    transform: "scale(1.1)",
+                    zIndex: 0,
+                  }} />
+                )}
+                {/* Dark overlay for readability */}
+                <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, ${t.bgBase}55 0%, ${t.bgBase}cc 100%)`, zIndex: 1 }} />
 
                 {/* Back button */}
                 <Link
                   href="/dashboard/series"
                   style={{
-                    position: "absolute", top: 20, left: 20, zIndex: 10,
+                    position: "absolute", top: 16, left: 16, zIndex: 10,
                     display: "flex", alignItems: "center", gap: 6,
-                    padding: "8px 14px",
+                    padding: "7px 14px",
                     background: `${t.bgBase}cc`,
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
@@ -355,49 +385,136 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                   Series
                 </Link>
 
-                {/* Hero meta — bottom left */}
-                <div style={{ position: "absolute", bottom: 28, left: isSmall ? 16 : 28, right: isSmall ? 16 : 280, zIndex: 10 }}>
-                  {/* Genre tags */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                    {series.genre.slice(0, 3).map(g => (
-                      <span key={g} style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", padding: "3px 10px", border: `1px solid ${t.borderAccent}`, borderRadius: 3, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, background: `${t.bgBase}99`, backdropFilter: "blur(8px)" }}>{g}</span>
-                    ))}
-                    {status && (
-                      <span style={{ fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 3, color: status.color, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, background: `${status.color}22`, border: `1px solid ${status.color}55` }}>
-                        {status.text}
-                      </span>
+                {/* Hero content — poster + meta side by side */}
+                <div style={{
+                  position: "relative",
+                  zIndex: 2,
+                  display: "flex",
+                  flexDirection: isSmall ? "column" : "row",
+                  gap: isSmall ? 16 : 28,
+                  alignItems: isSmall ? "center" : "flex-end",
+                  padding: isSmall ? "60px 16px 24px" : "64px 28px 28px",
+                }}>
+
+                  {/* ── Poster thumbnail (uses banner_url as the thumb) ── */}
+                  <div style={{
+                    flexShrink: 0,
+                    width: isSmall ? 130 : 170,
+                    height: isSmall ? 195 : 255,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    boxShadow: `0 8px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)`,
+                    border: `1px solid ${t.borderSubtle}`,
+                    background: t.bgSurface,
+                    position: "relative",
+                  }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={series.banner_url ?? series.poster_url ?? "/images/placeholder.jpg"}
+                      alt={series.title}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                    {series.premium_only && (
+                      <div style={{
+                        position: "absolute", top: 8, left: 8,
+                        background: t.accent, borderRadius: 4,
+                        padding: "3px 8px",
+                        display: "flex", alignItems: "center", gap: 4,
+                      }}>
+                        <Lock size={10} color={t.textOnAccent} />
+                        <span style={{ fontSize: 9, color: t.textOnAccent, fontFamily: "'DM Sans', sans-serif", fontWeight: 700, letterSpacing: "0.08em" }}>PREMIUM</span>
+                      </div>
                     )}
                   </div>
-                  <h1 style={{ fontFamily: "var(--font-display)", fontSize: isSmall ? "clamp(1.4rem,6vw,2rem)" : "clamp(1.8rem, 3.5vw, 3rem)", color: t.textPrimary, letterSpacing: "0.06em", lineHeight: 1.1, margin: "0 0 12px" }}>
-                    {series.title}
-                  </h1>
-                  {/* Stats row */}
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16 }}>
-                    {series.rating > 0 && (
-                      <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#fbbf24", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
-                        <Star size={13} fill="#fbbf24" />
-                        {series.rating.toFixed(1)}
-                      </span>
-                    )}
-                    {series.release_year && (
+
+                  {/* ── Series meta ── */}
+                  <div style={{ flex: 1, minWidth: 0, textAlign: isSmall ? "center" : "left" }}>
+                    {/* Genre tags + status */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, justifyContent: isSmall ? "center" : "flex-start" }}>
+                      {series.genre.slice(0, 3).map(g => (
+                        <span key={g} style={{
+                          fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase",
+                          padding: "3px 10px",
+                          border: `1px solid ${t.borderAccent}`,
+                          borderRadius: 3,
+                          color: t.textSecondary,
+                          fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                          background: `${t.bgBase}88`,
+                          backdropFilter: "blur(8px)",
+                        }}>{g}</span>
+                      ))}
+                      {status && (
+                        <span style={{
+                          fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase",
+                          padding: "3px 10px", borderRadius: 3,
+                          color: status.color,
+                          fontFamily: "'DM Sans', sans-serif", fontWeight: 700,
+                          background: `${status.color}22`,
+                          border: `1px solid ${status.color}55`,
+                        }}>
+                          {status.text}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title */}
+                    <h1 style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: isSmall ? "clamp(1.4rem,6vw,1.8rem)" : "clamp(1.8rem, 3vw, 2.6rem)",
+                      color: t.textPrimary,
+                      letterSpacing: "0.06em",
+                      lineHeight: 1.1,
+                      margin: "0 0 14px",
+                    }}>
+                      {series.title}
+                    </h1>
+
+                    {/* Stats row */}
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, marginBottom: 16, justifyContent: isSmall ? "center" : "flex-start" }}>
+                      {series.rating > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#fbbf24", fontFamily: "'DM Sans', sans-serif", fontWeight: 700 }}>
+                          <Star size={13} fill="#fbbf24" />
+                          {series.rating.toFixed(1)}
+                        </span>
+                      )}
+                      {series.release_year && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
+                          <Calendar size={12} />
+                          {series.release_year}
+                        </span>
+                      )}
                       <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
-                        <Calendar size={12} />
-                        {series.release_year}
+                        <Layers size={12} />
+                        {series.total_seasons} Season{series.total_seasons !== 1 ? "s" : ""}
                       </span>
-                    )}
-                    <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
-                      <Layers size={12} />
-                      {series.total_seasons} Season{series.total_seasons !== 1 ? "s" : ""}
-                    </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
-                      <Tv size={12} />
-                      {series.total_episodes} Episodes
-                    </span>
-                    {series.view_count > 0 && (
                       <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
-                        <Eye size={12} />
-                        {series.view_count.toLocaleString()} views
+                        <Tv size={12} />
+                        {series.total_episodes} Episodes
                       </span>
+                      {series.view_count > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif" }}>
+                          <Eye size={12} />
+                          {series.view_count.toLocaleString()} views
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {(series.description || series.ai_summary) && (
+                      <p style={{
+                        fontSize: 13.5,
+                        lineHeight: 1.65,
+                        color: t.textSecondary,
+                        fontFamily: "'DM Sans', sans-serif",
+                        maxWidth: 620,
+                        margin: 0,
+                        display: "-webkit-box",
+                        WebkitLineClamp: isSmall ? 3 : 4,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}>
+                        {series.description ?? series.ai_summary}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -405,13 +522,6 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
 
               {/* ── Main Content ─────────────────────────────────────────── */}
               <div style={{ padding: isSmall ? "24px 16px 100px" : "32px 28px 80px" }}>
-
-                {/* Description */}
-                {(series.description || series.ai_summary) && (
-                  <p style={{ fontSize: 14, lineHeight: 1.7, color: t.textSecondary, fontFamily: "'DM Sans', sans-serif", maxWidth: 700, margin: "0 0 32px" }}>
-                    {series.description ?? series.ai_summary}
-                  </p>
-                )}
 
                 {/* Divider */}
                 <div style={{ width: "100%", height: 1, background: `linear-gradient(90deg, transparent, ${t.borderAccent}, transparent)`, margin: "0 0 28px" }} />
@@ -456,6 +566,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                           index={idx}
                           isPlaying={playerState.open && playingEpisodeId === ep.$id}
                           onPlay={handlePlayEpisode}
+                          seriesBannerUrl={series.banner_url ?? series.poster_url}
                         />
                       ))}
                     </div>
@@ -475,7 +586,6 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                       title=""
                       movies={relatedSeries.map(toRelatedCard)}
                       onPlay={(card) => {
-                        // Navigate to that series' detail page
                         window.location.href = `/dashboard/series/${card.id}`;
                       }}
                       userId={user?.$id ?? ""}

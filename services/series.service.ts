@@ -8,6 +8,13 @@
 //  • Cache the full series list AND episodes list in memory for 5 minutes.
 //  • Every filter, sort, search and pagination is done in-memory — instant,
 //    zero extra Appwrite round-trips, zero duplicate documents.
+//
+// FIXES:
+//  • Race-condition: concurrent callers all awaited the same in-flight promise
+//    instead of each kicking off a separate fetch — prevents duplicate docs
+//    from two simultaneous fetches both completing and being merged.
+//  • Deduplication guard on the raw Appwrite batch results (belt-and-suspenders)
+//    to handle any duplicate $id documents in the Appwrite collection itself.
 // =============================================================================
 
 import { databases } from "@/lib/appwrite";
@@ -34,7 +41,7 @@ function toSeries(doc: any): Series {
     title:            doc.title           ?? "",
     description:      doc.description     ?? null,
     ai_summary:       doc.ai_summary      ?? null,
-    genre:            Array.isArray(doc.genre)           ? doc.genre           : [],
+    genre:            Array.isArray(doc.genre)  ? doc.genre  : [],
     poster_url:       doc.poster_url      ?? null,
     banner_url:       doc.banner_url      ?? null,
     premium_only:     doc.premium_only    ?? false,
@@ -43,11 +50,11 @@ function toSeries(doc: any): Series {
     rating:           doc.rating          ?? 0,
     is_featured:      doc.is_featured     ?? false,
     is_trending:      doc.is_trending     ?? false,
-    tags:             Array.isArray(doc.tags) ? doc.tags : [],
+    tags:             Array.isArray(doc.tags)   ? doc.tags   : [],
     release_year:     doc.release_year    ?? null,
     total_seasons:    doc.total_seasons   ?? 1,
     total_episodes:   doc.total_episodes  ?? 0,
-    status:           doc.status          ?? "ongoing", // ongoing | completed | hiatus
+    status:           doc.status          ?? "ongoing",
     $createdAt:       doc.$createdAt,
     $updatedAt:       doc.$updatedAt,
   };
@@ -56,41 +63,73 @@ function toSeries(doc: any): Series {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toEpisode(doc: any): Episode {
   return {
-    $id:             doc.$id,
-    series_id:       doc.series_id        ?? "",
-    title:           doc.title            ?? "",
-    description:     doc.description      ?? null,
-    episode_number:  doc.episode_number   ?? 1,
-    season_number:   doc.season_number    ?? 1,
-    duration:        doc.duration         ?? null,
-    video_url:       doc.drive_file_id
-                       ? `/api/stream?fileId=${doc.drive_file_id}`
-                       : (doc.video_url   ?? null),
+    $id:              doc.$id,
+    series_id:        doc.series_id        ?? "",
+    title:            doc.title            ?? "",
+    description:      doc.description      ?? null,
+    episode_number:   doc.episode_number   ?? 1,
+    season_number:    doc.season_number    ?? 1,
+    duration:         doc.duration         ?? null,
+    video_url:        doc.drive_file_id
+                        ? `/api/stream?fileId=${doc.drive_file_id}`
+                        : (doc.video_url   ?? null),
     telegram_file_id: doc.telegram_file_id ?? null,
-    channel_id:      doc.channel_id       ?? null,
-    message_id:      doc.message_id       ?? null,
-    thumbnail_url:   doc.thumbnail_url    ?? null,
-    premium_only:    doc.premium_only     ?? false,
+    channel_id:       doc.channel_id       ?? null,
+    message_id:       doc.message_id       ?? null,
+    thumbnail_url:    doc.thumbnail_url    ?? null,
+    premium_only:     doc.premium_only     ?? false,
     download_enabled: doc.download_enabled ?? true,
-    view_count:      doc.view_count       ?? 0,
-    tags:            Array.isArray(doc.tags) ? doc.tags : [],
-    $createdAt:      doc.$createdAt,
-    $updatedAt:      doc.$updatedAt,
+    view_count:       doc.view_count       ?? 0,
+    tags:             Array.isArray(doc.tags) ? doc.tags : [],
+    $createdAt:       doc.$createdAt,
+    $updatedAt:       doc.$updatedAt,
   };
+}
+
+// ── Deduplication helpers ─────────────────────────────────────────────────────
+
+function dedupeSeries(arr: Series[]): Series[] {
+  const seen = new Set<string>();
+  return arr.filter(s => {
+    if (seen.has(s.$id)) return false;
+    seen.add(s.$id);
+    return true;
+  });
+}
+
+function dedupeEpisodes(arr: Episode[]): Episode[] {
+  const seen = new Set<string>();
+  return arr.filter(e => {
+    if (seen.has(e.$id)) return false;
+    seen.add(e.$id);
+    return true;
+  });
 }
 
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
-let _seriesCache: Series[] | null   = null;
-let _seriesCacheAt: number | null   = null;
+let _seriesCache:    Series[] | null  = null;
+let _seriesCacheAt:  number   | null  = null;
+// In-flight promise — all concurrent callers share the same fetch, preventing
+// multiple simultaneous Appwrite requests that would each resolve independently
+// and could be composed into a duplicated list.
+let _seriesInflight: Promise<Series[]> | null = null;
 
-// Episodes are cached per-series: Map<seriesId, { episodes, cachedAt }>
-const _episodeCache = new Map<string, { episodes: Episode[]; cachedAt: number }>();
+// Episodes cached per-series: Map<seriesId, { episodes, cachedAt, inflight? }>
+const _episodeCache = new Map<string, {
+  episodes:  Episode[];
+  cachedAt:  number;
+}>();
+const _episodeInflight = new Map<string, Promise<Episode[]>>();
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function isSeriesFresh(): boolean {
-  return _seriesCache !== null && _seriesCacheAt !== null && Date.now() - _seriesCacheAt < CACHE_TTL;
+  return (
+    _seriesCache   !== null &&
+    _seriesCacheAt !== null &&
+    Date.now() - _seriesCacheAt < CACHE_TTL
+  );
 }
 
 function isEpisodeFresh(seriesId: string): boolean {
@@ -119,7 +158,8 @@ async function fetchAllSeries(): Promise<Series[]> {
     offset += BATCH;
   }
 
-  return all;
+  // Deduplicate in case the Appwrite collection itself has duplicate documents
+  return dedupeSeries(all);
 }
 
 // ── Fetch ALL episodes for a series from Appwrite in batches ─────────────────
@@ -135,7 +175,6 @@ async function fetchEpisodesForSeries(seriesId: string): Promise<Episode[]> {
       Query.offset(offset),
       Query.equal("series_id", seriesId),
       Query.orderAsc("season_number"),
-      // Secondary sort by episode_number handled in-memory below
     ]);
 
     const batch = res.documents.map(toEpisode);
@@ -145,27 +184,56 @@ async function fetchEpisodesForSeries(seriesId: string): Promise<Episode[]> {
     offset += BATCH;
   }
 
-  // Sort by season then episode number
-  return all.sort((a, b) => {
+  // Deduplicate, then sort by season → episode number
+  return dedupeEpisodes(all).sort((a, b) => {
     if (a.season_number !== b.season_number) return a.season_number - b.season_number;
     return a.episode_number - b.episode_number;
   });
 }
 
-// ── Ensure caches are warm ────────────────────────────────────────────────────
+// ── Ensure caches are warm (race-condition safe) ──────────────────────────────
 
 async function warmSeries(): Promise<Series[]> {
+  // Already cached and fresh — return immediately
   if (isSeriesFresh()) return _seriesCache!;
-  _seriesCache   = await fetchAllSeries();
-  _seriesCacheAt = Date.now();
-  return _seriesCache;
+
+  // A fetch is already in progress — all callers share the same promise.
+  // This is the key fix: without this, two concurrent callers would both
+  // start independent fetches, both get all 100 docs, and the second
+  // resolve would stomp (or in some prior patterns, append) over the first.
+  if (_seriesInflight) return _seriesInflight;
+
+  _seriesInflight = fetchAllSeries().then(series => {
+    _seriesCache    = series;
+    _seriesCacheAt  = Date.now();
+    _seriesInflight = null;
+    return series;
+  }).catch(err => {
+    _seriesInflight = null;
+    throw err;
+  });
+
+  return _seriesInflight;
 }
 
 async function warmEpisodes(seriesId: string): Promise<Episode[]> {
   if (isEpisodeFresh(seriesId)) return _episodeCache.get(seriesId)!.episodes;
-  const episodes = await fetchEpisodesForSeries(seriesId);
-  _episodeCache.set(seriesId, { episodes, cachedAt: Date.now() });
-  return episodes;
+
+  // Share in-flight promise per seriesId
+  const inflight = _episodeInflight.get(seriesId);
+  if (inflight) return inflight;
+
+  const promise = fetchEpisodesForSeries(seriesId).then(episodes => {
+    _episodeCache.set(seriesId, { episodes, cachedAt: Date.now() });
+    _episodeInflight.delete(seriesId);
+    return episodes;
+  }).catch(err => {
+    _episodeInflight.delete(seriesId);
+    throw err;
+  });
+
+  _episodeInflight.set(seriesId, promise);
+  return promise;
 }
 
 // ── In-memory series filter + sort ────────────────────────────────────────────
@@ -175,28 +243,27 @@ function applySeriesFilters(series: Series[], f: SeriesFilters): Series[] {
 
   if (f.genre) {
     const g = f.genre.toLowerCase();
-    out = out.filter((s) => s.genre.some((sg) => sg.toLowerCase() === g));
+    out = out.filter(s => s.genre.some(sg => sg.toLowerCase() === g));
   }
 
-  if (f.is_featured !== undefined) out = out.filter((s) => s.is_featured === f.is_featured);
-  if (f.is_trending !== undefined) out = out.filter((s) => s.is_trending === f.is_trending);
-  if (f.premium_only !== undefined) out = out.filter((s) => s.premium_only === f.premium_only);
-  if (f.release_year) out = out.filter((s) => s.release_year === f.release_year);
-  if (f.status) out = out.filter((s) => s.status === f.status);
+  if (f.is_featured  !== undefined) out = out.filter(s => s.is_featured  === f.is_featured);
+  if (f.is_trending  !== undefined) out = out.filter(s => s.is_trending  === f.is_trending);
+  if (f.premium_only !== undefined) out = out.filter(s => s.premium_only === f.premium_only);
+  if (f.release_year)               out = out.filter(s => s.release_year === f.release_year);
+  if (f.status)                     out = out.filter(s => s.status       === f.status);
 
   if (f.search?.trim()) {
     const q = f.search.toLowerCase().trim();
-    out = out.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        (s.description ?? "").toLowerCase().includes(q) ||
-        (s.ai_summary  ?? "").toLowerCase().includes(q) ||
-        s.tags.some((t)  => t.toLowerCase().includes(q)) ||
-        s.genre.some((g) => g.toLowerCase().includes(q))
+    out = out.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      (s.description ?? "").toLowerCase().includes(q) ||
+      (s.ai_summary  ?? "").toLowerCase().includes(q) ||
+      s.tags.some( t => t.toLowerCase().includes(q)) ||
+      s.genre.some(g => g.toLowerCase().includes(q))
     );
   }
 
-  const sortBy = f.sortBy ?? "$createdAt";
+  const sortBy = f.sortBy    ?? "$createdAt";
   const asc    = (f.sortOrder ?? "desc") === "asc";
 
   out = [...out].sort((a, b) => {
@@ -204,7 +271,7 @@ function applySeriesFilters(series: Series[], f: SeriesFilters): Series[] {
     let bv: string | number = (b as unknown as Record<string, unknown>)[sortBy] as string | number ?? 0;
     if (typeof av === "string") av = av.toLowerCase();
     if (typeof bv === "string") bv = bv.toLowerCase();
-    if (av < bv) return asc ? -1 : 1;
+    if (av < bv) return asc ? -1 :  1;
     if (av > bv) return asc ?  1 : -1;
     return 0;
   });
@@ -220,13 +287,15 @@ export const seriesService = {
 
   /** Bust the series cache — call after add/edit in admin */
   invalidateSeriesCache(): void {
-    _seriesCache   = null;
-    _seriesCacheAt = null;
+    _seriesCache    = null;
+    _seriesCacheAt  = null;
+    _seriesInflight = null;
   },
 
   /** Bust episodes cache for a specific series */
   invalidateEpisodesCache(seriesId: string): void {
     _episodeCache.delete(seriesId);
+    _episodeInflight.delete(seriesId);
   },
 
   /** Proactively warm the series cache (call on app boot) */
@@ -255,7 +324,7 @@ export const seriesService = {
 
   async getSeriesById(id: string): Promise<Series | null> {
     if (_seriesCache) {
-      const hit = _seriesCache.find((s) => s.$id === id);
+      const hit = _seriesCache.find(s => s.$id === id);
       if (hit) return hit;
     }
     try {
@@ -270,7 +339,7 @@ export const seriesService = {
 
   async getFeaturedSeries(limit = 5): Promise<Series[]> {
     const all = await warmSeries();
-    return all.filter((s) => s.is_featured).slice(0, limit);
+    return all.filter(s => s.is_featured).slice(0, limit);
   },
 
   // ── Trending series ───────────────────────────────────────────────────────
@@ -278,7 +347,7 @@ export const seriesService = {
   async getTrendingSeries(limit = 20): Promise<Series[]> {
     const all = await warmSeries();
     return all
-      .filter((s) => s.is_trending)
+      .filter(s => s.is_trending)
       .sort((a, b) => b.view_count - a.view_count)
       .slice(0, limit);
   },
@@ -304,7 +373,7 @@ export const seriesService = {
   async getByGenre(genre: string, limit?: number): Promise<Series[]> {
     const all = await warmSeries();
     const g   = genre.toLowerCase();
-    const out = all.filter((s) => s.genre.some((sg) => sg.toLowerCase() === g));
+    const out = all.filter(s => s.genre.some(sg => sg.toLowerCase() === g));
     return limit ? out.slice(0, limit) : out;
   },
 
@@ -313,7 +382,7 @@ export const seriesService = {
   async getAllGenres(): Promise<string[]> {
     const all = await warmSeries();
     const set = new Set<string>();
-    all.forEach((s) => s.genre.forEach((g) => set.add(g)));
+    all.forEach(s => s.genre.forEach(g => set.add(g)));
     return Array.from(set).sort();
   },
 
@@ -322,7 +391,7 @@ export const seriesService = {
   async getAllYears(): Promise<string[]> {
     const all = await warmSeries();
     const set = new Set<string>();
-    all.forEach((s) => { if (s.release_year) set.add(s.release_year); });
+    all.forEach(s => { if (s.release_year) set.add(s.release_year); });
     return Array.from(set).sort((a, b) => Number(b) - Number(a));
   },
 
@@ -330,20 +399,23 @@ export const seriesService = {
 
   async getRelatedSeries(series: Series, limit = 8): Promise<Series[]> {
     const all    = await warmSeries();
-    const genres = new Set(series.genre.map((g) => g.toLowerCase()));
+    const genres = new Set(series.genre.map(g => g.toLowerCase()));
     return all
-      .filter((s) => s.$id !== series.$id && s.genre.some((g) => genres.has(g.toLowerCase())))
+      .filter(s => s.$id !== series.$id && s.genre.some(g => genres.has(g.toLowerCase())))
       .sort((a, b) => b.view_count - a.view_count)
       .slice(0, limit);
   },
 
   // ── Get all episodes for a series ─────────────────────────────────────────
 
-  async getEpisodes(seriesId: string, filters: { season?: number; limit?: number; offset?: number } = {}): Promise<EpisodePage> {
+  async getEpisodes(
+    seriesId: string,
+    filters: { season?: number; limit?: number; offset?: number } = {}
+  ): Promise<EpisodePage> {
     let episodes = await warmEpisodes(seriesId);
 
     if (filters.season !== undefined) {
-      episodes = episodes.filter((e) => e.season_number === filters.season);
+      episodes = episodes.filter(e => e.season_number === filters.season);
     }
 
     const limit  = filters.limit  ?? episodes.length;
@@ -363,7 +435,7 @@ export const seriesService = {
   async getEpisodeById(seriesId: string, episodeId: string): Promise<Episode | null> {
     const cached = _episodeCache.get(seriesId);
     if (cached) {
-      const hit = cached.episodes.find((e) => e.$id === episodeId);
+      const hit = cached.episodes.find(e => e.$id === episodeId);
       if (hit) return hit;
     }
     try {
@@ -379,7 +451,7 @@ export const seriesService = {
   async getSeasons(seriesId: string): Promise<number[]> {
     const episodes = await warmEpisodes(seriesId);
     const set      = new Set<number>();
-    episodes.forEach((e) => set.add(e.season_number));
+    episodes.forEach(e => set.add(e.season_number));
     return Array.from(set).sort((a, b) => a - b);
   },
 
@@ -387,7 +459,7 @@ export const seriesService = {
 
   async incrementSeriesViewCount(seriesId: string): Promise<void> {
     if (_seriesCache) {
-      const s = _seriesCache.find((s) => s.$id === seriesId);
+      const s = _seriesCache.find(s => s.$id === seriesId);
       if (s) s.view_count += 1;
     }
     try {
@@ -403,7 +475,7 @@ export const seriesService = {
   async incrementEpisodeViewCount(seriesId: string, episodeId: string): Promise<void> {
     const cached = _episodeCache.get(seriesId);
     if (cached) {
-      const e = cached.episodes.find((e) => e.$id === episodeId);
+      const e = cached.episodes.find(e => e.$id === episodeId);
       if (e) e.view_count += 1;
     }
     try {
@@ -425,7 +497,7 @@ export const seriesService = {
     if (!q) return { series: [], query, total: 0 };
 
     const scored = all
-      .map((s) => {
+      .map(s => {
         let score = 0;
         const title   = s.title.toLowerCase();
         const desc    = (s.description ?? "").toLowerCase();
@@ -438,15 +510,15 @@ export const seriesService = {
         if (desc.includes(q))    score += 10;
         if (summary.includes(q)) score += 10;
 
-        s.tags.forEach((t)  => { if (t.toLowerCase().includes(q))  score += 20; });
-        s.genre.forEach((g) => { if (g.toLowerCase().includes(q))  score += 25; });
+        s.tags.forEach( t => { if (t.toLowerCase().includes(q)) score += 20; });
+        s.genre.forEach(g => { if (g.toLowerCase().includes(q)) score += 25; });
 
         return { series: s, score };
       })
-      .filter((r) => r.score > 0)
+      .filter(r => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
-      .map((r) => r.series);
+      .map(r => r.series);
 
     return { series: scored, query, total: scored.length };
   },
