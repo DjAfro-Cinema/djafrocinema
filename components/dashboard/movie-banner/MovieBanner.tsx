@@ -21,6 +21,7 @@ export interface BannerMovie {
   duration?: string;
   kenBurns?: "zoom-in-right" | "zoom-in-left" | "zoom-out";
   premium?: boolean;
+  detailHref: string; 
 }
 
 interface MovieBannerProps {
@@ -31,6 +32,7 @@ interface MovieBannerProps {
   onMoreInfo?: (movie: BannerMovie) => void;
   autoInterval?: number;
   compact?: boolean;
+  onInfo?: (b: BannerMovie) => void;
 }
 
 // Preload an image URL into the browser cache immediately
