@@ -26,6 +26,28 @@
  *  ✓ Clean hls.js destroy on unmount — no memory leaks
  *  ✓ All fonts via CSS variables (--font-display, --font-body)
  *
+ *  NEW:
+ *  ✓ Dailymotion / YouTube / Bunny / Cloudflare embeds now fullscreen the
+ *    *container* (iframe + our own overlay together) instead of letting the
+ *    iframe fullscreen itself. That keeps our Back / Fullscreen / Close
+ *    controls reachable even while the embedded player is fullscreen, and
+ *    stops our overlay from fighting the embed's own on-screen controls.
+ *  ✓ Iframe overlay now auto-hides after 3.5s (tap/move to reveal), matching
+ *    the native player, so it stays out of the way of Dailymotion's UI.
+ *  ✓ Automatic landscape lock: on phones/tablets, rotating the device (or
+ *    pressing play / fullscreen) automatically swings the player into
+ *    fullscreen landscape via the Screen Orientation API — no need to dig
+ *    into device settings to allow auto-rotate. Rotating back to portrait
+ *    automatically exits fullscreen. Best-effort + feature-detected, so it
+ *    quietly no-ops on desktops, smart TVs, and browsers without the API
+ *    (e.g. iOS Safari, where native fullscreen video already auto-rotates
+ *    on its own).
+ *  ✓ Can be disabled per-instance with `autoRotate={false}`.
+ *  ✓ Modernized visual polish: glassy blurred control bars, smoother
+ *    hover/press feedback on every button, a breathing glow on the paused
+ *    play button, and a refined loading/progress look — desktop, mobile,
+ *    and smart-TV friendly.
+ *
  * Install: npm install hls.js
  *
  * Usage:
@@ -63,11 +85,63 @@ export interface VideoPlayerProps {
   onPrev?: () => void;
   hasNext?: boolean;
   hasPrev?: boolean;
+  /**
+   * Automatically fullscreen + lock landscape orientation on phones/tablets
+   * when playback starts or the device is rotated. Defaults to true.
+   * Best-effort — silently no-ops where the browser doesn't support it.
+   */
+  autoRotate?: boolean;
 }
 
 type SourceType = "hls" | "mp4" | "youtube" | "dailymotion" | "iframe" | "drive";
 type ToastKind  = "error" | "warn" | "info";
 interface Toast  { id: string; kind: ToastKind; message: string; }
+
+// ─── Orientation helpers (best-effort, feature-detected) ─────────────────────
+
+interface OrientationLockAPI {
+  lock?: (orientation: string) => Promise<void>;
+  unlock?: () => void;
+  type?: string;
+}
+
+function getOrientationAPI(): OrientationLockAPI | null {
+  if (typeof screen === "undefined") return null;
+  return (screen as unknown as { orientation?: OrientationLockAPI }).orientation ?? null;
+}
+
+function isMobileViewport(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+async function lockLandscape() {
+  try {
+    await getOrientationAPI()?.lock?.("landscape");
+  } catch {
+    // Not supported outside fullscreen, or browser doesn't allow it — safe to ignore.
+  }
+}
+
+function unlockOrientation() {
+  try {
+    getOrientationAPI()?.unlock?.();
+  } catch {
+    // ignore
+  }
+}
+
+/** Request fullscreen on a container, then try to lock landscape on mobile. iOS-safe fallback included. */
+function enterImmersive(container: HTMLElement | null, video?: HTMLVideoElement | null) {
+  const anyVideo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | undefined | null;
+  if (container?.requestFullscreen) {
+    container.requestFullscreen()
+      .then(() => { if (isMobileViewport()) lockLandscape(); })
+      .catch(() => { anyVideo?.webkitEnterFullscreen?.(); });
+  } else {
+    anyVideo?.webkitEnterFullscreen?.();
+  }
+}
 
 // ─── Source detection ────────────────────────────────────────────────────────
 
@@ -139,8 +213,10 @@ function ToastBar({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) 
       display: "flex", alignItems: "flex-start", gap: 10,
       padding: "12px 16px",
       background: "rgba(14,14,16,0.97)",
+      backdropFilter: "blur(14px) saturate(160%)",
+      WebkitBackdropFilter: "blur(14px) saturate(160%)",
       border: `1px solid ${col}33`, borderLeft: `3px solid ${col}`,
-      borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
+      borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
       maxWidth: 340,
       animation: "slideInToast 0.3s cubic-bezier(0.22,1,0.36,1)",
     }}>
@@ -148,7 +224,7 @@ function ToastBar({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) 
       <p style={{ margin: 0, flex: 1, fontSize: 12.5, fontFamily: "var(--font-body)", color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
         {toast.message}
       </p>
-      <button onClick={() => onDismiss(toast.id)}
+      <button onClick={() => onDismiss(toast.id)} className="dj-plain-btn"
         style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", padding: 0, display: "flex" }}>
         <X size={13} />
       </button>
@@ -169,12 +245,20 @@ function LoadingOverlay({ title, poster }: { title?: string; poster?: string }) 
         }} />
       )}
       <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-        <div style={{
-          width: 56, height: 56,
-          border: "3px solid rgba(255,255,255,0.07)", borderTop: "3px solid #e50914",
-          borderRadius: "50%", margin: "0 auto 16px",
-          animation: "spinLoader 0.75s linear infinite",
-        }} />
+        <div style={{ position: "relative", width: 56, height: 56, margin: "0 auto 16px" }}>
+          <div style={{
+            position: "absolute", inset: 0,
+            border: "3px solid rgba(255,255,255,0.07)",
+            borderRadius: "50%",
+          }} />
+          <div style={{
+            position: "absolute", inset: 0,
+            border: "3px solid transparent",
+            borderTopColor: "#e50914", borderRightColor: "rgba(229,9,20,0.35)",
+            borderRadius: "50%",
+            animation: "spinLoader 0.85s cubic-bezier(0.5,0.1,0.5,0.9) infinite",
+          }} />
+        </div>
         <p style={{ fontSize: 13, fontFamily: "var(--font-body)", color: "rgba(255,255,255,0.4)", margin: 0, letterSpacing: "0.04em" }}>
           Loading{title ? ` "${title}"` : ""}…
         </p>
@@ -211,11 +295,11 @@ function UnavailableScreen({ title, onClose, onBack, onRetry }: {
       </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
         {onRetry && (
-          <button onClick={onRetry} style={outlineBtn}>
+          <button onClick={onRetry} className="dj-outline-btn" style={outlineBtn}>
             <RefreshCw size={13} /> Retry
           </button>
         )}
-        <button onClick={onBack ?? onClose} style={outlineBtn}>
+        <button onClick={onBack ?? onClose} className="dj-outline-btn" style={outlineBtn}>
           <ChevronLeft size={14} /> Choose Another Movie
         </button>
       </div>
@@ -225,16 +309,71 @@ function UnavailableScreen({ title, onClose, onBack, onRetry }: {
 
 // ─── Iframe player (YouTube / Dailymotion / Bunny / Cloudflare) ──────────────
 
-function IframePlayer({ embedSrc, title, poster, onClose, onBack, toasts, dismissToast }: {
+function IframePlayer({ embedSrc, title, poster, onClose, onBack, toasts, dismissToast, autoRotate = true }: {
   embedSrc: string; title?: string; poster?: string;
   onClose?: () => void; onBack?: () => void;
   toasts: Toast[]; dismissToast: (id: string) => void;
+  autoRotate?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [showBar, setShowBar] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const goBack = onBack ?? onClose;
 
+  const resetHideTimer = useCallback(() => {
+    setShowBar(true);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowBar(false), 3500);
+  }, []);
+
+  useEffect(() => {
+    resetHideTimer();
+    return () => clearTimeout(hideTimer.current);
+  }, [resetHideTimer]);
+
+  // Fullscreen state, and unlock orientation the moment fullscreen ends
+  // (e.g. the user presses Esc or a TV remote "back" button).
+  useEffect(() => {
+    const h = () => {
+      const isFs = !!document.fullscreenElement;
+      setFullscreen(isFs);
+      if (!isFs) unlockOrientation();
+    };
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+
+  // Auto-rotate: once the embed has loaded, physically rotating the phone to
+  // landscape fullscreens the player; rotating back to portrait exits it.
+  useEffect(() => {
+    if (!autoRotate || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const handle = () => {
+      if (!isMobileViewport()) return;
+      if (mq.matches) {
+        if (loaded && !document.fullscreenElement) enterImmersive(containerRef.current);
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+    mq.addEventListener?.("change", handle);
+    return () => mq.removeEventListener?.("change", handle);
+  }, [autoRotate, loaded]);
+
+  const toggleFS = () => {
+    if (!document.fullscreenElement) enterImmersive(containerRef.current);
+    else document.exitFullscreen();
+  };
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#000" }}>
+    <div
+      ref={containerRef}
+      onMouseMove={resetHideTimer}
+      onTouchStart={resetHideTimer}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#000" }}
+    >
       {!loaded && <LoadingOverlay title={title} poster={poster} />}
 
       <iframe
@@ -246,15 +385,19 @@ function IframePlayer({ embedSrc, title, poster, onClose, onBack, toasts, dismis
         onLoad={() => setLoaded(true)}
       />
 
-      {/* Top gradient bar — back + title + close */}
+      {/* Top gradient bar — back + title + fullscreen + close (auto-hides) */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, transparent 100%)",
+        background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)",
+        backdropFilter: showBar ? "blur(6px)" : "none",
         padding: "14px 16px",
         display: "flex", alignItems: "center", gap: 10,
-        pointerEvents: "none",
+        opacity: showBar ? 1 : 0,
+        transform: showBar ? "translateY(0)" : "translateY(-6px)",
+        transition: "opacity 0.35s ease, transform 0.35s ease",
+        pointerEvents: showBar ? "auto" : "none",
       }}>
-        <button onClick={goBack} style={{ ...circleBtn, pointerEvents: "auto" }} title="Back">
+        <button onClick={goBack} className="dj-icon-btn" style={circleBtn} title="Back">
           <ChevronLeft size={19} color="rgba(255,255,255,0.85)" />
         </button>
 
@@ -270,10 +413,26 @@ function IframePlayer({ embedSrc, title, poster, onClose, onBack, toasts, dismis
           </span>
         )}
 
-        <button onClick={onClose} style={{ ...circleBtn, pointerEvents: "auto" }} title="Close">
+        <button onClick={toggleFS} className="dj-icon-btn" style={circleBtn} title={fullscreen ? "Exit fullscreen" : "Fullscreen"}>
+          {fullscreen ? <Minimize size={16} color="rgba(255,255,255,0.85)" /> : <Maximize size={16} color="rgba(255,255,255,0.85)" />}
+        </button>
+
+        <button onClick={onClose} className="dj-icon-btn" style={circleBtn} title="Close">
           <X size={16} color="rgba(255,255,255,0.8)" />
         </button>
       </div>
+
+      {/* Tiny reveal tab when the bar is hidden, so controls are never truly gone */}
+      {!showBar && (
+        <button
+          onClick={resetHideTimer}
+          className="dj-icon-btn"
+          style={{ ...circleBtn, position: "absolute", top: 12, left: 12, zIndex: 11, width: 30, height: 30, opacity: 0.55 }}
+          title="Show controls"
+        >
+          <ChevronLeft size={15} color="rgba(255,255,255,0.7)" />
+        </button>
+      )}
 
       {/* Toasts */}
       <div style={{ position: "absolute", bottom: 24, right: 16, zIndex: 30, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
@@ -301,6 +460,7 @@ export default function VideoPlayer({
   onPrev,
   hasNext = false,
   hasPrev = false,
+  autoRotate = true,
 }: VideoPlayerProps) {
   const videoRef     = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -470,10 +630,41 @@ export default function VideoPlayer({
   // ── Fullscreen ───────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const h = () => setFullscreen(!!document.fullscreenElement);
+    const h = () => {
+      const isFs = !!document.fullscreenElement;
+      setFullscreen(isFs);
+      if (!isFs) unlockOrientation();
+    };
     document.addEventListener("fullscreenchange", h);
     return () => document.removeEventListener("fullscreenchange", h);
   }, []);
+
+  // ── Auto-rotate: press play → landscape fullscreen on mobile ────────────
+
+  useEffect(() => {
+    if (!autoRotate || !playing || typeof window === "undefined") return;
+    if (!isMobileViewport()) return;
+    if (window.matchMedia("(orientation: landscape)").matches && !document.fullscreenElement) {
+      enterImmersive(containerRef.current, videoRef.current);
+    }
+  }, [playing, autoRotate]);
+
+  // ── Auto-rotate: physically rotating the device toggles fullscreen ──────
+
+  useEffect(() => {
+    if (!autoRotate || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const handle = () => {
+      if (!isMobileViewport()) return;
+      if (mq.matches) {
+        if (playing && !document.fullscreenElement) enterImmersive(containerRef.current, videoRef.current);
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+    mq.addEventListener?.("change", handle);
+    return () => mq.removeEventListener?.("change", handle);
+  }, [playing, autoRotate]);
 
   // ── Keyboard ────────────────────────────────────────────────────────────
 
@@ -506,7 +697,10 @@ export default function VideoPlayer({
     if (v > 0) setMuted(false);
   };
   const toggleMute = () => { if (!videoRef.current) return; setMuted(m => { videoRef.current!.muted = !m; return !m; }); };
-  const toggleFS   = () => { if (!document.fullscreenElement) containerRef.current?.requestFullscreen?.(); else document.exitFullscreen(); };
+  const toggleFS   = () => {
+    if (!document.fullscreenElement) enterImmersive(containerRef.current, videoRef.current);
+    else document.exitFullscreen();
+  };
   const togglePiP  = async () => {
     try {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
@@ -542,7 +736,18 @@ export default function VideoPlayer({
       sourceType === "youtube"     ? toYouTubeEmbed(src) :
       sourceType === "dailymotion" ? toDailymotionEmbed(src) :
       src;
-    return <IframePlayer embedSrc={embedSrc} title={title} poster={poster} onClose={onClose} onBack={onBack} toasts={toasts} dismissToast={dismissToast} />;
+    return (
+      <IframePlayer
+        embedSrc={embedSrc}
+        title={title}
+        poster={poster}
+        onClose={onClose}
+        onBack={onBack}
+        toasts={toasts}
+        dismissToast={dismissToast}
+        autoRotate={autoRotate}
+      />
+    );
   }
 
   // ── Native video player ──────────────────────────────────────────────────
@@ -552,6 +757,18 @@ export default function VideoPlayer({
       <style>{`
         @keyframes spinLoader   { to { transform: rotate(360deg); } }
         @keyframes slideInToast { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulseGlow    { 0%, 100% { box-shadow: 0 0 40px rgba(229,9,20,0.35), 0 0 0 0 rgba(229,9,20,0.3); } 50% { box-shadow: 0 0 60px rgba(229,9,20,0.55), 0 0 0 10px rgba(229,9,20,0); } }
+        .dj-icon-btn { transition: background 0.18s ease, transform 0.15s ease, border-color 0.18s ease; }
+        .dj-icon-btn:hover  { background: rgba(255,255,255,0.16) !important; transform: scale(1.08); border-color: rgba(255,255,255,0.22) !important; }
+        .dj-icon-btn:active { transform: scale(0.92); }
+        .dj-sm-btn { transition: background 0.15s ease, transform 0.12s ease; }
+        .dj-sm-btn:hover  { background: rgba(255,255,255,0.1); }
+        .dj-sm-btn:active { transform: scale(0.9); }
+        .dj-outline-btn { transition: all 0.2s ease; }
+        .dj-outline-btn:hover { background: rgba(229,9,20,0.12) !important; border-color: rgba(229,9,20,0.35) !important; color: #fff !important; }
+        .dj-play-btn { transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease; }
+        .dj-play-btn:hover  { transform: scale(1.1); }
+        .dj-play-btn:active { transform: scale(0.96); }
       `}</style>
 
       <div
@@ -577,6 +794,12 @@ export default function VideoPlayer({
           backgroundSize: "200px",
         }} />
 
+        {/* Subtle cinematic vignette */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1,
+          boxShadow: "inset 0 0 140px rgba(0,0,0,0.35)",
+        }} />
+
         {loading   && !fatalError && <LoadingOverlay title={title} poster={poster} />}
         {fatalError && <UnavailableScreen title={title} onClose={onClose} onBack={onBack} onRetry={handleRetry} />}
 
@@ -594,11 +817,12 @@ export default function VideoPlayer({
             {/* Top bar */}
             <div style={{
               background: "linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, transparent 100%)",
+              backdropFilter: "blur(4px)",
               padding: "15px 17px 50px",
               display: "flex", alignItems: "center", gap: 12,
             }}>
               {/* ← Back */}
-              <button onClick={goBack} style={{ ...circleBtn, flexShrink: 0 }} title="Back">
+              <button onClick={goBack} className="dj-icon-btn" style={{ ...circleBtn, flexShrink: 0 }} title="Back">
                 <ChevronLeft size={19} color="rgba(255,255,255,0.85)" />
               </button>
 
@@ -617,41 +841,39 @@ export default function VideoPlayer({
               </div>
 
               {/* X Close */}
-              <button
-                onClick={onClose}
-                style={{ ...circleBtn, flexShrink: 0 }}
-                title="Close"
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,9,20,0.3)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; }}
-              >
+              <button onClick={onClose} className="dj-icon-btn" style={{ ...circleBtn, flexShrink: 0 }} title="Close">
                 <X size={16} color="rgba(255,255,255,0.8)" />
               </button>
             </div>
 
             {/* Center: prev / rewind / big play / forward / next */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 22 }}>
-              {hasPrev && <button onClick={onPrev} style={centerBtn}><SkipBack size={20} color="rgba(255,255,255,0.75)" /></button>}
-              <button onClick={() => skip(-10)} style={centerBtn} title="-10s"><Rewind size={18} color="rgba(255,255,255,0.75)" /></button>
+              {hasPrev && <button onClick={onPrev} className="dj-icon-btn" style={centerBtn}><SkipBack size={20} color="rgba(255,255,255,0.75)" /></button>}
+              <button onClick={() => skip(-10)} className="dj-icon-btn" style={centerBtn} title="-10s"><Rewind size={18} color="rgba(255,255,255,0.75)" /></button>
               <button
                 onClick={togglePlay}
+                className="dj-play-btn"
                 style={{
                   width: 68, height: 68, borderRadius: "50%",
-                  background: "rgba(229,9,20,0.9)", border: "none",
+                  background: "rgba(229,9,20,0.92)", border: "none",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", boxShadow: "0 0 50px rgba(229,9,20,0.4)",
-                  transition: "transform 0.15s",
+                  cursor: "pointer",
+                  animation: playing ? "none" : "pulseGlow 2.4s ease-in-out infinite",
+                  boxShadow: playing ? "0 0 40px rgba(229,9,20,0.35)" : undefined,
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
               >
-                {playing ? <Pause size={27} fill="#fff" color="#fff" /> : <Play size={27} fill="#fff" color="#fff" />}
+                {playing ? <Pause size={27} fill="#fff" color="#fff" /> : <Play size={27} fill="#fff" color="#fff" style={{ marginLeft: 3 }} />}
               </button>
-              <button onClick={() => skip(10)} style={centerBtn} title="+10s"><FastForward size={18} color="rgba(255,255,255,0.75)" /></button>
-              {hasNext && <button onClick={onNext} style={centerBtn}><SkipForward size={20} color="rgba(255,255,255,0.75)" /></button>}
+              <button onClick={() => skip(10)} className="dj-icon-btn" style={centerBtn} title="+10s"><FastForward size={18} color="rgba(255,255,255,0.75)" /></button>
+              {hasNext && <button onClick={onNext} className="dj-icon-btn" style={centerBtn}><SkipForward size={20} color="rgba(255,255,255,0.75)" /></button>}
             </div>
 
             {/* Bottom */}
-            <div style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%)", padding: "50px 18px 16px" }}>
+            <div style={{
+              background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%)",
+              backdropFilter: "blur(4px)",
+              padding: "50px 18px 16px",
+            }}>
               {/* Progress */}
               <div
                 ref={progressRef}
@@ -662,10 +884,10 @@ export default function VideoPlayer({
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.height = "6px"; }}
               >
                 <div style={{ position: "absolute", inset: 0, width: `${buffPct}%`, background: "rgba(255,255,255,0.2)", borderRadius: 99 }} />
-                <div style={{ position: "absolute", inset: 0, width: `${pct}%`,     background: "#e50914", borderRadius: 99, boxShadow: "0 0 8px rgba(229,9,20,0.6)" }} />
-                <div style={{ position: "absolute", top: "50%", left: `${pct}%`, width: 13, height: 13, borderRadius: "50%", background: "#e50914", transform: "translate(-50%,-50%)", boxShadow: "0 0 12px rgba(229,9,20,0.85)" }} />
+                <div style={{ position: "absolute", inset: 0, width: `${pct}%`,     background: "linear-gradient(90deg, #e50914, #ff3b47)", borderRadius: 99, boxShadow: "0 0 10px rgba(229,9,20,0.65)" }} />
+                <div style={{ position: "absolute", top: "50%", left: `${pct}%`, width: 13, height: 13, borderRadius: "50%", background: "#fff", border: "2px solid #e50914", transform: "translate(-50%,-50%)", boxShadow: "0 0 12px rgba(229,9,20,0.85)" }} />
                 {seekHoverPct !== null && (
-                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: `${seekHoverPct}%`, transform: "translateX(-50%)", background: "rgba(0,0,0,0.88)", color: "#fff", fontSize: 11, fontFamily: "var(--font-body)", padding: "3px 7px", borderRadius: 4, pointerEvents: "none", whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: `${seekHoverPct}%`, transform: "translateX(-50%)", background: "rgba(0,0,0,0.9)", color: "#fff", fontSize: 11, fontFamily: "var(--font-body)", padding: "3px 7px", borderRadius: 4, pointerEvents: "none", whiteSpace: "nowrap" }}>
                     {formatTime((seekHoverPct / 100) * duration)}
                   </div>
                 )}
@@ -675,16 +897,16 @@ export default function VideoPlayer({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
                 {/* Left */}
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <button onClick={() => skip(-10)} style={smBtn} title="Back 10s"><Rewind size={15} color="rgba(255,255,255,0.7)" /></button>
-                  <button onClick={togglePlay} style={smBtn}>
+                  <button onClick={() => skip(-10)} className="dj-sm-btn" style={smBtn} title="Back 10s"><Rewind size={15} color="rgba(255,255,255,0.7)" /></button>
+                  <button onClick={togglePlay} className="dj-sm-btn" style={smBtn}>
                     {playing ? <Pause size={17} fill="rgba(255,255,255,0.85)" color="rgba(255,255,255,0.85)" /> : <Play size={17} fill="rgba(255,255,255,0.85)" color="rgba(255,255,255,0.85)" />}
                   </button>
-                  <button onClick={() => skip(10)} style={smBtn} title="Fwd 10s"><FastForward size={15} color="rgba(255,255,255,0.7)" /></button>
+                  <button onClick={() => skip(10)} className="dj-sm-btn" style={smBtn} title="Fwd 10s"><FastForward size={15} color="rgba(255,255,255,0.7)" /></button>
 
                   {/* Volume */}
                   <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 4 }}
                     onMouseEnter={() => setShowVolume(true)} onMouseLeave={() => setShowVolume(false)}>
-                    <button onClick={toggleMute} style={smBtn}>
+                    <button onClick={toggleMute} className="dj-sm-btn" style={smBtn}>
                       {muted || volume === 0 ? <VolumeX size={17} color="rgba(255,255,255,0.7)" /> : <Volume2 size={17} color="rgba(255,255,255,0.7)" />}
                     </button>
                     {showVolume && (
@@ -703,20 +925,20 @@ export default function VideoPlayer({
 
                 {/* Right */}
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <button onClick={togglePiP} style={smBtn} title="Picture in Picture"><PictureInPicture2 size={15} color="rgba(255,255,255,0.6)" /></button>
+                  <button onClick={togglePiP} className="dj-sm-btn" style={smBtn} title="Picture in Picture"><PictureInPicture2 size={15} color="rgba(255,255,255,0.6)" /></button>
 
                   {/* Speed */}
                   <div style={{ position: "relative" }}>
-                    <button onClick={() => setShowSettings(v => !v)} style={{ ...smBtn, background: showSettings ? "rgba(255,255,255,0.08)" : "transparent" }} title="Speed">
+                    <button onClick={() => setShowSettings(v => !v)} className="dj-sm-btn" style={{ ...smBtn, background: showSettings ? "rgba(255,255,255,0.1)" : "transparent" }} title="Speed">
                       <Settings size={15} color="rgba(255,255,255,0.6)" />
                     </button>
                     {showSettings && (
-                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 0, background: "#0e0e10", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "10px 8px", minWidth: 156, boxShadow: "0 20px 60px rgba(0,0,0,0.9)", zIndex: 30 }}>
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 0, background: "rgba(14,14,16,0.96)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 8px", minWidth: 156, boxShadow: "0 20px 60px rgba(0,0,0,0.9)", zIndex: 30 }}>
                         <p style={{ fontSize: 9, letterSpacing: "0.35em", textTransform: "uppercase", color: "rgba(255,255,255,0.26)", margin: "0 0 8px 4px", fontFamily: "var(--font-body)", fontWeight: 700 }}>Speed</p>
                         {[0.5, 0.75, 1, 1.25, 1.5, 2].map(r => (
-                          <button key={r} onClick={() => setRate(r)} style={{
+                          <button key={r} onClick={() => setRate(r)} className="dj-sm-btn" style={{
                             width: "100%", padding: "7px 10px", borderRadius: 6,
-                            background: playbackRate === r ? "rgba(229,9,20,0.12)" : "transparent",
+                            background: playbackRate === r ? "rgba(229,9,20,0.14)" : "transparent",
                             border: playbackRate === r ? "1px solid rgba(229,9,20,0.28)" : "1px solid transparent",
                             color: playbackRate === r ? "#fff" : "rgba(255,255,255,0.42)",
                             fontSize: 12.5, fontFamily: "var(--font-body)", fontWeight: 500,
@@ -731,7 +953,7 @@ export default function VideoPlayer({
                     )}
                   </div>
 
-                  <button onClick={toggleFS} style={smBtn} title={fullscreen ? "Exit fullscreen" : "Fullscreen"}>
+                  <button onClick={toggleFS} className="dj-sm-btn" style={smBtn} title={fullscreen ? "Exit fullscreen" : "Fullscreen"}>
                     {fullscreen ? <Minimize size={15} color="rgba(255,255,255,0.7)" /> : <Maximize size={15} color="rgba(255,255,255,0.7)" />}
                   </button>
                 </div>
@@ -755,7 +977,7 @@ const circleBtn: React.CSSProperties = {
   width: 38, height: 38, borderRadius: "50%",
   background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
   display: "flex", alignItems: "center", justifyContent: "center",
-  cursor: "pointer", transition: "background 0.2s",
+  cursor: "pointer",
 };
 
 const centerBtn: React.CSSProperties = {
@@ -769,7 +991,7 @@ const smBtn: React.CSSProperties = {
   width: 34, height: 34, borderRadius: 8,
   background: "transparent", border: "none",
   display: "flex", alignItems: "center", justifyContent: "center",
-  cursor: "pointer", transition: "background 0.15s",
+  cursor: "pointer",
 };
 
 const outlineBtn: React.CSSProperties = {
@@ -780,7 +1002,6 @@ const outlineBtn: React.CSSProperties = {
   fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600,
   letterSpacing: "0.12em", textTransform: "uppercase",
   display: "flex", alignItems: "center", gap: 7,
-  transition: "all 0.2s",
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
